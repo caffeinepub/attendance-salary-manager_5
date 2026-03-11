@@ -76,13 +76,6 @@ export function ContractsTab({ mode }: Props) {
     await load();
   };
 
-  const handleDelete = async (id: bigint) => {
-    if (!confirm("Delete this contract?")) return;
-    await actor?.deleteContract(id);
-    setSelected(null);
-    await load();
-  };
-
   const openEdit = (c: Contract) => {
     setEditContract(c);
     setEditForm({
@@ -200,19 +193,6 @@ export function ContractsTab({ mode }: Props) {
                   }}
                 >
                   Edit
-                </button>
-                <button
-                  type="button"
-                  data-ocid="contract.delete.button"
-                  onClick={() => handleDelete(selected.id)}
-                  className="text-xs px-3 py-1 rounded"
-                  style={{
-                    background: "#FEE2E2",
-                    color: "#DC2626",
-                    border: "1px solid #FCA5A5",
-                  }}
-                >
-                  Delete
                 </button>
               </div>
             )}
