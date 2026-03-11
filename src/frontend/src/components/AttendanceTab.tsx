@@ -31,22 +31,16 @@ function BadgeCell({ val }: { val: string }) {
   let label: string;
 
   if (val === "Present") {
-    bg = "#EFF6FF";
-    color = "#1D4ED8";
+    bg = "#DCFCE7";
+    color = "#16A34A";
     label = "Present";
   } else if (val === "Absent") {
-    bg = "#FFF7ED";
-    color = "#EA580C";
+    bg = "#FEE2E2";
+    color = "#DC2626";
     label = "Absent";
   } else {
-    const n = Number.parseFloat(val);
-    if (n >= 0.5) {
-      bg = "#FFFBEB";
-      color = "#D97706";
-    } else {
-      bg = "#FFF7ED";
-      color = "#EA580C";
-    }
+    bg = "#FFF7ED";
+    color = "#EA580C";
     label = val;
   }
 

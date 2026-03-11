@@ -380,7 +380,6 @@ export function PaymentsTab() {
                       {c.name}
                     </th>
                   ))}
-                  <th style={TH_DARK}>Attendance</th>
                   <th style={{ ...TH_DARK, color: "#FCA5A5" }}>Advances</th>
                   <th
                     style={{
@@ -443,9 +442,6 @@ export function PaymentsTab() {
                           </td>
                         );
                       })}
-                      <td style={{ ...TD, color: "#16A34A", fontWeight: 700 }}>
-                        ₹{lp.totalAttendance.toFixed(0)}
-                      </td>
                       <td style={{ ...TD, color: "#DC2626", fontWeight: 700 }}>
                         ₹{lp.totalAdvances.toLocaleString()}
                       </td>
@@ -662,19 +658,6 @@ export function PaymentsTab() {
                         .toFixed(0)}
                     </td>
                   ))}
-                  <td
-                    style={{
-                      ...TD,
-                      color: "#86EFAC",
-                      fontWeight: 800,
-                      borderBottom: "none",
-                    }}
-                  >
-                    ₹
-                    {payments
-                      .reduce((s, lp) => s + lp.totalAttendance, 0)
-                      .toFixed(0)}
-                  </td>
                   <td
                     style={{
                       ...TD,
