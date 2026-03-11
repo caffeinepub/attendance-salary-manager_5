@@ -31,12 +31,12 @@ function BadgeCell({ val }: { val: string }) {
   let label: string;
 
   if (val === "Present") {
-    bg = "#F0FDF4";
-    color = "#16A34A";
+    bg = "#EFF6FF";
+    color = "#1D4ED8";
     label = "Present";
   } else if (val === "Absent") {
-    bg = "#FEF2F2";
-    color = "#DC2626";
+    bg = "#FFF7ED";
+    color = "#EA580C";
     label = "Absent";
   } else {
     const n = Number.parseFloat(val);
@@ -373,7 +373,7 @@ export function AttendanceTab({ mode }: Props) {
           >
             {[
               { label: "Labours", value: labours.length, color: "#F97316" },
-              { label: "Present Today", value: presentCount, color: "#16A34A" },
+              { label: "Present Today", value: presentCount, color: "#1D4ED8" },
               {
                 label: "Bed Pool",
                 value: `₹${Number(contract.bedAmount).toLocaleString()}`,
