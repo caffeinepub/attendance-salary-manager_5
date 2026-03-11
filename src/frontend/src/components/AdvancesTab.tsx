@@ -25,13 +25,13 @@ export function AdvancesTab({ mode }: Props) {
   const [editingId, setEditingId] = useState<bigint | null>(null);
   const [editForm, setEditForm] = useState({ amount: "", note: "" });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: actor is intentionally excluded
   useEffect(() => {
+    if (!actor) return;
     actor
-      ?.getAllContracts()
+      .getAllContracts()
       .then((cs) => setContracts(cs.filter((c) => !c.isSettled)));
-    actor?.getAllLabours().then(setLabours);
-  }, []);
+    actor.getAllLabours().then(setLabours);
+  }, [actor]);
 
   const load = async (contractId: bigint) => {
     const adv = await actor?.getAdvancesByContract(contractId);

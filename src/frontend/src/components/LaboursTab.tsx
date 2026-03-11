@@ -17,10 +17,10 @@ export function LaboursTab({ mode }: Props) {
   const [editForm, setEditForm] = useState({ name: "", phone: "" });
 
   const load = () => actor?.getAllLabours().then(setLabours);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load is stable
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load captures actor from closure
   useEffect(() => {
-    load();
-  }, []);
+    if (actor) load();
+  }, [actor]);
 
   const handleAdd = async () => {
     if (!addForm.name.trim()) return;

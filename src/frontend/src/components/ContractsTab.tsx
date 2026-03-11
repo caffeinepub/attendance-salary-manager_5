@@ -40,19 +40,20 @@ export function ContractsTab({ mode }: Props) {
   });
 
   const load = async () => {
+    if (!actor) return;
     setLoading(true);
     try {
-      const all = await actor?.getAllContracts();
+      const all = await actor.getAllContracts();
       setContracts((all ?? []).filter((c) => !c.isSettled));
     } finally {
       setLoading(false);
     }
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load is stable
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load captures actor from closure
   useEffect(() => {
-    load();
-  }, []);
+    if (actor) load();
+  }, [actor]);
 
   const calcBed = (m: number) => Math.round(11000 * m);
   const calcPaper = (m: number) => Math.round(7000 * m);

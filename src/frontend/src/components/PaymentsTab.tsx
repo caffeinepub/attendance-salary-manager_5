@@ -30,13 +30,13 @@ export function PaymentsTab() {
     new Set(),
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: actor is intentionally excluded
   useEffect(() => {
+    if (!actor) return;
     actor
-      ?.getAllContracts()
+      .getAllContracts()
       .then((cs) => setContracts(cs.filter((c) => !c.isSettled)));
-    actor?.getAllLabours().then(setLabours);
-  }, []);
+    actor.getAllLabours().then(setLabours);
+  }, [actor]);
 
   const toggleContract = (id: string) => {
     setSelectedIds((prev) => {

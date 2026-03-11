@@ -79,6 +79,7 @@ export function AttendanceTab({ mode }: Props) {
   );
   const [contract, setContract] = useState<Contract | null>(null);
   const [attendance, setAttendance] = useState<Map<string, string>>(new Map());
+  const [saving, setSaving] = useState(false);
   const [meshCols, setMeshCols] = useState<string[]>([]);
   const [renamingCol, setRenamingCol] = useState<number | null>(null);
   const [renameVal, setRenameVal] = useState("");
@@ -114,21 +115,8 @@ export function AttendanceTab({ mode }: Props) {
   const getVal = (labourId: bigint, colKey: string) =>
     attendance.get(`${labourId}_${colKey}`) || "Absent";
 
-  const setVal = async (labourId: bigint, colKey: string, val: string) => {
+  const setVal = (labourId: bigint, colKey: string, val: string) => {
     setAttendance((prev) => new Map(prev).set(`${labourId}_${colKey}`, val));
-    if (!selectedContractId || !actor) return;
-    let colType:
-      | { __kind__: "bed"; bed: null }
-      | { __kind__: "paper"; paper: null }
-      | { __kind__: "mesh"; mesh: bigint };
-    if (colKey === "bed") colType = { __kind__: "bed", bed: null };
-    else if (colKey === "paper") colType = { __kind__: "paper", paper: null };
-    else
-      colType = {
-        __kind__: "mesh",
-        mesh: BigInt(Number.parseInt(colKey.replace("mesh_", ""))),
-      };
-    await actor.saveAttendance(selectedContractId, labourId, colType, val);
   };
 
   const colSum = (colKey: string) =>
@@ -159,6 +147,40 @@ export function AttendanceTab({ mode }: Props) {
         ? (labourMesh / meshTotal) * Number(contract.meshAmount)
         : 0;
     return bedS + papS + meshS;
+  };
+
+  const handleSave = async () => {
+    if (!selectedContractId) return;
+    setSaving(true);
+    try {
+      for (const labour of labours) {
+        const bedVal = getVal(labour.id, "bed");
+        await actor?.saveAttendance(
+          selectedContractId,
+          labour.id,
+          { __kind__: "bed", bed: null },
+          bedVal,
+        );
+        const papVal = getVal(labour.id, "paper");
+        await actor?.saveAttendance(
+          selectedContractId,
+          labour.id,
+          { __kind__: "paper", paper: null },
+          papVal,
+        );
+        for (let i = 0; i < meshCols.length; i++) {
+          const meshVal = getVal(labour.id, `mesh_${i}`);
+          await actor?.saveAttendance(
+            selectedContractId,
+            labour.id,
+            { __kind__: "mesh", mesh: BigInt(i) },
+            meshVal,
+          );
+        }
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addMeshCol = async () => {
@@ -615,9 +637,9 @@ export function AttendanceTab({ mode }: Props) {
                                   fontWeight: 600,
                                 }}
                                 value={val}
-                                onChange={(e) => {
-                                  setVal(labour.id, colKey, e.target.value);
-                                }}
+                                onChange={(e) =>
+                                  setVal(labour.id, colKey, e.target.value)
+                                }
                               >
                                 {ATTENDANCE_VALUES.map((v) => (
                                   <option key={v} value={v}>
@@ -728,6 +750,33 @@ export function AttendanceTab({ mode }: Props) {
               </tbody>
             </table>
           </div>
+
+          {mode === "edit" && (
+            <button
+              type="button"
+              data-ocid="attendance.save.button"
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                marginTop: 16,
+                background: saving
+                  ? "#CBD5E1"
+                  : "linear-gradient(135deg, #F97316, #EA580C)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 999,
+                padding: "10px 28px",
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: saving ? "not-allowed" : "pointer",
+                boxShadow: saving ? "none" : "0 4px 16px rgba(249,115,22,0.40)",
+                letterSpacing: "0.02em",
+                transition: "all 0.2s",
+              }}
+            >
+              {saving ? "Saving…" : "Save Attendance"}
+            </button>
+          )}
         </>
       )}
     </div>

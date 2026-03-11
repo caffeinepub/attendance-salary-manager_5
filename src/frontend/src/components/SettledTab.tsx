@@ -14,15 +14,16 @@ export function SettledTab({ mode }: Props) {
   const [unsettled, setUnsettled] = useState<Contract[]>([]);
 
   const load = async () => {
-    const all = (await actor?.getAllContracts()) ?? [];
+    if (!actor) return;
+    const all = (await actor.getAllContracts()) ?? [];
     setSettled(all.filter((c) => c.isSettled));
     setUnsettled(all.filter((c) => !c.isSettled));
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load is intentionally stable
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load captures actor from closure
   useEffect(() => {
-    load();
-  }, []);
+    if (actor) load();
+  }, [actor]);
 
   const handleSettle = async (id: bigint) => {
     await actor?.settleContract(id);
