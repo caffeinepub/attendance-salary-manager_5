@@ -1,3 +1,4 @@
+import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import type { AppMode } from "../App";
 import type { Attendance, Contract, Labour } from "../backend.d";
@@ -61,6 +62,43 @@ function BadgeCell({ val }: { val: string }) {
       {label}
     </span>
   );
+}
+
+function getSelectStyle(val: string): React.CSSProperties {
+  if (val === "Present") {
+    return {
+      background: "#DCFCE7",
+      border: "1.5px solid #16A34A",
+      color: "#15803D",
+      borderRadius: 8,
+      padding: "4px 8px",
+      fontSize: 12,
+      cursor: "pointer",
+      fontWeight: 700,
+    };
+  }
+  if (val === "Absent") {
+    return {
+      background: "#FEE2E2",
+      border: "1.5px solid #DC2626",
+      color: "#B91C1C",
+      borderRadius: 8,
+      padding: "4px 8px",
+      fontSize: 12,
+      cursor: "pointer",
+      fontWeight: 700,
+    };
+  }
+  return {
+    background: "#FFF7ED",
+    border: "1.5px solid #EA580C",
+    color: "#C2410C",
+    borderRadius: 8,
+    padding: "4px 8px",
+    fontSize: 12,
+    cursor: "pointer",
+    fontWeight: 700,
+  };
 }
 
 export function AttendanceTab({ mode }: Props) {
@@ -620,16 +658,7 @@ export function AttendanceTab({ mode }: Props) {
                             {mode === "edit" ? (
                               <select
                                 data-ocid={`attendance.${colKey}.select.${idx + 1}`}
-                                style={{
-                                  background: "#F8FAFC",
-                                  border: "1px solid #CBD5E1",
-                                  color: "#0F172A",
-                                  borderRadius: 8,
-                                  padding: "4px 8px",
-                                  fontSize: 12,
-                                  cursor: "pointer",
-                                  fontWeight: 600,
-                                }}
+                                style={getSelectStyle(val)}
                                 value={val}
                                 onChange={(e) =>
                                   setVal(labour.id, colKey, e.target.value)

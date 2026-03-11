@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
-import type { Contract, Labour, SalaryBreakdown } from "../backend.d";
+import type { Advance, Attendance, Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+
+function attendanceNum(v: string): number {
+  if (v === "Present" || v === "present") return 1;
+  if (v === "Absent" || v === "absent") return 0;
+  return Number.parseFloat(v) || 0;
+}
 
 interface LabourPayment {
   labourId: bigint;
   labourName: string;
-  contractBreakdowns: {
-    contractId: bigint;
-    contractName: string;
-    netSalary: bigint;
-    bedSalary: bigint;
-    paperSalary: bigint;
-    meshSalary: bigint;
-  }[];
-  totalAttendance: number;
+  contractSalaries: Map<string, number>; // contractId -> net salary for that contract
+  totalGross: number;
   totalAdvances: number;
   finalPayment: number;
 }
@@ -26,9 +25,6 @@ export function PaymentsTab() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [payments, setPayments] = useState<LabourPayment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [expandedLabours, setExpandedLabours] = useState<Set<string>>(
-    new Set(),
-  );
 
   useEffect(() => {
     if (!actor) return;
@@ -48,78 +44,135 @@ export function PaymentsTab() {
   };
 
   const calculate = async () => {
+    if (!actor) return;
     setLoading(true);
     try {
-      const allBreakdowns: {
-        contractId: bigint;
-        contractName: string;
-        breakdown: SalaryBreakdown[];
-      }[] = [];
-      for (const idStr of selectedIds) {
-        const cid = BigInt(idStr);
-        const contract = contracts.find((c) => String(c.id) === idStr);
-        if (!contract) continue;
-        const bd = (await actor?.calculateNetSalaries(cid)) ?? [];
-        allBreakdowns.push({
-          contractId: cid,
-          contractName: contract.name,
-          breakdown: bd,
-        });
-      }
-
+      // For each selected contract, fetch attendance + advances and compute salary
+      // using the same proportional formula as AttendanceTab
       const labourMap = new Map<string, LabourPayment>();
+
+      // Initialize all labours
       for (const l of labours) {
         labourMap.set(String(l.id), {
           labourId: l.id,
           labourName: l.name,
-          contractBreakdowns: [],
-          totalAttendance: 0,
+          contractSalaries: new Map(),
+          totalGross: 0,
           totalAdvances: 0,
           finalPayment: 0,
         });
       }
 
-      for (const { contractId, contractName, breakdown } of allBreakdowns) {
-        for (const item of breakdown) {
-          const key = String(item.labourId);
-          if (!labourMap.has(key)) {
-            labourMap.set(key, {
-              labourId: item.labourId,
-              labourName: item.labourName,
-              contractBreakdowns: [],
-              totalAttendance: 0,
+      for (const idStr of selectedIds) {
+        const cid = BigInt(idStr);
+        const contract = contracts.find((c) => String(c.id) === idStr);
+        if (!contract) continue;
+
+        // Fetch attendance and advances for this contract
+        const [attendanceList, advancesList] = await Promise.all([
+          actor.getAttendanceByContract(cid),
+          actor.getAdvancesByContract(cid),
+        ]);
+
+        // Build attendance map: labourId -> { bed, paper, mesh_0, mesh_1, ... }
+        const attMap = new Map<string, Map<string, string>>();
+        for (const a of attendanceList) {
+          const lid = String(a.labourId);
+          if (!attMap.has(lid)) attMap.set(lid, new Map());
+          const colKey = getColKey(a);
+          attMap.get(lid)!.set(colKey, a.value);
+        }
+
+        // Build column keys list from contract
+        const colKeys: string[] = [];
+        if (Number(contract.bedAmount) > 0) colKeys.push("bed");
+        if (Number(contract.paperAmount) > 0) colKeys.push("paper");
+        for (let i = 0; i < contract.meshColumns.length; i++) {
+          colKeys.push(`mesh_${i}`);
+        }
+
+        const getVal = (labourId: bigint, colKey: string): string => {
+          return attMap.get(String(labourId))?.get(colKey) ?? "Absent";
+        };
+
+        // Compute column totals (same as AttendanceTab colSum)
+        const colSum = (colKey: string): number =>
+          labours.reduce((s, l) => s + attendanceNum(getVal(l.id, colKey)), 0);
+
+        const meshTotal = contract.meshColumns.reduce((s, _, i) => {
+          return s + colSum(`mesh_${i}`);
+        }, 0);
+
+        // Compute advances per labour for this contract
+        const advanceMap = new Map<string, number>();
+        for (const adv of advancesList) {
+          const lid = String(adv.labourId);
+          advanceMap.set(lid, (advanceMap.get(lid) ?? 0) + Number(adv.amount));
+        }
+
+        // Calculate net salary per labour for this contract (same as AttendanceTab netSalary)
+        for (const l of labours) {
+          const lid = String(l.id);
+
+          const bedSum = colSum("bed");
+          const paperSum = colSum("paper");
+
+          const bedSal =
+            bedSum > 0
+              ? (attendanceNum(getVal(l.id, "bed")) / bedSum) *
+                Number(contract.bedAmount)
+              : 0;
+
+          const paperSal =
+            paperSum > 0
+              ? (attendanceNum(getVal(l.id, "paper")) / paperSum) *
+                Number(contract.paperAmount)
+              : 0;
+
+          const labourMesh = contract.meshColumns.reduce(
+            (s, _, i) => s + attendanceNum(getVal(l.id, `mesh_${i}`)),
+            0,
+          );
+          const meshSal =
+            meshTotal > 0
+              ? (labourMesh / meshTotal) * Number(contract.meshAmount)
+              : 0;
+
+          const netSalary = bedSal + paperSal + meshSal;
+
+          if (!labourMap.has(lid)) {
+            labourMap.set(lid, {
+              labourId: l.id,
+              labourName: l.name,
+              contractSalaries: new Map(),
+              totalGross: 0,
               totalAdvances: 0,
               finalPayment: 0,
             });
           }
-          const lp = labourMap.get(key)!;
-          lp.contractBreakdowns.push({
-            contractId,
-            contractName,
-            netSalary: item.netSalary,
-            bedSalary: item.bedSalary,
-            paperSalary: item.paperSalary,
-            meshSalary: item.meshSalary,
-          });
-          lp.totalAttendance += Number(item.totalAttendanceSalary);
-          lp.totalAdvances += Number(item.totalAdvances);
-          lp.finalPayment += Number(item.netSalary);
+
+          const lp = labourMap.get(lid)!;
+          lp.contractSalaries.set(idStr, netSalary);
+          lp.totalGross += netSalary;
+
+          // Add advances for this contract
+          lp.totalAdvances += advanceMap.get(lid) ?? 0;
         }
       }
 
-      setPayments(Array.from(labourMap.values()));
+      // Compute final payment
+      for (const lp of labourMap.values()) {
+        lp.finalPayment = lp.totalGross - lp.totalAdvances;
+      }
+
+      // Only include labours who have at least one contract salary > 0
+      const result = Array.from(labourMap.values()).filter(
+        (lp) => lp.totalGross > 0 || lp.totalAdvances > 0,
+      );
+      setPayments(result);
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleBreakdown = (id: string) => {
-    setExpandedLabours((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   };
 
   const selectedContracts = contracts.filter((c) =>
@@ -170,7 +223,7 @@ export function PaymentsTab() {
           Payments Sheet
         </h2>
         <p style={{ fontSize: 12, color: "#64748B", margin: 0, marginTop: 2 }}>
-          Net salary minus advances — final payment per labour
+          Net salary per contract minus advances
         </p>
       </div>
 
@@ -286,7 +339,7 @@ export function PaymentsTab() {
         </button>
       </div>
 
-      {/* Stats Bar — shown after calculation */}
+      {/* Stats Bar */}
       {payments.length > 0 && (
         <>
           <div
@@ -388,235 +441,57 @@ export function PaymentsTab() {
                       borderRadius: "0 14px 0 0",
                     }}
                   >
-                    Final Payment
-                  </th>
-                  <th
-                    style={{
-                      ...TH_DARK,
-                      borderRadius:
-                        selectedContracts.length === 0
-                          ? "0 14px 0 0"
-                          : undefined,
-                    }}
-                  >
-                    Detail
+                    Net Pay
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {payments.map((lp, i) => (
-                  <>
-                    <tr
-                      key={String(lp.labourId)}
-                      data-ocid={`payments.item.${i + 1}`}
+                  <tr
+                    key={String(lp.labourId)}
+                    data-ocid={`payments.item.${i + 1}`}
+                    style={{
+                      background: i % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
+                    }}
+                  >
+                    <td
                       style={{
-                        background: i % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
-                        transition: "background 0.15s",
+                        ...TD,
+                        position: "sticky",
+                        left: 0,
+                        background: "#EFF6FF",
+                        zIndex: 1,
+                        fontWeight: 700,
+                        color: "#0F172A",
                       }}
                     >
-                      <td
-                        style={{
-                          ...TD,
-                          position: "sticky",
-                          left: 0,
-                          background: "#EFF6FF",
-                          zIndex: 1,
-                          fontWeight: 700,
-                          color: "#0F172A",
-                        }}
-                      >
-                        {lp.labourName}
-                      </td>
-                      {selectedContracts.map((c) => {
-                        const cbd = lp.contractBreakdowns.find(
-                          (b) => String(b.contractId) === String(c.id),
-                        );
-                        return (
-                          <td
-                            key={String(c.id)}
-                            style={{ ...TD, color: "#334155" }}
-                          >
-                            {cbd
-                              ? `₹${Number(cbd.netSalary).toLocaleString()}`
-                              : "—"}
-                          </td>
-                        );
-                      })}
-                      <td style={{ ...TD, color: "#DC2626", fontWeight: 700 }}>
-                        ₹{lp.totalAdvances.toLocaleString()}
-                      </td>
-                      <td
-                        style={{
-                          ...TD,
-                          color: "#F97316",
-                          fontWeight: 800,
-                          fontSize: 15,
-                        }}
-                      >
-                        ₹{lp.finalPayment.toFixed(0)}
-                      </td>
-                      <td style={TD}>
-                        <button
-                          type="button"
-                          data-ocid={`payments.breakdown.button.${i + 1}`}
-                          onClick={() => toggleBreakdown(String(lp.labourId))}
-                          style={{
-                            background: expandedLabours.has(String(lp.labourId))
-                              ? "#F97316"
-                              : "#FFF7ED",
-                            color: expandedLabours.has(String(lp.labourId))
-                              ? "#FFFFFF"
-                              : "#F97316",
-                            border: "1.5px solid #F97316",
-                            borderRadius: 999,
-                            padding: "4px 12px",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            transition: "all 0.15s",
-                            letterSpacing: "0.02em",
-                          }}
-                        >
-                          {expandedLabours.has(String(lp.labourId))
-                            ? "▲ Hide"
-                            : "▼ Show"}
-                        </button>
-                      </td>
-                    </tr>
-
-                    {expandedLabours.has(String(lp.labourId)) && (
-                      <tr key={`${String(lp.labourId)}_bd`}>
+                      {lp.labourName}
+                    </td>
+                    {selectedContracts.map((c) => {
+                      const sal = lp.contractSalaries.get(String(c.id)) ?? 0;
+                      return (
                         <td
-                          colSpan={selectedContracts.length + 5}
-                          style={{
-                            padding: "0",
-                            borderBottom: "1px solid #E2E8F0",
-                          }}
+                          key={String(c.id)}
+                          style={{ ...TD, color: "#334155" }}
                         >
-                          <div
-                            style={{
-                              background:
-                                "linear-gradient(135deg, #EDE9FE 0%, #F0F9FF 100%)",
-                              padding: "14px 20px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                background: "#FFFFFF",
-                                borderRadius: 10,
-                                padding: "12px 16px",
-                                boxShadow: "0 2px 8px rgba(124,58,237,0.08)",
-                                border: "1px solid #DDD6FE",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                  color: "#7C3AED",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                  marginBottom: 10,
-                                }}
-                              >
-                                Salary Breakdown — {lp.labourName}
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 8,
-                                }}
-                              >
-                                {lp.contractBreakdowns.map((b) => (
-                                  <div
-                                    key={String(b.contractId)}
-                                    style={{
-                                      display: "flex",
-                                      gap: 12,
-                                      flexWrap: "wrap",
-                                      alignItems: "center",
-                                      padding: "6px 10px",
-                                      background: "#F8FAFC",
-                                      borderRadius: 8,
-                                      border: "1px solid #E2E8F0",
-                                    }}
-                                  >
-                                    <span
-                                      style={{
-                                        fontWeight: 800,
-                                        color: "#0F172A",
-                                        fontSize: 12,
-                                        minWidth: 120,
-                                      }}
-                                    >
-                                      {b.contractName}
-                                    </span>
-                                    {[
-                                      {
-                                        label: "Bed",
-                                        val: b.bedSalary,
-                                        color: "#7C3AED",
-                                      },
-                                      {
-                                        label: "Paper",
-                                        val: b.paperSalary,
-                                        color: "#0EA5E9",
-                                      },
-                                      {
-                                        label: "Mesh",
-                                        val: b.meshSalary,
-                                        color: "#10B981",
-                                      },
-                                    ].map((item) => (
-                                      <span
-                                        key={item.label}
-                                        style={{
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: 4,
-                                          fontSize: 12,
-                                          color: "#475569",
-                                        }}
-                                      >
-                                        <span
-                                          style={{
-                                            width: 6,
-                                            height: 6,
-                                            borderRadius: "50%",
-                                            background: item.color,
-                                            display: "inline-block",
-                                          }}
-                                        />
-                                        {item.label}:{" "}
-                                        <strong style={{ color: item.color }}>
-                                          ₹{Number(item.val).toFixed(0)}
-                                        </strong>
-                                      </span>
-                                    ))}
-                                    <span
-                                      style={{
-                                        marginLeft: "auto",
-                                        fontWeight: 800,
-                                        color: "#F97316",
-                                        fontSize: 13,
-                                        background: "#FFF7ED",
-                                        padding: "3px 10px",
-                                        borderRadius: 999,
-                                        border: "1px solid #FED7AA",
-                                      }}
-                                    >
-                                      Net: ₹{Number(b.netSalary).toFixed(0)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
+                          {sal > 0 ? `₹${sal.toFixed(0)}` : "—"}
                         </td>
-                      </tr>
-                    )}
-                  </>
+                      );
+                    })}
+                    <td style={{ ...TD, color: "#DC2626", fontWeight: 700 }}>
+                      ₹{lp.totalAdvances.toLocaleString()}
+                    </td>
+                    <td
+                      style={{
+                        ...TD,
+                        color: "#F97316",
+                        fontWeight: 800,
+                        fontSize: 15,
+                      }}
+                    >
+                      ₹{lp.finalPayment.toFixed(0)}
+                    </td>
+                  </tr>
                 ))}
 
                 {/* Totals Row */}
@@ -649,12 +524,11 @@ export function PaymentsTab() {
                     >
                       ₹
                       {payments
-                        .reduce((s, lp) => {
-                          const cbd = lp.contractBreakdowns.find(
-                            (b) => String(b.contractId) === String(c.id),
-                          );
-                          return s + (cbd ? Number(cbd.netSalary) : 0);
-                        }, 0)
+                        .reduce(
+                          (s, lp) =>
+                            s + (lp.contractSalaries.get(String(c.id)) ?? 0),
+                          0,
+                        )
                         .toFixed(0)}
                     </td>
                   ))}
@@ -682,7 +556,6 @@ export function PaymentsTab() {
                   >
                     ₹{totalFinal.toFixed(0)}
                   </td>
-                  <td style={{ ...TD, borderBottom: "none" }} />
                 </tr>
               </tbody>
             </table>
@@ -691,4 +564,12 @@ export function PaymentsTab() {
       )}
     </div>
   );
+}
+
+function getColKey(a: Attendance): string {
+  const ct = a.columnType;
+  if (ct.__kind__ === "bed") return "bed";
+  if (ct.__kind__ === "paper") return "paper";
+  if (ct.__kind__ === "mesh") return `mesh_${Number(ct.mesh)}`;
+  return "bed";
 }
