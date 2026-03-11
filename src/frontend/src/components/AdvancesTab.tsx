@@ -58,15 +58,15 @@ export function AdvancesTab({ mode }: Props) {
   };
 
   const inputStyle = {
-    background: "#1e1e1e",
-    border: "1px solid #444",
-    color: "#f5f5f5",
+    background: "#FFFFFF",
+    border: "1px solid #E5E5E5",
+    color: "#1F1F1F",
     borderRadius: 6,
     padding: "6px 10px",
     width: "100%",
   };
   const labelStyle = {
-    color: "#aaa",
+    color: "#9E9E9E",
     fontSize: 12,
     marginBottom: 2,
     display: "block" as const,
@@ -76,14 +76,15 @@ export function AdvancesTab({ mode }: Props) {
     textAlign: "left",
     fontWeight: 600,
     fontSize: 12,
-    color: "#aaa",
-    background: "#252525",
-    borderBottom: "1px solid #3a3a3a",
+    color: "#9E9E9E",
+    background: "#F2F2F2",
+    borderBottom: "1px solid #E5E5E5",
   };
   const tdStyle: React.CSSProperties = {
     padding: "8px 12px",
-    borderBottom: "1px solid #2a2a2a",
+    borderBottom: "1px solid #E5E5E5",
     fontSize: 13,
+    color: "#1F1F1F",
   };
 
   const getLabourName = (id: bigint) =>
@@ -92,7 +93,9 @@ export function AdvancesTab({ mode }: Props) {
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-lg font-bold">Advances</h2>
+        <h2 className="text-lg font-bold" style={{ color: "#1F1F1F" }}>
+          Advances
+        </h2>
         <select
           data-ocid="advances.contract.select"
           value={selectedContractId ? String(selectedContractId) : ""}
@@ -100,9 +103,9 @@ export function AdvancesTab({ mode }: Props) {
             handleSelectContract(e.target.value ? BigInt(e.target.value) : null)
           }
           style={{
-            background: "#1e1e1e",
-            border: "1px solid #444",
-            color: "#f5f5f5",
+            background: "#FFFFFF",
+            border: "1px solid #E5E5E5",
+            color: "#1F1F1F",
             borderRadius: 6,
             padding: "6px 10px",
             minWidth: 200,
@@ -121,7 +124,7 @@ export function AdvancesTab({ mode }: Props) {
             data-ocid="advances.add.button"
             onClick={() => setShowAdd((v) => !v)}
             className="text-sm px-3 py-2 rounded"
-            style={{ background: "#f97316", color: "#fff" }}
+            style={{ background: "#FF7F11", color: "#fff" }}
           >
             + Add Advance
           </button>
@@ -131,11 +134,11 @@ export function AdvancesTab({ mode }: Props) {
       {showAdd && mode === "edit" && (
         <div
           className="rounded-xl p-4 mb-4 max-w-sm"
-          style={{ background: "#2a2a2a", border: "1px solid #3a3a3a" }}
+          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
         >
           <h3
             className="text-sm font-semibold mb-3"
-            style={{ color: "#f97316" }}
+            style={{ color: "#FF7F11" }}
           >
             New Advance
           </h3>
@@ -186,7 +189,7 @@ export function AdvancesTab({ mode }: Props) {
               data-ocid="advances.add.submit.button"
               onClick={handleAdd}
               className="py-2 rounded font-semibold"
-              style={{ background: "#f97316", color: "#fff" }}
+              style={{ background: "#FF7F11", color: "#fff" }}
             >
               Save
             </button>
@@ -210,7 +213,11 @@ export function AdvancesTab({ mode }: Props) {
                 <tr>
                   <td
                     colSpan={4}
-                    style={{ ...tdStyle, color: "#666", textAlign: "center" }}
+                    style={{
+                      ...tdStyle,
+                      color: "#9E9E9E",
+                      textAlign: "center",
+                    }}
                     data-ocid="advances.empty_state"
                   >
                     No advances recorded.
@@ -221,7 +228,7 @@ export function AdvancesTab({ mode }: Props) {
                 <tr
                   key={String(adv.id)}
                   data-ocid={`advances.item.${i + 1}`}
-                  style={{ background: i % 2 === 0 ? "#242424" : "#222" }}
+                  style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}
                 >
                   <td style={tdStyle}>{getLabourName(adv.labourId)}</td>
                   {editingId === adv.id ? (
@@ -230,9 +237,9 @@ export function AdvancesTab({ mode }: Props) {
                         <input
                           type="number"
                           style={{
-                            background: "#1e1e1e",
-                            border: "1px solid #444",
-                            color: "#f5f5f5",
+                            background: "#FFFFFF",
+                            border: "1px solid #E5E5E5",
+                            color: "#1F1F1F",
                             borderRadius: 4,
                             padding: "3px 6px",
                             width: 100,
@@ -249,9 +256,9 @@ export function AdvancesTab({ mode }: Props) {
                       <td style={tdStyle}>
                         <input
                           style={{
-                            background: "#1e1e1e",
-                            border: "1px solid #444",
-                            color: "#f5f5f5",
+                            background: "#FFFFFF",
+                            border: "1px solid #E5E5E5",
+                            color: "#1F1F1F",
                             borderRadius: 4,
                             padding: "3px 6px",
                             width: 140,
@@ -285,7 +292,7 @@ export function AdvancesTab({ mode }: Props) {
                             setEditingId(null);
                           }}
                           className="text-xs px-2 py-1 rounded mr-1"
-                          style={{ background: "#f97316", color: "#fff" }}
+                          style={{ background: "#FF7F11", color: "#fff" }}
                         >
                           Save
                         </button>
@@ -293,7 +300,11 @@ export function AdvancesTab({ mode }: Props) {
                           type="button"
                           onClick={() => setEditingId(null)}
                           className="text-xs px-2 py-1 rounded"
-                          style={{ background: "#333", color: "#aaa" }}
+                          style={{
+                            background: "#F2F2F2",
+                            color: "#9E9E9E",
+                            border: "1px solid #E5E5E5",
+                          }}
                         >
                           Cancel
                         </button>
@@ -301,10 +312,12 @@ export function AdvancesTab({ mode }: Props) {
                     </>
                   ) : (
                     <>
-                      <td style={{ ...tdStyle, color: "#f97316" }}>
+                      <td style={{ ...tdStyle, color: "#FF7F11" }}>
                         ₹{Number(adv.amount).toLocaleString()}
                       </td>
-                      <td style={{ ...tdStyle, color: "#aaa" }}>{adv.note}</td>
+                      <td style={{ ...tdStyle, color: "#9E9E9E" }}>
+                        {adv.note}
+                      </td>
                       {mode === "edit" && (
                         <td style={tdStyle}>
                           <button
@@ -319,9 +332,9 @@ export function AdvancesTab({ mode }: Props) {
                             }}
                             className="text-xs px-2 py-1 rounded mr-1"
                             style={{
-                              background: "#333",
-                              color: "#f97316",
-                              border: "1px solid #f97316",
+                              background: "#FFFFFF",
+                              color: "#FF7F11",
+                              border: "1px solid #FF7F11",
                             }}
                           >
                             Edit
@@ -335,7 +348,7 @@ export function AdvancesTab({ mode }: Props) {
                               )
                             }
                             className="text-xs px-2 py-1 rounded"
-                            style={{ background: "#3b1010", color: "#f87171" }}
+                            style={{ background: "#FEE2E2", color: "#DC2626" }}
                           >
                             Delete
                           </button>

@@ -148,15 +148,15 @@ export function ContractsTab({ mode }: Props) {
   };
 
   const inputStyle = {
-    background: "#1e1e1e",
-    border: "1px solid #444",
-    color: "#f5f5f5",
+    background: "#FFFFFF",
+    border: "1px solid #E5E5E5",
+    color: "#1F1F1F",
     borderRadius: 6,
     padding: "6px 10px",
     width: "100%",
   };
   const labelStyle = {
-    color: "#aaa",
+    color: "#9E9E9E",
     fontSize: 12,
     marginBottom: 2,
     display: "block" as const,
@@ -173,16 +173,16 @@ export function ContractsTab({ mode }: Props) {
           data-ocid="contract.back.button"
           onClick={() => setSelected(null)}
           className="mb-4 text-sm flex items-center gap-1"
-          style={{ color: "#f97316" }}
+          style={{ color: "#FF7F11" }}
         >
           ← Back to Contracts
         </button>
         <div
           className="rounded-xl p-6 max-w-xl"
-          style={{ background: "#2a2a2a", border: "1px solid #3a3a3a" }}
+          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
         >
           <div className="flex items-start justify-between mb-4">
-            <h2 className="text-xl font-bold" style={{ color: "#f97316" }}>
+            <h2 className="text-xl font-bold" style={{ color: "#1F1F1F" }}>
               {selected.name}
             </h2>
             {mode === "edit" && (
@@ -193,9 +193,9 @@ export function ContractsTab({ mode }: Props) {
                   onClick={() => openEdit(selected)}
                   className="text-xs px-3 py-1 rounded"
                   style={{
-                    background: "#3a3a3a",
-                    color: "#f97316",
-                    border: "1px solid #f97316",
+                    background: "#FFFFFF",
+                    color: "#FF7F11",
+                    border: "1px solid #FF7F11",
                   }}
                 >
                   Edit
@@ -206,9 +206,9 @@ export function ContractsTab({ mode }: Props) {
                   onClick={() => handleDelete(selected.id)}
                   className="text-xs px-3 py-1 rounded"
                   style={{
-                    background: "#3a1010",
-                    color: "#f87171",
-                    border: "1px solid #f87171",
+                    background: "#FEE2E2",
+                    color: "#DC2626",
+                    border: "1px solid #FCA5A5",
                   }}
                 >
                   Delete
@@ -218,38 +218,42 @@ export function ContractsTab({ mode }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <span style={{ color: "#888" }}>Contract Amount:</span>
+              <span style={{ color: "#9E9E9E" }}>Contract Amount:</span>
               <br />
-              <span className="font-semibold">
+              <span className="font-semibold" style={{ color: "#1F1F1F" }}>
                 ₹{fmt(selected.contractAmount)}
               </span>
             </div>
             <div>
-              <span style={{ color: "#888" }}>Multiplier:</span>
+              <span style={{ color: "#9E9E9E" }}>Multiplier:</span>
               <br />
-              <span className="font-semibold">{selected.multiplierValue}</span>
+              <span className="font-semibold" style={{ color: "#1F1F1F" }}>
+                {selected.multiplierValue}
+              </span>
             </div>
             <div>
-              <span style={{ color: "#888" }}>Machine Exp:</span>
+              <span style={{ color: "#9E9E9E" }}>Machine Exp:</span>
               <br />
-              <span className="font-semibold">₹{fmt(selected.machineExp)}</span>
+              <span className="font-semibold" style={{ color: "#1F1F1F" }}>
+                ₹{fmt(selected.machineExp)}
+              </span>
             </div>
             <div>
-              <span style={{ color: "#888" }}>Mesh Amount:</span>
+              <span style={{ color: "#9E9E9E" }}>Mesh Amount:</span>
               <br />
-              <span className="font-semibold">
+              <span className="font-semibold" style={{ color: "#FF7F11" }}>
                 ₹{previewMesh.toLocaleString()}
               </span>
             </div>
           </div>
           <div
             className="mt-4 p-3 rounded-lg"
-            style={{ background: "#1e1e1e", border: "1px solid #333" }}
+            style={{ background: "#F2F2F2", border: "1px solid #E5E5E5" }}
           >
             <div className="flex items-center justify-between mb-2">
               <span
                 className="text-sm font-medium"
-                style={{ color: "#f97316" }}
+                style={{ color: "#FF7F11" }}
               >
                 Bed &amp; Paper Amounts
               </span>
@@ -263,7 +267,7 @@ export function ContractsTab({ mode }: Props) {
                     setEditingAmounts(true);
                   }}
                   className="text-xs px-2 py-1 rounded"
-                  style={{ background: "#f97316", color: "#fff" }}
+                  style={{ background: "#FF7F11", color: "#fff" }}
                 >
                   Edit
                 </button>
@@ -293,7 +297,7 @@ export function ContractsTab({ mode }: Props) {
                     data-ocid="contract.saveamounts.button"
                     onClick={handleSaveAmounts}
                     className="text-xs px-3 py-1 rounded"
-                    style={{ background: "#f97316", color: "#fff" }}
+                    style={{ background: "#FF7F11", color: "#fff" }}
                   >
                     Save
                   </button>
@@ -301,7 +305,11 @@ export function ContractsTab({ mode }: Props) {
                     type="button"
                     onClick={() => setEditingAmounts(false)}
                     className="text-xs px-3 py-1 rounded"
-                    style={{ background: "#333", color: "#aaa" }}
+                    style={{
+                      background: "#F2F2F2",
+                      color: "#9E9E9E",
+                      border: "1px solid #E5E5E5",
+                    }}
                   >
                     Cancel
                   </button>
@@ -310,14 +318,14 @@ export function ContractsTab({ mode }: Props) {
             ) : (
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span style={{ color: "#888" }}>Bed:</span>{" "}
-                  <span className="font-semibold">
+                  <span style={{ color: "#9E9E9E" }}>Bed:</span>{" "}
+                  <span className="font-semibold" style={{ color: "#1F1F1F" }}>
                     ₹{previewBed.toLocaleString()}
                   </span>
                 </div>
                 <div>
-                  <span style={{ color: "#888" }}>Paper:</span>{" "}
-                  <span className="font-semibold">
+                  <span style={{ color: "#9E9E9E" }}>Paper:</span>{" "}
+                  <span className="font-semibold" style={{ color: "#1F1F1F" }}>
                     ₹{previewPaper.toLocaleString()}
                   </span>
                 </div>
@@ -346,15 +354,15 @@ export function ContractsTab({ mode }: Props) {
           type="button"
           onClick={() => setEditContract(null)}
           className="mb-4 text-sm"
-          style={{ color: "#f97316" }}
+          style={{ color: "#FF7F11" }}
         >
           ← Cancel
         </button>
         <div
           className="rounded-xl p-6 max-w-md"
-          style={{ background: "#2a2a2a", border: "1px solid #3a3a3a" }}
+          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
         >
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#f97316" }}>
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1F1F1F" }}>
             Edit Contract
           </h2>
           <div className="flex flex-col gap-3">
@@ -431,10 +439,10 @@ export function ContractsTab({ mode }: Props) {
                 }
               />
             </div>
-            <div className="p-3 rounded" style={{ background: "#1e1e1e" }}>
-              <div className="text-xs" style={{ color: "#888" }}>
+            <div className="p-3 rounded" style={{ background: "#F2F2F2" }}>
+              <div className="text-xs" style={{ color: "#9E9E9E" }}>
                 Mesh Amount Preview:{" "}
-                <span style={{ color: "#f97316" }}>
+                <span style={{ color: "#FF7F11" }}>
                   ₹{meshP.toLocaleString()}
                 </span>
               </div>
@@ -444,7 +452,7 @@ export function ContractsTab({ mode }: Props) {
               data-ocid="contract.update.submit.button"
               onClick={handleUpdate}
               className="py-2 rounded font-semibold"
-              style={{ background: "#f97316", color: "#fff" }}
+              style={{ background: "#FF7F11", color: "#fff" }}
             >
               Update Contract
             </button>
@@ -457,14 +465,16 @@ export function ContractsTab({ mode }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold">Contracts</h2>
+        <h2 className="text-lg font-bold" style={{ color: "#1F1F1F" }}>
+          Contracts
+        </h2>
         {mode === "edit" && (
           <button
             type="button"
             data-ocid="contract.add.button"
             onClick={() => setShowAdd((v) => !v)}
             className="text-sm px-4 py-2 rounded-lg font-semibold"
-            style={{ background: "#f97316", color: "#fff" }}
+            style={{ background: "#FF7F11", color: "#fff" }}
           >
             + Add Contract
           </button>
@@ -474,11 +484,11 @@ export function ContractsTab({ mode }: Props) {
       {showAdd && mode === "edit" && (
         <div
           className="rounded-xl p-5 mb-4 max-w-md"
-          style={{ background: "#2a2a2a", border: "1px solid #3a3a3a" }}
+          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
         >
           <h3
             className="text-sm font-semibold mb-3"
-            style={{ color: "#f97316" }}
+            style={{ color: "#FF7F11" }}
           >
             New Contract
           </h3>
@@ -533,7 +543,7 @@ export function ContractsTab({ mode }: Props) {
             {form.multiplier && (
               <div
                 className="p-3 rounded text-xs"
-                style={{ background: "#1e1e1e", color: "#aaa" }}
+                style={{ background: "#F2F2F2", color: "#9E9E9E" }}
               >
                 Bed: ₹
                 {calcBed(
@@ -557,7 +567,7 @@ export function ContractsTab({ mode }: Props) {
               data-ocid="contract.add.submit.button"
               onClick={handleAdd}
               className="py-2 rounded font-semibold"
-              style={{ background: "#f97316", color: "#fff" }}
+              style={{ background: "#FF7F11", color: "#fff" }}
             >
               Save Contract
             </button>
@@ -566,7 +576,7 @@ export function ContractsTab({ mode }: Props) {
       )}
 
       {loading ? (
-        <div data-ocid="contracts.loading_state" style={{ color: "#888" }}>
+        <div data-ocid="contracts.loading_state" style={{ color: "#9E9E9E" }}>
           Loading...
         </div>
       ) : (
@@ -575,7 +585,7 @@ export function ContractsTab({ mode }: Props) {
             <div
               data-ocid="contracts.empty_state"
               className="text-sm"
-              style={{ color: "#666" }}
+              style={{ color: "#9E9E9E" }}
             >
               No contracts yet.
             </div>
@@ -586,11 +596,13 @@ export function ContractsTab({ mode }: Props) {
               key={String(c.id)}
               data-ocid={`contract.item.${i + 1}`}
               className="flex items-center justify-between w-full px-4 py-3 rounded-lg cursor-pointer transition-all text-left"
-              style={{ background: "#2a2a2a", border: "1px solid #3a3a3a" }}
+              style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
               onClick={() => setSelected(c)}
             >
-              <span className="font-medium">{c.name}</span>
-              <span className="text-sm" style={{ color: "#f97316" }}>
+              <span className="font-medium" style={{ color: "#1F1F1F" }}>
+                {c.name}
+              </span>
+              <span className="text-sm" style={{ color: "#FF7F11" }}>
                 ₹{fmt(c.contractAmount)}
               </span>
             </button>

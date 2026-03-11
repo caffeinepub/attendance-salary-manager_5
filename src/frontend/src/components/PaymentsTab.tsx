@@ -125,250 +125,586 @@ export function PaymentsTab() {
   const selectedContracts = contracts.filter((c) =>
     selectedIds.has(String(c.id)),
   );
-  const thStyle: React.CSSProperties = {
-    padding: "10px 12px",
+
+  const totalFinal = payments.reduce((s, lp) => s + lp.finalPayment, 0);
+  const totalAdvances = payments.reduce((s, lp) => s + lp.totalAdvances, 0);
+
+  const TH_DARK: React.CSSProperties = {
+    padding: "11px 14px",
     textAlign: "left",
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: 12,
-    color: "#aaa",
-    background: "#252525",
-    borderBottom: "1px solid #3a3a3a",
+    color: "#FFFFFF",
+    background: "#1E293B",
     whiteSpace: "nowrap",
+    borderBottom: "none",
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
   };
-  const tdStyle: React.CSSProperties = {
-    padding: "8px 12px",
-    borderBottom: "1px solid #2a2a2a",
+  const TD: React.CSSProperties = {
+    padding: "9px 14px",
     fontSize: 13,
+    color: "#1E293B",
+    borderBottom: "1px solid #E2E8F0",
+    verticalAlign: "middle",
   };
 
   return (
     <div>
-      <h2 className="text-lg font-bold mb-4">Payments</h2>
+      {/* Section Header */}
+      <div
+        style={{
+          borderLeft: "4px solid #F97316",
+          paddingLeft: 12,
+          marginBottom: 16,
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 20,
+            fontWeight: 800,
+            color: "#0F172A",
+            margin: 0,
+          }}
+        >
+          Payments Sheet
+        </h2>
+        <p style={{ fontSize: 12, color: "#64748B", margin: 0, marginTop: 2 }}>
+          Net salary minus advances — final payment per labour
+        </p>
+      </div>
 
-      <div className="mb-4">
-        <div className="text-sm font-medium mb-2" style={{ color: "#aaa" }}>
-          Select Contracts:
+      {/* Contract Selection */}
+      <div style={{ marginBottom: 16 }}>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#64748B",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            marginBottom: 8,
+          }}
+        >
+          Select Contracts
         </div>
-        <div className="flex flex-wrap gap-2">
-          {contracts.map((c) => (
-            <label
-              key={String(c.id)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer"
-              style={{
-                background: selectedIds.has(String(c.id))
-                  ? "#3a1f00"
-                  : "#2a2a2a",
-                border: `1px solid ${selectedIds.has(String(c.id)) ? "#f97316" : "#3a3a3a"}`,
-              }}
-            >
-              <input
-                data-ocid={`payments.contract.checkbox.${contracts.indexOf(c) + 1}`}
-                type="checkbox"
-                checked={selectedIds.has(String(c.id))}
-                onChange={() => toggleContract(String(c.id))}
-                style={{ accentColor: "#f97316" }}
-              />
-              <span className="text-sm">{c.name}</span>
-            </label>
-          ))}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {contracts.map((c) => {
+            const isSelected = selectedIds.has(String(c.id));
+            return (
+              <label
+                key={String(c.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "7px 16px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  background: isSelected
+                    ? "linear-gradient(135deg, #F97316, #EA580C)"
+                    : "#F1F5F9",
+                  color: isSelected ? "#FFFFFF" : "#475569",
+                  fontWeight: isSelected ? 700 : 500,
+                  fontSize: 13,
+                  border: isSelected
+                    ? "2px solid transparent"
+                    : "2px solid #E2E8F0",
+                  transition: "all 0.18s",
+                  boxShadow: isSelected
+                    ? "0 2px 8px rgba(249,115,22,0.30)"
+                    : "none",
+                  userSelect: "none",
+                }}
+              >
+                <input
+                  data-ocid={`payments.contract.checkbox.${contracts.indexOf(c) + 1}`}
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleContract(String(c.id))}
+                  style={{ display: "none" }}
+                />
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 4,
+                    border: isSelected
+                      ? "2px solid rgba(255,255,255,0.7)"
+                      : "2px solid #94A3B8",
+                    background: isSelected
+                      ? "rgba(255,255,255,0.25)"
+                      : "transparent",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    color: "#fff",
+                    flexShrink: 0,
+                  }}
+                >
+                  {isSelected ? "✓" : ""}
+                </span>
+                {c.name}
+              </label>
+            );
+          })}
         </div>
+
+        {/* Calculate Button */}
         <button
           type="button"
           data-ocid="payments.calculate.button"
           onClick={calculate}
           disabled={selectedIds.size === 0 || loading}
-          className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold"
           style={{
-            background: "#f97316",
+            marginTop: 14,
+            width: "100%",
+            maxWidth: 340,
+            display: "block",
+            background:
+              selectedIds.size === 0 || loading
+                ? "#CBD5E1"
+                : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
             color: "#fff",
-            opacity: selectedIds.size === 0 ? 0.5 : 1,
+            border: "none",
+            borderRadius: 999,
+            padding: "12px 0",
+            fontSize: 15,
+            fontWeight: 800,
+            cursor:
+              selectedIds.size === 0 || loading ? "not-allowed" : "pointer",
+            boxShadow:
+              selectedIds.size === 0 || loading
+                ? "none"
+                : "0 4px 20px rgba(249,115,22,0.40)",
+            letterSpacing: "0.03em",
+            transition: "all 0.2s",
           }}
         >
-          {loading ? "Calculating..." : "Calculate Payments"}
+          {loading ? "Calculating…" : "Calculate Payments"}
         </button>
       </div>
 
+      {/* Stats Bar — shown after calculation */}
       {payments.length > 0 && (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
-            <thead>
-              <tr>
-                <th
-                  style={{ ...thStyle, position: "sticky", left: 0, zIndex: 2 }}
-                >
-                  Labour
-                </th>
-                {selectedContracts.map((c) => (
-                  <th key={String(c.id)} style={thStyle}>
-                    {c.name}
-                  </th>
-                ))}
-                <th style={thStyle}>Total Attendance</th>
-                <th style={thStyle}>Advances</th>
-                <th style={thStyle}>Final Payment</th>
-                <th style={thStyle}>Breakdown</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((lp, i) => (
-                <>
-                  <tr
-                    key={String(lp.labourId)}
-                    data-ocid={`payments.item.${i + 1}`}
-                    style={{ background: i % 2 === 0 ? "#242424" : "#222" }}
-                  >
-                    <td
-                      style={{
-                        ...tdStyle,
-                        position: "sticky",
-                        left: 0,
-                        background: "#242424",
-                        zIndex: 1,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {lp.labourName}
-                    </td>
-                    {selectedContracts.map((c) => {
-                      const cbd = lp.contractBreakdowns.find(
-                        (b) => String(b.contractId) === String(c.id),
-                      );
-                      return (
-                        <td key={String(c.id)} style={tdStyle}>
-                          {cbd
-                            ? `₹${Number(cbd.netSalary).toLocaleString()}`
-                            : "-"}
-                        </td>
-                      );
-                    })}
-                    <td style={{ ...tdStyle, color: "#a3e635" }}>
-                      ₹{lp.totalAttendance.toFixed(0)}
-                    </td>
-                    <td style={{ ...tdStyle, color: "#f87171" }}>
-                      ₹{lp.totalAdvances.toLocaleString()}
-                    </td>
-                    <td
-                      style={{ ...tdStyle, color: "#f97316", fontWeight: 700 }}
-                    >
-                      ₹{lp.finalPayment.toFixed(0)}
-                    </td>
-                    <td style={tdStyle}>
-                      <button
-                        type="button"
-                        data-ocid={`payments.breakdown.button.${i + 1}`}
-                        onClick={() => toggleBreakdown(String(lp.labourId))}
-                        className="text-xs px-2 py-1 rounded"
-                        style={{
-                          background: "#333",
-                          color: "#f97316",
-                          border: "1px solid #f97316",
-                        }}
-                      >
-                        {expandedLabours.has(String(lp.labourId))
-                          ? "Hide"
-                          : "Show"}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedLabours.has(String(lp.labourId)) && (
-                    <tr style={{ background: "#1a1a1a" }}>
-                      <td
-                        colSpan={selectedContracts.length + 5}
-                        style={{ padding: "12px 24px" }}
-                      >
-                        <div
-                          className="text-xs font-semibold mb-2"
-                          style={{ color: "#f97316" }}
-                        >
-                          Salary Breakdown for {lp.labourName}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          {lp.contractBreakdowns.map((b) => (
-                            <div
-                              key={String(b.contractId)}
-                              className="flex gap-4 text-xs"
-                              style={{ color: "#ccc" }}
-                            >
-                              <span
-                                className="font-semibold"
-                                style={{ minWidth: 120 }}
-                              >
-                                {b.contractName}:
-                              </span>
-                              <span>
-                                Bed: ₹{Number(b.bedSalary).toFixed(0)}
-                              </span>
-                              <span>
-                                Paper: ₹{Number(b.paperSalary).toFixed(0)}
-                              </span>
-                              <span>
-                                Mesh: ₹{Number(b.meshSalary).toFixed(0)}
-                              </span>
-                              <span
-                                style={{ color: "#f97316", fontWeight: 600 }}
-                              >
-                                Net: ₹{Number(b.netSalary).toFixed(0)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))}
-              {/* Totals */}
-              <tr style={{ background: "#2a2a2a", fontWeight: 700 }}>
-                <td
+        <>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              marginBottom: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            {[
+              { label: "Labours", value: payments.length, color: "#F97316" },
+              {
+                label: "Contracts",
+                value: selectedContracts.length,
+                color: "#7C3AED",
+              },
+              {
+                label: "Total Advances",
+                value: `₹${totalAdvances.toLocaleString()}`,
+                color: "#DC2626",
+              },
+              {
+                label: "Total Payout",
+                value: `₹${totalFinal.toFixed(0)}`,
+                color: "#16A34A",
+              },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                style={{
+                  background: "#FFFFFF",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  minWidth: 110,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                }}
+              >
+                <div
                   style={{
-                    ...tdStyle,
-                    position: "sticky",
-                    left: 0,
-                    background: "#2a2a2a",
-                    zIndex: 1,
+                    fontSize: 10,
+                    color: "#94A3B8",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
                   }}
                 >
-                  Total
-                </td>
-                {selectedContracts.map((c) => (
-                  <td
-                    key={String(c.id)}
-                    style={{ ...tdStyle, color: "#f97316" }}
+                  {stat.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: stat.color,
+                    marginTop: 2,
+                  }}
+                >
+                  {stat.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Payments Table */}
+          <div
+            style={{
+              overflowX: "auto",
+              borderRadius: 14,
+              boxShadow: "0 4px 24px rgba(15,23,42,0.10)",
+              border: "1px solid #E2E8F0",
+            }}
+          >
+            <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
+              <thead>
+                <tr>
+                  <th
+                    style={{
+                      ...TH_DARK,
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 3,
+                      minWidth: 130,
+                      borderRadius: "14px 0 0 0",
+                    }}
                   >
-                    ₹
-                    {payments
-                      .reduce((s, lp) => {
+                    Labour
+                  </th>
+                  {selectedContracts.map((c) => (
+                    <th key={String(c.id)} style={TH_DARK}>
+                      {c.name}
+                    </th>
+                  ))}
+                  <th style={TH_DARK}>Attendance</th>
+                  <th style={{ ...TH_DARK, color: "#FCA5A5" }}>Advances</th>
+                  <th
+                    style={{
+                      ...TH_DARK,
+                      color: "#FED7AA",
+                      borderRadius: "0 14px 0 0",
+                    }}
+                  >
+                    Final Payment
+                  </th>
+                  <th
+                    style={{
+                      ...TH_DARK,
+                      borderRadius:
+                        selectedContracts.length === 0
+                          ? "0 14px 0 0"
+                          : undefined,
+                    }}
+                  >
+                    Detail
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((lp, i) => (
+                  <>
+                    <tr
+                      key={String(lp.labourId)}
+                      data-ocid={`payments.item.${i + 1}`}
+                      style={{
+                        background: i % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
+                        transition: "background 0.15s",
+                      }}
+                    >
+                      <td
+                        style={{
+                          ...TD,
+                          position: "sticky",
+                          left: 0,
+                          background: "#EFF6FF",
+                          zIndex: 1,
+                          fontWeight: 700,
+                          color: "#0F172A",
+                        }}
+                      >
+                        {lp.labourName}
+                      </td>
+                      {selectedContracts.map((c) => {
                         const cbd = lp.contractBreakdowns.find(
                           (b) => String(b.contractId) === String(c.id),
                         );
-                        return s + (cbd ? Number(cbd.netSalary) : 0);
-                      }, 0)
+                        return (
+                          <td
+                            key={String(c.id)}
+                            style={{ ...TD, color: "#334155" }}
+                          >
+                            {cbd
+                              ? `₹${Number(cbd.netSalary).toLocaleString()}`
+                              : "—"}
+                          </td>
+                        );
+                      })}
+                      <td style={{ ...TD, color: "#16A34A", fontWeight: 700 }}>
+                        ₹{lp.totalAttendance.toFixed(0)}
+                      </td>
+                      <td style={{ ...TD, color: "#DC2626", fontWeight: 700 }}>
+                        ₹{lp.totalAdvances.toLocaleString()}
+                      </td>
+                      <td
+                        style={{
+                          ...TD,
+                          color: "#F97316",
+                          fontWeight: 800,
+                          fontSize: 15,
+                        }}
+                      >
+                        ₹{lp.finalPayment.toFixed(0)}
+                      </td>
+                      <td style={TD}>
+                        <button
+                          type="button"
+                          data-ocid={`payments.breakdown.button.${i + 1}`}
+                          onClick={() => toggleBreakdown(String(lp.labourId))}
+                          style={{
+                            background: expandedLabours.has(String(lp.labourId))
+                              ? "#F97316"
+                              : "#FFF7ED",
+                            color: expandedLabours.has(String(lp.labourId))
+                              ? "#FFFFFF"
+                              : "#F97316",
+                            border: "1.5px solid #F97316",
+                            borderRadius: 999,
+                            padding: "4px 12px",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          {expandedLabours.has(String(lp.labourId))
+                            ? "▲ Hide"
+                            : "▼ Show"}
+                        </button>
+                      </td>
+                    </tr>
+
+                    {expandedLabours.has(String(lp.labourId)) && (
+                      <tr key={`${String(lp.labourId)}_bd`}>
+                        <td
+                          colSpan={selectedContracts.length + 5}
+                          style={{
+                            padding: "0",
+                            borderBottom: "1px solid #E2E8F0",
+                          }}
+                        >
+                          <div
+                            style={{
+                              background:
+                                "linear-gradient(135deg, #EDE9FE 0%, #F0F9FF 100%)",
+                              padding: "14px 20px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                background: "#FFFFFF",
+                                borderRadius: 10,
+                                padding: "12px 16px",
+                                boxShadow: "0 2px 8px rgba(124,58,237,0.08)",
+                                border: "1px solid #DDD6FE",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  color: "#7C3AED",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                  marginBottom: 10,
+                                }}
+                              >
+                                Salary Breakdown — {lp.labourName}
+                              </div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 8,
+                                }}
+                              >
+                                {lp.contractBreakdowns.map((b) => (
+                                  <div
+                                    key={String(b.contractId)}
+                                    style={{
+                                      display: "flex",
+                                      gap: 12,
+                                      flexWrap: "wrap",
+                                      alignItems: "center",
+                                      padding: "6px 10px",
+                                      background: "#F8FAFC",
+                                      borderRadius: 8,
+                                      border: "1px solid #E2E8F0",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontWeight: 800,
+                                        color: "#0F172A",
+                                        fontSize: 12,
+                                        minWidth: 120,
+                                      }}
+                                    >
+                                      {b.contractName}
+                                    </span>
+                                    {[
+                                      {
+                                        label: "Bed",
+                                        val: b.bedSalary,
+                                        color: "#7C3AED",
+                                      },
+                                      {
+                                        label: "Paper",
+                                        val: b.paperSalary,
+                                        color: "#0EA5E9",
+                                      },
+                                      {
+                                        label: "Mesh",
+                                        val: b.meshSalary,
+                                        color: "#10B981",
+                                      },
+                                    ].map((item) => (
+                                      <span
+                                        key={item.label}
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                          fontSize: 12,
+                                          color: "#475569",
+                                        }}
+                                      >
+                                        <span
+                                          style={{
+                                            width: 6,
+                                            height: 6,
+                                            borderRadius: "50%",
+                                            background: item.color,
+                                            display: "inline-block",
+                                          }}
+                                        />
+                                        {item.label}:{" "}
+                                        <strong style={{ color: item.color }}>
+                                          ₹{Number(item.val).toFixed(0)}
+                                        </strong>
+                                      </span>
+                                    ))}
+                                    <span
+                                      style={{
+                                        marginLeft: "auto",
+                                        fontWeight: 800,
+                                        color: "#F97316",
+                                        fontSize: 13,
+                                        background: "#FFF7ED",
+                                        padding: "3px 10px",
+                                        borderRadius: 999,
+                                        border: "1px solid #FED7AA",
+                                      }}
+                                    >
+                                      Net: ₹{Number(b.netSalary).toFixed(0)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                ))}
+
+                {/* Totals Row */}
+                <tr style={{ background: "#0F172A", fontWeight: 700 }}>
+                  <td
+                    style={{
+                      ...TD,
+                      position: "sticky",
+                      left: 0,
+                      background: "#0F172A",
+                      zIndex: 1,
+                      color: "#94A3B8",
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      borderBottom: "none",
+                    }}
+                  >
+                    Totals
+                  </td>
+                  {selectedContracts.map((c) => (
+                    <td
+                      key={String(c.id)}
+                      style={{
+                        ...TD,
+                        color: "#F97316",
+                        fontWeight: 800,
+                        borderBottom: "none",
+                      }}
+                    >
+                      ₹
+                      {payments
+                        .reduce((s, lp) => {
+                          const cbd = lp.contractBreakdowns.find(
+                            (b) => String(b.contractId) === String(c.id),
+                          );
+                          return s + (cbd ? Number(cbd.netSalary) : 0);
+                        }, 0)
+                        .toFixed(0)}
+                    </td>
+                  ))}
+                  <td
+                    style={{
+                      ...TD,
+                      color: "#86EFAC",
+                      fontWeight: 800,
+                      borderBottom: "none",
+                    }}
+                  >
+                    ₹
+                    {payments
+                      .reduce((s, lp) => s + lp.totalAttendance, 0)
                       .toFixed(0)}
                   </td>
-                ))}
-                <td style={{ ...tdStyle, color: "#a3e635" }}>
-                  ₹
-                  {payments
-                    .reduce((s, lp) => s + lp.totalAttendance, 0)
-                    .toFixed(0)}
-                </td>
-                <td style={{ ...tdStyle, color: "#f87171" }}>
-                  ₹
-                  {payments
-                    .reduce((s, lp) => s + lp.totalAdvances, 0)
-                    .toLocaleString()}
-                </td>
-                <td style={{ ...tdStyle, color: "#f97316" }}>
-                  ₹
-                  {payments
-                    .reduce((s, lp) => s + lp.finalPayment, 0)
-                    .toFixed(0)}
-                </td>
-                <td style={tdStyle} />
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                  <td
+                    style={{
+                      ...TD,
+                      color: "#FCA5A5",
+                      fontWeight: 800,
+                      borderBottom: "none",
+                    }}
+                  >
+                    ₹
+                    {payments
+                      .reduce((s, lp) => s + lp.totalAdvances, 0)
+                      .toLocaleString()}
+                  </td>
+                  <td
+                    style={{
+                      ...TD,
+                      color: "#FED7AA",
+                      fontWeight: 800,
+                      fontSize: 15,
+                      borderBottom: "none",
+                    }}
+                  >
+                    ₹{totalFinal.toFixed(0)}
+                  </td>
+                  <td style={{ ...TD, borderBottom: "none" }} />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

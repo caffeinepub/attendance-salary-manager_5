@@ -46,23 +46,29 @@ export function SettledTab({ mode }: Props) {
     textAlign: "left",
     fontWeight: 600,
     fontSize: 12,
-    color: "#aaa",
-    background: "#252525",
-    borderBottom: "1px solid #3a3a3a",
+    color: "#9E9E9E",
+    background: "#F2F2F2",
+    borderBottom: "1px solid #E5E5E5",
   };
   const tdStyle: React.CSSProperties = {
     padding: "8px 12px",
-    borderBottom: "1px solid #2a2a2a",
+    borderBottom: "1px solid #E5E5E5",
     fontSize: 13,
+    color: "#1F1F1F",
   };
 
   return (
     <div>
-      <h2 className="text-lg font-bold mb-4">Settled Contracts</h2>
+      <h2 className="text-lg font-bold mb-4" style={{ color: "#1F1F1F" }}>
+        Settled Contracts
+      </h2>
 
       {mode === "edit" && unsettled.length > 0 && (
         <div className="mb-6">
-          <div className="text-sm font-medium mb-2" style={{ color: "#aaa" }}>
+          <div
+            className="text-sm font-medium mb-2"
+            style={{ color: "#9E9E9E" }}
+          >
             Mark a contract as settled:
           </div>
           <div className="flex flex-wrap gap-2">
@@ -74,9 +80,9 @@ export function SettledTab({ mode }: Props) {
                 onClick={() => handleSettle(c.id)}
                 className="text-xs px-3 py-2 rounded-lg"
                 style={{
-                  background: "#2a2a2a",
-                  border: "1px solid #3a3a3a",
-                  color: "#f5f5f5",
+                  background: "#FFFFFF",
+                  border: "1px solid #E5E5E5",
+                  color: "#1F1F1F",
                 }}
               >
                 ✓ Settle "{c.name}"
@@ -89,7 +95,7 @@ export function SettledTab({ mode }: Props) {
       {settled.length === 0 ? (
         <div
           data-ocid="settled.empty_state"
-          style={{ color: "#666" }}
+          style={{ color: "#9E9E9E" }}
           className="text-sm"
         >
           No settled contracts.
@@ -109,19 +115,19 @@ export function SettledTab({ mode }: Props) {
               <tr
                 key={String(c.id)}
                 data-ocid={`settled.item.${i + 1}`}
-                style={{ background: i % 2 === 0 ? "#242424" : "#222" }}
+                style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}
               >
                 <td style={tdStyle}>{i + 1}</td>
                 <td
                   style={{
                     ...tdStyle,
-                    color: "#888",
+                    color: "#9E9E9E",
                     textDecoration: "line-through",
                   }}
                 >
                   {c.name}
                 </td>
-                <td style={{ ...tdStyle, color: "#f97316" }}>
+                <td style={{ ...tdStyle, color: "#FF7F11" }}>
                   ₹{Number(c.contractAmount).toLocaleString()}
                 </td>
                 {mode === "edit" && (
@@ -132,9 +138,9 @@ export function SettledTab({ mode }: Props) {
                       onClick={() => handleUnsettle(c.id)}
                       className="text-xs px-2 py-1 rounded mr-2"
                       style={{
-                        background: "#333",
-                        color: "#f97316",
-                        border: "1px solid #f97316",
+                        background: "#FFFFFF",
+                        color: "#FF7F11",
+                        border: "1px solid #FF7F11",
                       }}
                     >
                       Unsettle
@@ -144,7 +150,7 @@ export function SettledTab({ mode }: Props) {
                       data-ocid={`settled.delete.button.${i + 1}`}
                       onClick={() => handleDelete(c.id)}
                       className="text-xs px-2 py-1 rounded"
-                      style={{ background: "#3b1010", color: "#f87171" }}
+                      style={{ background: "#FEE2E2", color: "#DC2626" }}
                     >
                       Delete
                     </button>

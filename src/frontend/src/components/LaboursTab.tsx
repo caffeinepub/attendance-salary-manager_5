@@ -44,15 +44,15 @@ export function LaboursTab({ mode }: Props) {
   };
 
   const inputStyle = {
-    background: "#1e1e1e",
-    border: "1px solid #444",
-    color: "#f5f5f5",
+    background: "#FFFFFF",
+    border: "1px solid #E5E5E5",
+    color: "#1F1F1F",
     borderRadius: 6,
     padding: "6px 10px",
     width: "100%",
   };
   const labelStyle = {
-    color: "#aaa",
+    color: "#9E9E9E",
     fontSize: 12,
     marginBottom: 2,
     display: "block" as const,
@@ -62,27 +62,30 @@ export function LaboursTab({ mode }: Props) {
     textAlign: "left",
     fontWeight: 600,
     fontSize: 12,
-    color: "#aaa",
-    background: "#252525",
-    borderBottom: "1px solid #3a3a3a",
+    color: "#9E9E9E",
+    background: "#F2F2F2",
+    borderBottom: "1px solid #E5E5E5",
   };
   const tdStyle: React.CSSProperties = {
     padding: "8px 12px",
-    borderBottom: "1px solid #2a2a2a",
+    borderBottom: "1px solid #E5E5E5",
     fontSize: 13,
+    color: "#1F1F1F",
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold">Labours</h2>
+        <h2 className="text-lg font-bold" style={{ color: "#1F1F1F" }}>
+          Labours
+        </h2>
         {mode === "edit" && (
           <button
             type="button"
             data-ocid="labours.add.button"
             onClick={() => setShowAdd((v) => !v)}
             className="text-sm px-4 py-2 rounded-lg font-semibold"
-            style={{ background: "#f97316", color: "#fff" }}
+            style={{ background: "#FF7F11", color: "#fff" }}
           >
             + Add Labour
           </button>
@@ -92,11 +95,11 @@ export function LaboursTab({ mode }: Props) {
       {showAdd && mode === "edit" && (
         <div
           className="rounded-xl p-4 mb-4 max-w-sm"
-          style={{ background: "#2a2a2a", border: "1px solid #3a3a3a" }}
+          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
         >
           <h3
             className="text-sm font-semibold mb-3"
-            style={{ color: "#f97316" }}
+            style={{ color: "#FF7F11" }}
           >
             New Labour
           </h3>
@@ -128,7 +131,7 @@ export function LaboursTab({ mode }: Props) {
               data-ocid="labours.add.submit.button"
               onClick={handleAdd}
               className="py-2 rounded font-semibold"
-              style={{ background: "#f97316", color: "#fff" }}
+              style={{ background: "#FF7F11", color: "#fff" }}
             >
               Save Labour
             </button>
@@ -150,7 +153,7 @@ export function LaboursTab({ mode }: Props) {
             <tr>
               <td
                 colSpan={4}
-                style={{ ...tdStyle, color: "#666", textAlign: "center" }}
+                style={{ ...tdStyle, color: "#9E9E9E", textAlign: "center" }}
                 data-ocid="labours.empty_state"
               >
                 No labours added yet.
@@ -161,7 +164,7 @@ export function LaboursTab({ mode }: Props) {
             <tr
               key={String(l.id)}
               data-ocid={`labours.item.${i + 1}`}
-              style={{ background: i % 2 === 0 ? "#242424" : "#222" }}
+              style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}
             >
               <td style={tdStyle}>{i + 1}</td>
               {editingId === l.id ? (
@@ -169,9 +172,9 @@ export function LaboursTab({ mode }: Props) {
                   <td style={tdStyle}>
                     <input
                       style={{
-                        background: "#1e1e1e",
-                        border: "1px solid #444",
-                        color: "#f5f5f5",
+                        background: "#FFFFFF",
+                        border: "1px solid #E5E5E5",
+                        color: "#1F1F1F",
                         borderRadius: 4,
                         padding: "3px 6px",
                         width: 160,
@@ -185,9 +188,9 @@ export function LaboursTab({ mode }: Props) {
                   <td style={tdStyle}>
                     <input
                       style={{
-                        background: "#1e1e1e",
-                        border: "1px solid #444",
-                        color: "#f5f5f5",
+                        background: "#FFFFFF",
+                        border: "1px solid #E5E5E5",
+                        color: "#1F1F1F",
                         borderRadius: 4,
                         padding: "3px 6px",
                         width: 130,
@@ -204,7 +207,7 @@ export function LaboursTab({ mode }: Props) {
                       data-ocid={`labours.save.button.${i + 1}`}
                       onClick={() => handleUpdate(l.id)}
                       className="text-xs px-2 py-1 rounded mr-1"
-                      style={{ background: "#f97316", color: "#fff" }}
+                      style={{ background: "#FF7F11", color: "#fff" }}
                     >
                       Save
                     </button>
@@ -212,7 +215,11 @@ export function LaboursTab({ mode }: Props) {
                       type="button"
                       onClick={() => setEditingId(null)}
                       className="text-xs px-2 py-1 rounded"
-                      style={{ background: "#333", color: "#aaa" }}
+                      style={{
+                        background: "#F2F2F2",
+                        color: "#9E9E9E",
+                        border: "1px solid #E5E5E5",
+                      }}
                     >
                       Cancel
                     </button>
@@ -221,7 +228,7 @@ export function LaboursTab({ mode }: Props) {
               ) : (
                 <>
                   <td style={tdStyle}>{l.name}</td>
-                  <td style={{ ...tdStyle, color: "#888" }}>
+                  <td style={{ ...tdStyle, color: "#9E9E9E" }}>
                     {l.phone || "-"}
                   </td>
                   {mode === "edit" && (
@@ -235,9 +242,9 @@ export function LaboursTab({ mode }: Props) {
                         }}
                         className="text-xs px-3 py-1 rounded"
                         style={{
-                          background: "#333",
-                          color: "#f97316",
-                          border: "1px solid #f97316",
+                          background: "#FFFFFF",
+                          color: "#FF7F11",
+                          border: "1px solid #FF7F11",
                         }}
                       >
                         Edit

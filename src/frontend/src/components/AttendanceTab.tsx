@@ -25,13 +25,48 @@ function attendanceNum(v: string): number {
   return Number.parseFloat(v) || 0;
 }
 
-function cellColor(v: string): string {
-  if (v === "Present") return "#14532d";
-  if (v === "Absent") return "#3b1010";
-  const n = Number.parseFloat(v);
-  if (n >= 0.8) return "#1e3a1e";
-  if (n >= 0.5) return "#3a2d0a";
-  return "#2a1a1a";
+function BadgeCell({ val }: { val: string }) {
+  let bg: string;
+  let color: string;
+  let label: string;
+
+  if (val === "Present") {
+    bg = "#F0FDF4";
+    color = "#16A34A";
+    label = "Present";
+  } else if (val === "Absent") {
+    bg = "#FEF2F2";
+    color = "#DC2626";
+    label = "Absent";
+  } else {
+    const n = Number.parseFloat(val);
+    if (n >= 0.5) {
+      bg = "#FFFBEB";
+      color = "#D97706";
+    } else {
+      bg = "#FFF7ED";
+      color = "#EA580C";
+    }
+    label = val;
+  }
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        background: bg,
+        color,
+        fontWeight: 700,
+        fontSize: 11,
+        borderRadius: 999,
+        padding: "2px 9px",
+        letterSpacing: "0.03em",
+        border: `1px solid ${color}22`,
+      }}
+    >
+      {label}
+    </span>
+  );
 }
 
 export function AttendanceTab({ mode }: Props) {
@@ -203,35 +238,76 @@ export function AttendanceTab({ mode }: Props) {
     );
   };
 
-  const inputStyle = {
-    background: "#1e1e1e",
-    border: "1px solid #444",
-    color: "#f5f5f5",
-    borderRadius: 6,
-    padding: "4px 8px",
-  };
-  const selectStyle = { ...inputStyle, cursor: "pointer", fontSize: 12 };
-  const thStyle: React.CSSProperties = {
-    padding: "10px 12px",
+  const totalNet = labours.reduce((s, l) => s + labourNetSalary(l.id), 0);
+  const presentCount = labours.filter(
+    (l) => getVal(l.id, "bed") === "Present",
+  ).length;
+
+  // Styles
+  const TH_DARK: React.CSSProperties = {
+    padding: "11px 14px",
     textAlign: "left",
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: 12,
-    color: "#aaa",
-    background: "#252525",
-    borderBottom: "1px solid #3a3a3a",
+    color: "#FFFFFF",
+    background: "#1E293B",
     whiteSpace: "nowrap",
+    borderBottom: "none",
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
   };
-  const tdStyle: React.CSSProperties = {
-    padding: "6px 8px",
-    borderBottom: "1px solid #2a2a2a",
+  const TD: React.CSSProperties = {
+    padding: "8px 14px",
     fontSize: 13,
+    color: "#1E293B",
+    borderBottom: "1px solid #E2E8F0",
+    verticalAlign: "middle",
   };
+  const STICKY_BG_LIGHT = "#EFF6FF";
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4">
-        <h2 className="text-lg font-bold">Attendance</h2>
+      {/* Section Header */}
+      <div
+        style={{
+          borderLeft: "4px solid #F97316",
+          paddingLeft: 12,
+          marginBottom: 16,
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 20,
+            fontWeight: 800,
+            color: "#0F172A",
+            margin: 0,
+          }}
+        >
+          Attendance List
+        </h2>
+        <p style={{ fontSize: 12, color: "#64748B", margin: 0, marginTop: 2 }}>
+          Track daily attendance and salary calculations
+        </p>
+      </div>
+
+      {/* Contract Selector */}
+      <div className="mb-4">
+        <label
+          htmlFor="attendance-contract-select"
+          style={{
+            display: "block",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#64748B",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            marginBottom: 6,
+          }}
+        >
+          Select Contract
+        </label>
         <select
+          id="attendance-contract-select"
           data-ocid="attendance.contract.select"
           value={selectedContractId ? String(selectedContractId) : ""}
           onChange={(e) =>
@@ -239,7 +315,25 @@ export function AttendanceTab({ mode }: Props) {
               e.target.value ? BigInt(e.target.value) : null,
             )
           }
-          style={{ ...inputStyle, minWidth: 200 }}
+          style={{
+            background: "#FFFFFF",
+            border: "2px solid #E2E8F0",
+            color: "#0F172A",
+            borderRadius: 999,
+            padding: "8px 16px",
+            fontSize: 13,
+            fontWeight: 600,
+            minWidth: 220,
+            outline: "none",
+            cursor: "pointer",
+            appearance: "auto",
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = "#F97316";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "#E2E8F0";
+          }}
         >
           <option value="">-- Select Contract --</option>
           {contracts.map((c) => (
@@ -251,68 +345,170 @@ export function AttendanceTab({ mode }: Props) {
       </div>
 
       {!selectedContractId && (
-        <div style={{ color: "#666" }} className="text-sm">
-          Select a contract to view attendance.
+        <div
+          style={{
+            background: "#F8FAFC",
+            border: "1px dashed #CBD5E1",
+            borderRadius: 12,
+            padding: "32px 20px",
+            textAlign: "center",
+            color: "#94A3B8",
+            fontSize: 14,
+          }}
+        >
+          Select a contract above to view and manage attendance
         </div>
       )}
 
       {selectedContractId && contract && (
         <>
+          {/* Stats Bar */}
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              marginBottom: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            {[
+              { label: "Labours", value: labours.length, color: "#F97316" },
+              { label: "Present Today", value: presentCount, color: "#16A34A" },
+              {
+                label: "Bed Pool",
+                value: `₹${Number(contract.bedAmount).toLocaleString()}`,
+                color: "#7C3AED",
+              },
+              {
+                label: "Paper Pool",
+                value: `₹${Number(contract.paperAmount).toLocaleString()}`,
+                color: "#0EA5E9",
+              },
+              {
+                label: "Total Net",
+                value: `₹${totalNet.toFixed(0)}`,
+                color: "#F97316",
+              },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                style={{
+                  background: "#FFFFFF",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  minWidth: 100,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "#94A3B8",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {stat.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: stat.color,
+                    marginTop: 2,
+                  }}
+                >
+                  {stat.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Actions */}
           <div className="flex items-center gap-2 mb-3">
             {mode === "edit" && (
               <button
                 type="button"
                 data-ocid="attendance.addmesh.button"
                 onClick={addMeshCol}
-                className="text-xs px-3 py-1 rounded"
-                style={{ background: "#f97316", color: "#fff" }}
+                style={{
+                  background: "linear-gradient(135deg, #F97316, #EA580C)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "7px 16px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(249,115,22,0.35)",
+                  letterSpacing: "0.02em",
+                }}
               >
                 + Add Mesh Column
               </button>
             )}
-            <div className="text-xs" style={{ color: "#888" }}>
-              Bed: ₹{Number(contract.bedAmount).toLocaleString()} | Paper: ₹
-              {Number(contract.paperAmount).toLocaleString()} | Mesh: ₹
-              {Number(contract.meshAmount).toLocaleString()}
-            </div>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          {/* Table */}
+          <div
+            style={{
+              overflowX: "auto",
+              borderRadius: 14,
+              boxShadow: "0 4px 24px rgba(15,23,42,0.10)",
+              border: "1px solid #E2E8F0",
+            }}
+          >
             <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
               <thead>
                 <tr>
                   <th
                     style={{
-                      ...thStyle,
+                      ...TH_DARK,
                       position: "sticky",
                       left: 0,
-                      zIndex: 2,
-                      background: "#252525",
+                      zIndex: 3,
+                      width: 40,
+                      borderRadius: "14px 0 0 0",
                     }}
                   >
                     #
                   </th>
                   <th
                     style={{
-                      ...thStyle,
+                      ...TH_DARK,
                       position: "sticky",
                       left: 40,
-                      zIndex: 2,
-                      background: "#252525",
+                      zIndex: 3,
                       minWidth: 140,
                     }}
                   >
                     Labour
                   </th>
-                  <th style={thStyle}>Bed</th>
-                  <th style={thStyle}>Paper</th>
+                  <th style={TH_DARK}>Bed</th>
+                  <th style={TH_DARK}>Paper</th>
                   {meshCols.map((col, i) => (
-                    <th key={col + String(i)} style={thStyle}>
-                      <div className="flex items-center gap-1">
+                    <th key={col + String(i)} style={TH_DARK}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                        }}
+                      >
                         {renamingCol === i ? (
                           <input
                             ref={renameRef}
-                            style={{ ...inputStyle, width: 80 }}
+                            style={{
+                              background: "#334155",
+                              border: "1px solid #F97316",
+                              color: "#fff",
+                              borderRadius: 6,
+                              padding: "2px 6px",
+                              width: 80,
+                              fontSize: 12,
+                            }}
                             value={renameVal}
                             onChange={(e) => setRenameVal(e.target.value)}
                             onBlur={() => commitRename(i)}
@@ -324,13 +520,19 @@ export function AttendanceTab({ mode }: Props) {
                           <span>{col}</span>
                         )}
                         {mode === "edit" && (
-                          <div className="flex gap-1">
+                          <div style={{ display: "flex", gap: 3 }}>
                             <button
                               type="button"
                               data-ocid={`attendance.rename_mesh.button.${i + 1}`}
                               onClick={() => startRename(i)}
-                              className="text-xs"
-                              style={{ color: "#f97316" }}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                color: "#FCD34D",
+                                fontSize: 12,
+                                padding: 0,
+                              }}
                               title="Rename"
                             >
                               ✏
@@ -339,8 +541,14 @@ export function AttendanceTab({ mode }: Props) {
                               type="button"
                               data-ocid={`attendance.delete_mesh.button.${i + 1}`}
                               onClick={() => deleteMeshCol(i)}
-                              className="text-xs"
-                              style={{ color: "#f87171" }}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                color: "#FCA5A5",
+                                fontSize: 12,
+                                padding: 0,
+                              }}
                               title="Delete"
                             >
                               ✕
@@ -350,37 +558,56 @@ export function AttendanceTab({ mode }: Props) {
                       </div>
                     </th>
                   ))}
-                  <th style={thStyle}>Total</th>
-                  <th style={thStyle}>Net Salary</th>
+                  <th style={TH_DARK}>Total</th>
+                  <th
+                    style={{
+                      ...TH_DARK,
+                      borderRadius: "0 14px 0 0",
+                      color: "#FED7AA",
+                    }}
+                  >
+                    Net Salary
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {labours.map((labour, idx) => {
                   const net = labourNetSalary(labour.id);
+                  const rowBg = idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC";
                   return (
                     <tr
                       key={String(labour.id)}
-                      style={{ background: idx % 2 === 0 ? "#242424" : "#222" }}
+                      style={{
+                        background: rowBg,
+                        transition: "background 0.15s",
+                      }}
                     >
                       <td
                         style={{
-                          ...tdStyle,
+                          ...TD,
                           position: "sticky",
                           left: 0,
-                          background: "#242424",
+                          background: STICKY_BG_LIGHT,
                           zIndex: 1,
+                          fontWeight: 700,
+                          color: "#64748B",
+                          fontSize: 12,
+                          width: 40,
+                          textAlign: "center",
                         }}
                       >
                         {idx + 1}
                       </td>
                       <td
                         style={{
-                          ...tdStyle,
+                          ...TD,
                           position: "sticky",
                           left: 40,
-                          background: "#242424",
+                          background: STICKY_BG_LIGHT,
                           zIndex: 1,
                           minWidth: 140,
+                          fontWeight: 700,
+                          color: "#0F172A",
                         }}
                       >
                         {labour.name}
@@ -394,16 +621,21 @@ export function AttendanceTab({ mode }: Props) {
                         return (
                           <td
                             key={colKey}
-                            style={{
-                              ...tdStyle,
-                              background: cellColor(val),
-                              padding: "4px 6px",
-                            }}
+                            style={{ ...TD, padding: "6px 10px" }}
                           >
                             {mode === "edit" ? (
                               <select
                                 data-ocid={`attendance.${colKey}.select.${idx + 1}`}
-                                style={selectStyle}
+                                style={{
+                                  background: "#F8FAFC",
+                                  border: "1px solid #CBD5E1",
+                                  color: "#0F172A",
+                                  borderRadius: 8,
+                                  padding: "4px 8px",
+                                  fontSize: 12,
+                                  cursor: "pointer",
+                                  fontWeight: 600,
+                                }}
                                 value={val}
                                 onChange={(e) =>
                                   setVal(labour.id, colKey, e.target.value)
@@ -416,36 +648,36 @@ export function AttendanceTab({ mode }: Props) {
                                 ))}
                               </select>
                             ) : (
-                              <span
-                                style={{
-                                  color:
-                                    val === "Present"
-                                      ? "#86efac"
-                                      : val === "Absent"
-                                        ? "#fca5a5"
-                                        : "#fcd34d",
-                                }}
-                              >
-                                {val}
-                              </span>
+                              <BadgeCell val={val} />
                             )}
                           </td>
                         );
                       })}
                       <td
                         style={{
-                          ...tdStyle,
-                          color: "#f97316",
-                          fontWeight: 600,
+                          ...TD,
+                          fontWeight: 700,
+                          color: "#0EA5E9",
+                          fontSize: 13,
                         }}
                       >
-                        ₹{net.toFixed(0)}
+                        {[
+                          "bed",
+                          "paper",
+                          ...meshCols.map((_, i) => `mesh_${i}`),
+                        ]
+                          .reduce(
+                            (s, ck) => s + attendanceNum(getVal(labour.id, ck)),
+                            0,
+                          )
+                          .toFixed(2)}
                       </td>
                       <td
                         style={{
-                          ...tdStyle,
-                          color: "#f97316",
-                          fontWeight: 600,
+                          ...TD,
+                          fontWeight: 800,
+                          color: "#F97316",
+                          fontSize: 14,
                         }}
                       >
                         ₹{net.toFixed(0)}
@@ -453,38 +685,66 @@ export function AttendanceTab({ mode }: Props) {
                     </tr>
                   );
                 })}
-                {/* Totals row */}
-                <tr style={{ background: "#2a2a2a", fontWeight: 700 }}>
+
+                {/* Totals Row */}
+                <tr
+                  style={{
+                    background: "#0F172A",
+                    fontWeight: 700,
+                  }}
+                >
                   <td
                     style={{
-                      ...tdStyle,
+                      ...TD,
                       position: "sticky",
                       left: 0,
-                      background: "#2a2a2a",
+                      background: "#0F172A",
                       zIndex: 1,
+                      color: "#94A3B8",
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      borderBottom: "none",
                     }}
                     colSpan={2}
                   >
-                    Total
+                    Column Totals
                   </td>
                   {["bed", "paper", ...meshCols.map((_, i) => `mesh_${i}`)].map(
                     (colKey) => (
-                      <td key={colKey} style={{ ...tdStyle, color: "#f97316" }}>
+                      <td
+                        key={colKey}
+                        style={{
+                          ...TD,
+                          color: "#F97316",
+                          fontWeight: 800,
+                          borderBottom: "none",
+                        }}
+                      >
                         {colSum(colKey).toFixed(2)}
                       </td>
                     ),
                   )}
-                  <td style={{ ...tdStyle, color: "#f97316" }}>
-                    ₹
-                    {labours
-                      .reduce((s, l) => s + labourNetSalary(l.id), 0)
-                      .toFixed(0)}
+                  <td
+                    style={{
+                      ...TD,
+                      color: "#7DD3FC",
+                      fontWeight: 800,
+                      borderBottom: "none",
+                    }}
+                  >
+                    —
                   </td>
-                  <td style={{ ...tdStyle, color: "#f97316" }}>
-                    ₹
-                    {labours
-                      .reduce((s, l) => s + labourNetSalary(l.id), 0)
-                      .toFixed(0)}
+                  <td
+                    style={{
+                      ...TD,
+                      color: "#FED7AA",
+                      fontWeight: 800,
+                      fontSize: 15,
+                      borderBottom: "none",
+                    }}
+                  >
+                    ₹{totalNet.toFixed(0)}
                   </td>
                 </tr>
               </tbody>
@@ -497,14 +757,24 @@ export function AttendanceTab({ mode }: Props) {
               data-ocid="attendance.save.button"
               onClick={handleSave}
               disabled={saving}
-              className="mt-4 px-5 py-2 rounded-lg font-semibold"
               style={{
-                background: "#f97316",
+                marginTop: 16,
+                background: saving
+                  ? "#CBD5E1"
+                  : "linear-gradient(135deg, #F97316, #EA580C)",
                 color: "#fff",
-                opacity: saving ? 0.7 : 1,
+                border: "none",
+                borderRadius: 999,
+                padding: "10px 28px",
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: saving ? "not-allowed" : "pointer",
+                boxShadow: saving ? "none" : "0 4px 16px rgba(249,115,22,0.40)",
+                letterSpacing: "0.02em",
+                transition: "all 0.2s",
               }}
             >
-              {saving ? "Saving..." : "Save Attendance"}
+              {saving ? "Saving…" : "Save Attendance"}
             </button>
           )}
         </>

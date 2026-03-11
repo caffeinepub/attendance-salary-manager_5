@@ -43,7 +43,7 @@ export default function App() {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-between relative"
-        style={{ background: "#262626" }}
+        style={{ background: "#FFFFFF" }}
       >
         {/* Top section */}
         <div className="flex flex-col items-center pt-16 px-6 flex-1 justify-center">
@@ -52,17 +52,17 @@ export default function App() {
             className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg"
             style={{ background: "#FF7F11" }}
           >
-            <CalendarCheck size={32} color="#262626" strokeWidth={2.5} />
+            <CalendarCheck size={32} color="#FFFFFF" strokeWidth={2.5} />
           </div>
 
           {/* App title */}
           <h1
             className="text-2xl font-bold text-center mb-2 tracking-tight"
-            style={{ color: "#E2E8CE" }}
+            style={{ color: "#1F1F1F" }}
           >
             Attendance &amp; Salary
           </h1>
-          <p className="text-sm mb-12" style={{ color: "#ACBFA4" }}>
+          <p className="text-sm mb-12" style={{ color: "#9E9E9E" }}>
             Manager
           </p>
 
@@ -75,19 +75,22 @@ export default function App() {
               setScreen("app");
             }}
             className="px-10 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all active:scale-95 hover:opacity-90"
-            style={{ background: "#FF7F11", color: "#262626" }}
+            style={{ background: "#FF7F11", color: "#FFFFFF" }}
           >
             View AttendPay
           </button>
         </div>
 
-        {/* Welcome text at very bottom — hidden admin toggle */}
+        {/* Welcome text at very bottom — tapping opens edit mode */}
         <button
           type="button"
           data-ocid="home.welcome.text"
-          onClick={() => setMode(mode === "view" ? "edit" : "view")}
+          onClick={() => {
+            setMode("edit");
+            setScreen("app");
+          }}
           className="pb-8 text-xs bg-transparent border-0 cursor-pointer"
-          style={{ color: "#ACBFA4" }}
+          style={{ color: "#9E9E9E" }}
         >
           Welcome
         </button>
@@ -99,12 +102,12 @@ export default function App() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "#262626" }}
+      style={{ background: "#F2F2F2" }}
     >
       {/* Header */}
       <div
         className="flex items-center justify-between px-3 py-3 shrink-0"
-        style={{ background: "#262626", borderBottom: "1px solid #3a3a3a" }}
+        style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E5E5" }}
       >
         <div className="flex items-center gap-2">
           <button
@@ -112,7 +115,7 @@ export default function App() {
             data-ocid="nav.home.button"
             onClick={() => setScreen("home")}
             className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
-            style={{ color: "#ACBFA4" }}
+            style={{ color: "#9E9E9E" }}
           >
             <ChevronLeft size={18} />
             <span className="text-xs">Home</span>
@@ -122,11 +125,11 @@ export default function App() {
         <div className="flex items-center gap-1.5">
           <div
             className="w-2 h-2 rounded-full"
-            style={{ background: mode === "edit" ? "#FF7F11" : "#ACBFA4" }}
+            style={{ background: mode === "edit" ? "#FF7F11" : "#9E9E9E" }}
           />
           <span
             className="text-xs font-medium"
-            style={{ color: mode === "edit" ? "#FF7F11" : "#ACBFA4" }}
+            style={{ color: mode === "edit" ? "#FF7F11" : "#9E9E9E" }}
           >
             {mode === "edit" ? "Edit Mode" : "View Mode"}
           </span>
@@ -146,7 +149,7 @@ export default function App() {
       {/* Bottom navigation */}
       <nav
         className="fixed bottom-0 left-0 right-0 flex z-50"
-        style={{ background: "#262626", borderTop: "1px solid #3a3a3a" }}
+        style={{ background: "#FFFFFF", borderTop: "1px solid #E5E5E5" }}
       >
         {TABS.map((tab) => {
           const Icon = tab.icon;
@@ -158,7 +161,7 @@ export default function App() {
               data-ocid={`nav.${tab.id.toLowerCase()}.tab`}
               onClick={() => setActiveTab(tab.id)}
               className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-all active:scale-95"
-              style={{ color: isActive ? "#FF7F11" : "#ACBFA4" }}
+              style={{ color: isActive ? "#FF7F11" : "#9E9E9E" }}
             >
               <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
               <span
