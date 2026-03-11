@@ -330,7 +330,7 @@ actor {
         case (?existing) { existing };
       };
 
-      var value = switch (attendance.value) {
+      let value = switch (attendance.value) {
         case ("absent") { 0.0 };
         case ("present") { 1.0 };
         case ("0.33") { 0.33 };
@@ -343,32 +343,32 @@ actor {
         case (_) { 0.0 };
       };
 
-      var tempBreakdown = current;
-
-      switch (attendance.columnType) {
+      // Only add the delta for this specific attendance record — no cross-type re-accumulation
+      var tempBreakdown = switch (attendance.columnType) {
         case (#bed) {
-          tempBreakdown := {
-            tempBreakdown with
-            bedSalary = (contract.bedAmount.toFloat() * value).toInt();
+          let delta = (contract.bedAmount.toFloat() * value).toInt();
+          {
+            current with
+            bedSalary = current.bedSalary + delta;
+            totalAttendanceSalary = current.totalAttendanceSalary + delta;
           };
         };
         case (#paper) {
-          tempBreakdown := {
-            tempBreakdown with
-            paperSalary = (contract.paperAmount.toFloat() * value).toInt();
+          let delta = (contract.paperAmount.toFloat() * value).toInt();
+          {
+            current with
+            paperSalary = current.paperSalary + delta;
+            totalAttendanceSalary = current.totalAttendanceSalary + delta;
           };
         };
         case (#mesh(_)) {
-          tempBreakdown := {
-            tempBreakdown with
-            meshSalary = (contract.meshAmount.toFloat() * value).toInt();
+          let delta = (contract.meshAmount.toFloat() * value).toInt();
+          {
+            current with
+            meshSalary = current.meshSalary + delta;
+            totalAttendanceSalary = current.totalAttendanceSalary + delta;
           };
         };
-      };
-
-      tempBreakdown := {
-        tempBreakdown with
-        totalAttendanceSalary = tempBreakdown.totalAttendanceSalary + tempBreakdown.bedSalary + tempBreakdown.paperSalary + tempBreakdown.meshSalary;
       };
 
       salaryMap.add(attendance.labourId, tempBreakdown);
