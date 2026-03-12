@@ -90,7 +90,7 @@ export default function App() {
             setScreen("app");
           }}
           className="pb-8 text-xs bg-transparent border-0 cursor-pointer"
-          style={{ color: "#9E9E9E" }}
+          style={{ color: "#FFFFFF" }}
         >
           Welcome
         </button>

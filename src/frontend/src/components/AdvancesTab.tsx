@@ -15,46 +15,66 @@ export function AdvancesTab({ mode }: Props) {
   const [selectedContractId, setSelectedContractId] = useState<bigint | null>(
     null,
   );
-  const [advances, setAdvances] = useState<Advance[]>([]);
+  const [allAdvances, setAllAdvances] = useState<Advance[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({
     labourId: "",
     amount: "",
     note: "",
+    contractId: "",
   });
   const [editingId, setEditingId] = useState<bigint | null>(null);
   const [editForm, setEditForm] = useState({ amount: "", note: "" });
 
   useEffect(() => {
     if (!actor) return;
-    actor
-      .getAllContracts()
-      .then((cs) => setContracts(cs.filter((c) => !c.isSettled)));
-    actor.getAllLabours().then(setLabours);
+    setLoading(true);
+    Promise.all([actor.getAllContracts(), actor.getAllLabours()]).then(
+      ([cs, ls]) => {
+        const activeContracts = cs.filter((c) => !c.isSettled);
+        setContracts(activeContracts);
+        setLabours(ls);
+        Promise.all(
+          activeContracts.map((c) => actor.getAdvancesByContract(c.id)),
+        ).then((advArrays) => {
+          setAllAdvances(advArrays.flat());
+          setLoading(false);
+        });
+      },
+    );
   }, [actor]);
 
-  const load = async (contractId: bigint) => {
+  const loadForContract = async (contractId: bigint) => {
     const adv = await actor?.getAdvancesByContract(contractId);
-    setAdvances(adv ?? []);
+    setAllAdvances((prev) => [
+      ...prev.filter((a) => a.contractId !== contractId),
+      ...(adv ?? []),
+    ]);
   };
 
   const handleSelectContract = (id: bigint | null) => {
     setSelectedContractId(id);
-    if (id) load(id);
-    else setAdvances([]);
   };
 
+  const displayedAdvances = selectedContractId
+    ? allAdvances.filter((a) => a.contractId === selectedContractId)
+    : allAdvances;
+
   const handleAdd = async () => {
-    if (!selectedContractId || !addForm.labourId || !addForm.amount) return;
+    const cId =
+      selectedContractId ??
+      (addForm.contractId ? BigInt(addForm.contractId) : null);
+    if (!cId || !addForm.labourId || !addForm.amount) return;
     await actor?.createAdvance(
-      selectedContractId,
+      cId,
       BigInt(addForm.labourId),
       BigInt(Math.round(Number.parseFloat(addForm.amount))),
       addForm.note,
     );
-    setAddForm({ labourId: "", amount: "", note: "" });
+    setAddForm({ labourId: "", amount: "", note: "", contractId: "" });
     setShowAdd(false);
-    await load(selectedContractId);
+    await loadForContract(cId);
   };
 
   const inputStyle = {
@@ -90,9 +110,12 @@ export function AdvancesTab({ mode }: Props) {
   const getLabourName = (id: bigint) =>
     labours.find((l) => l.id === id)?.name || String(id);
 
+  const getContractName = (id: bigint) =>
+    contracts.find((c) => c.id === id)?.name || String(id);
+
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <h2 className="text-lg font-bold" style={{ color: "#1F1F1F" }}>
           Advances
         </h2>
@@ -108,17 +131,17 @@ export function AdvancesTab({ mode }: Props) {
             color: "#1F1F1F",
             borderRadius: 6,
             padding: "6px 10px",
-            minWidth: 200,
+            minWidth: 180,
           }}
         >
-          <option value="">-- Select Contract --</option>
+          <option value="">All Contracts</option>
           {contracts.map((c) => (
             <option key={String(c.id)} value={String(c.id)}>
               {c.name}
             </option>
           ))}
         </select>
-        {mode === "edit" && selectedContractId && (
+        {mode === "edit" && (
           <button
             type="button"
             data-ocid="advances.add.button"
@@ -143,6 +166,26 @@ export function AdvancesTab({ mode }: Props) {
             New Advance
           </h3>
           <div className="flex flex-col gap-2">
+            {!selectedContractId && (
+              <div>
+                <span style={labelStyle}>Contract</span>
+                <select
+                  data-ocid="advances.add.contract.select"
+                  style={inputStyle}
+                  value={addForm.contractId}
+                  onChange={(e) =>
+                    setAddForm((f) => ({ ...f, contractId: e.target.value }))
+                  }
+                >
+                  <option value="">Select Contract</option>
+                  {contracts.map((c) => (
+                    <option key={String(c.id)} value={String(c.id)}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <span style={labelStyle}>Labour</span>
               <select
@@ -197,22 +240,30 @@ export function AdvancesTab({ mode }: Props) {
         </div>
       )}
 
-      {selectedContractId && (
+      {loading ? (
+        <div
+          style={{ color: "#9E9E9E", textAlign: "center", padding: 24 }}
+          data-ocid="advances.loading_state"
+        >
+          Loading advances...
+        </div>
+      ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
               <tr>
                 <th style={thStyle}>Labour</th>
+                {!selectedContractId && <th style={thStyle}>Contract</th>}
                 <th style={thStyle}>Amount</th>
                 <th style={thStyle}>Note</th>
                 {mode === "edit" && <th style={thStyle}>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {advances.length === 0 && (
+              {displayedAdvances.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     style={{
                       ...tdStyle,
                       color: "#9E9E9E",
@@ -224,13 +275,18 @@ export function AdvancesTab({ mode }: Props) {
                   </td>
                 </tr>
               )}
-              {advances.map((adv, i) => (
+              {displayedAdvances.map((adv, i) => (
                 <tr
                   key={String(adv.id)}
                   data-ocid={`advances.item.${i + 1}`}
                   style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}
                 >
                   <td style={tdStyle}>{getLabourName(adv.labourId)}</td>
+                  {!selectedContractId && (
+                    <td style={{ ...tdStyle, color: "#666" }}>
+                      {getContractName(adv.contractId)}
+                    </td>
+                  )}
                   {editingId === adv.id ? (
                     <>
                       <td style={tdStyle}>
@@ -274,7 +330,7 @@ export function AdvancesTab({ mode }: Props) {
                           type="button"
                           data-ocid={`advances.save.button.${i + 1}`}
                           onClick={() => {
-                            setAdvances((prev) =>
+                            setAllAdvances((prev) =>
                               prev.map((a) =>
                                 a.id === adv.id
                                   ? {
@@ -343,7 +399,7 @@ export function AdvancesTab({ mode }: Props) {
                             type="button"
                             data-ocid={`advances.delete.button.${i + 1}`}
                             onClick={() =>
-                              setAdvances((prev) =>
+                              setAllAdvances((prev) =>
                                 prev.filter((a) => a.id !== adv.id),
                               )
                             }
