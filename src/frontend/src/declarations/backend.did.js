@@ -8,6 +8,10 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const Group = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+});
 export const SalaryBreakdown = IDL.Record({
   'meshSalary' : IDL.Int,
   'totalAttendanceSalary' : IDL.Int,
@@ -41,6 +45,7 @@ export const Labour = IDL.Record({
   'id' : IDL.Nat,
   'name' : IDL.Text,
   'phone' : IDL.Opt(IDL.Text),
+  'groupId' : IDL.Opt(IDL.Nat),
 });
 export const ColumnType = IDL.Variant({
   'bed' : IDL.Null,
@@ -79,11 +84,14 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
-  'createLabour' : IDL.Func([IDL.Text, IDL.Opt(IDL.Text)], [IDL.Nat], []),
+  'createGroup' : IDL.Func([IDL.Text], [IDL.Nat], []),
+  'createLabour' : IDL.Func([IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Nat)], [IDL.Nat], []),
   'deleteContract' : IDL.Func([IDL.Nat], [], []),
+  'deleteGroup' : IDL.Func([IDL.Nat], [], []),
   'getAdvancesByContract' : IDL.Func([IDL.Nat], [IDL.Vec(Advance)], ['query']),
   'getAdvancesByLabour' : IDL.Func([IDL.Nat], [IDL.Vec(Advance)], ['query']),
   'getAllContracts' : IDL.Func([], [IDL.Vec(Contract)], ['query']),
+  'getAllGroups' : IDL.Func([], [IDL.Vec(Group)], ['query']),
   'getAllLabours' : IDL.Func([], [IDL.Vec(Labour)], ['query']),
   'getAttendanceByContract' : IDL.Func(
       [IDL.Nat],
@@ -112,12 +120,16 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
-  'updateLabour' : IDL.Func([IDL.Nat, IDL.Text, IDL.Opt(IDL.Text)], [], []),
+  'updateLabour' : IDL.Func([IDL.Nat, IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Nat)], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const Group = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+  });
   const SalaryBreakdown = IDL.Record({
     'meshSalary' : IDL.Int,
     'totalAttendanceSalary' : IDL.Int,
@@ -151,6 +163,7 @@ export const idlFactory = ({ IDL }) => {
     'id' : IDL.Nat,
     'name' : IDL.Text,
     'phone' : IDL.Opt(IDL.Text),
+    'groupId' : IDL.Opt(IDL.Nat),
   });
   const ColumnType = IDL.Variant({
     'bed' : IDL.Null,
@@ -189,8 +202,10 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
-    'createLabour' : IDL.Func([IDL.Text, IDL.Opt(IDL.Text)], [IDL.Nat], []),
+    'createGroup' : IDL.Func([IDL.Text], [IDL.Nat], []),
+    'createLabour' : IDL.Func([IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Nat)], [IDL.Nat], []),
     'deleteContract' : IDL.Func([IDL.Nat], [], []),
+    'deleteGroup' : IDL.Func([IDL.Nat], [], []),
     'getAdvancesByContract' : IDL.Func(
         [IDL.Nat],
         [IDL.Vec(Advance)],
@@ -198,6 +213,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getAdvancesByLabour' : IDL.Func([IDL.Nat], [IDL.Vec(Advance)], ['query']),
     'getAllContracts' : IDL.Func([], [IDL.Vec(Contract)], ['query']),
+    'getAllGroups' : IDL.Func([], [IDL.Vec(Group)], ['query']),
     'getAllLabours' : IDL.Func([], [IDL.Vec(Labour)], ['query']),
     'getAttendanceByContract' : IDL.Func(
         [IDL.Nat],
@@ -226,7 +242,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
-    'updateLabour' : IDL.Func([IDL.Nat, IDL.Text, IDL.Opt(IDL.Text)], [], []),
+    'updateLabour' : IDL.Func([IDL.Nat, IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Nat)], [], []),
   });
 };
 
