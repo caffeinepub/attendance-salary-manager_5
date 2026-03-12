@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { AdvancesTab } from "./components/AdvancesTab";
 import { AttendanceTab } from "./components/AttendanceTab";
 import { ContractsTab } from "./components/ContractsTab";
@@ -109,83 +110,85 @@ export default function App() {
 
   // App screen
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "#F2F2F2" }}
-    >
-      {/* Header */}
+    <ErrorBoundary>
       <div
-        className="flex items-center justify-between px-3 py-3 shrink-0"
-        style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E5E5" }}
+        className="min-h-screen flex flex-col"
+        style={{ background: "#F2F2F2" }}
       >
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            data-ocid="nav.home.button"
-            onClick={() => setScreen("home")}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
-            style={{ color: "#9E9E9E" }}
-          >
-            <ChevronLeft size={18} />
-            <span className="text-xs">Home</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{ background: mode === "edit" ? "#FF7F11" : "#9E9E9E" }}
-          />
-          <span
-            className="text-xs font-medium"
-            style={{ color: mode === "edit" ? "#FF7F11" : "#9E9E9E" }}
-          >
-            {mode === "edit" ? "Edit Mode" : "View Mode"}
-          </span>
-        </div>
-      </div>
-
-      {/* Tab content */}
-      <div className="flex-1 overflow-auto p-3 pb-24">
-        {safeActiveTab === "Contracts" && <ContractsTab mode={mode} />}
-        {safeActiveTab === "Attendance" && <AttendanceTab mode={mode} />}
-        {safeActiveTab === "Advances" && <AdvancesTab mode={mode} />}
-        {safeActiveTab === "Payments" && <PaymentsTab />}
-        {safeActiveTab === "Labours" && <LaboursTab mode={mode} />}
-        {safeActiveTab === "Settled" && <SettledTab mode={mode} />}
-      </div>
-
-      {/* Bottom navigation */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 flex z-50"
-        style={{ background: "#FFFFFF", borderTop: "1px solid #E5E5E5" }}
-      >
-        {visibleTabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = safeActiveTab === tab.id;
-          return (
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-3 py-3 shrink-0"
+          style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E5E5" }}
+        >
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              key={tab.id}
-              data-ocid={`nav.${tab.id.toLowerCase()}.tab`}
-              onClick={() => setActiveTab(tab.id)}
-              className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-all active:scale-95"
-              style={{ color: isActive ? "#FF7F11" : "#9E9E9E" }}
+              data-ocid="nav.home.button"
+              onClick={() => setScreen("home")}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
+              style={{ color: "#9E9E9E" }}
             >
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
-              <span
-                className="text-xs leading-tight"
-                style={{
-                  fontWeight: isActive ? 600 : 400,
-                  fontSize: "0.6rem",
-                }}
-              >
-                {tab.short}
-              </span>
+              <ChevronLeft size={18} />
+              <span className="text-xs">Home</span>
             </button>
-          );
-        })}
-      </nav>
-    </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ background: mode === "edit" ? "#FF7F11" : "#9E9E9E" }}
+            />
+            <span
+              className="text-xs font-medium"
+              style={{ color: mode === "edit" ? "#FF7F11" : "#9E9E9E" }}
+            >
+              {mode === "edit" ? "Edit Mode" : "View Mode"}
+            </span>
+          </div>
+        </div>
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-auto p-3 pb-24">
+          {safeActiveTab === "Contracts" && <ContractsTab mode={mode} />}
+          {safeActiveTab === "Attendance" && <AttendanceTab mode={mode} />}
+          {safeActiveTab === "Advances" && <AdvancesTab mode={mode} />}
+          {safeActiveTab === "Payments" && <PaymentsTab />}
+          {safeActiveTab === "Labours" && <LaboursTab mode={mode} />}
+          {safeActiveTab === "Settled" && <SettledTab mode={mode} />}
+        </div>
+
+        {/* Bottom navigation */}
+        <nav
+          className="fixed bottom-0 left-0 right-0 flex z-50"
+          style={{ background: "#FFFFFF", borderTop: "1px solid #E5E5E5" }}
+        >
+          {visibleTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = safeActiveTab === tab.id;
+            return (
+              <button
+                type="button"
+                key={tab.id}
+                data-ocid={`nav.${tab.id.toLowerCase()}.tab`}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-all active:scale-95"
+                style={{ color: isActive ? "#FF7F11" : "#9E9E9E" }}
+              >
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span
+                  className="text-xs leading-tight"
+                  style={{
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: "0.6rem",
+                  }}
+                >
+                  {tab.short}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </ErrorBoundary>
   );
 }

@@ -89,10 +89,15 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Group {
+    id: bigint;
+    name: string;
+}
 export interface Labour {
     id: bigint;
     name: string;
     phone?: string;
+    groupId?: bigint;
 }
 export type ColumnType = {
     __kind__: "bed";
@@ -144,11 +149,14 @@ export interface backendInterface {
     calculateNetSalaries(contractId: bigint): Promise<Array<SalaryBreakdown>>;
     createAdvance(contractId: bigint, labourId: bigint, amount: bigint, note: string): Promise<bigint>;
     createContract(name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<bigint>;
-    createLabour(name: string, phone: string | null): Promise<bigint>;
+    createGroup(name: string): Promise<bigint>;
+    createLabour(name: string, phone: string | null, groupId: bigint | null): Promise<bigint>;
     deleteContract(id: bigint): Promise<void>;
+    deleteGroup(id: bigint): Promise<void>;
     getAdvancesByContract(contractId: bigint): Promise<Array<Advance>>;
     getAdvancesByLabour(labourId: bigint): Promise<Array<Advance>>;
     getAllContracts(): Promise<Array<Contract>>;
+    getAllGroups(): Promise<Array<Group>>;
     getAllLabours(): Promise<Array<Labour>>;
     getAttendanceByContract(contractId: bigint): Promise<Array<Attendance>>;
     getContract(id: bigint): Promise<Contract>;
@@ -156,7 +164,7 @@ export interface backendInterface {
     settleContract(id: bigint): Promise<void>;
     unsettleContract(id: bigint): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;
-    updateLabour(id: bigint, name: string, phone: string | null): Promise<void>;
+    updateLabour(id: bigint, name: string, phone: string | null, groupId: bigint | null): Promise<void>;
 }
 import type { Attendance as _Attendance, ColumnType as _ColumnType, Labour as _Labour } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -203,17 +211,31 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async createLabour(arg0: string, arg1: string | null): Promise<bigint> {
+    async createGroup(arg0: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.createLabour(arg0, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.createGroup(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.createLabour(arg0, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.createGroup(arg0);
+            return result;
+        }
+    }
+    async createLabour(arg0: string, arg1: string | null, arg2: bigint | null): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createLabour(arg0, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg2));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createLabour(arg0, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg2));
             return result;
         }
     }
@@ -228,6 +250,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteContract(arg0);
+            return result;
+        }
+    }
+    async deleteGroup(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteGroup(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteGroup(arg0);
             return result;
         }
     }
@@ -270,6 +306,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllContracts();
+            return result;
+        }
+    }
+    async getAllGroups(): Promise<Array<Group>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllGroups();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllGroups();
             return result;
         }
     }
@@ -371,17 +421,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async updateLabour(arg0: bigint, arg1: string, arg2: string | null): Promise<void> {
+    async updateLabour(arg0: bigint, arg1: string, arg2: string | null, arg3: bigint | null): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2));
+                const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg3));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2));
+            const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg3));
             return result;
         }
     }
@@ -398,19 +448,26 @@ function from_candid_Labour_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint
 function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
     return value.length === 0 ? null : value[0];
 }
+function from_candid_opt_bigint(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
+    return value.length === 0 ? null : value[0];
+}
 function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: bigint;
     name: string;
     phone: [] | [string];
+    groupId: [] | [bigint];
 }): {
     id: bigint;
     name: string;
     phone?: string;
+    groupId?: bigint;
 } {
+    const groupIdVal = from_candid_opt_bigint(_uploadFile, _downloadFile, value.groupId);
     return {
         id: value.id,
         name: value.name,
-        phone: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.phone))
+        phone: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.phone)),
+        groupId: groupIdVal === null ? undefined : groupIdVal
     };
 }
 function from_candid_record_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {

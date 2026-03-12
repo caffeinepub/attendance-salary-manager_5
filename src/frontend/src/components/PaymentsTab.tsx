@@ -11,6 +11,13 @@ function attendanceNum(v: string): number {
   return Number.parseFloat(v) || 0;
 }
 
+// Handle both raw Motoko optional ([] | [bigint]) and friendly (bigint | undefined)
+function extractGroupId(gid: any): bigint | undefined {
+  if (gid === undefined || gid === null) return undefined;
+  if (Array.isArray(gid)) return gid.length > 0 ? gid[0] : undefined;
+  return gid as bigint;
+}
+
 type FilterMode = "all" | "group" | "labour";
 
 interface LabourPayment {
@@ -72,7 +79,10 @@ export function PaymentsTab() {
     if (filterMode === "all") return labours;
     if (filterMode === "group" && filterGroupId) {
       const gid = BigInt(filterGroupId);
-      return labours.filter((l) => l.groupId === gid);
+      return labours.filter((l) => {
+        const labourGid = extractGroupId((l as any).groupId);
+        return labourGid !== undefined && labourGid === gid;
+      });
     }
     if (filterMode === "labour" && filterLabourIds.size > 0) {
       return labours.filter((l) => filterLabourIds.has(String(l.id)));

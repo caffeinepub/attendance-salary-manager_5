@@ -39,10 +39,15 @@ export interface Contract {
   'contractAmount' : bigint,
   'multiplierValue' : number,
 }
+export interface Group {
+  'id' : bigint,
+  'name' : string,
+}
 export interface Labour {
   'id' : bigint,
   'name' : string,
   'phone' : [] | [string],
+  'groupId' : [] | [bigint],
 }
 export interface SalaryBreakdown {
   'meshSalary' : bigint,
@@ -69,11 +74,14 @@ export interface _SERVICE {
     ],
     bigint
   >,
-  'createLabour' : ActorMethod<[string, [] | [string]], bigint>,
+  'createGroup' : ActorMethod<[string], bigint>,
+  'createLabour' : ActorMethod<[string, [] | [string], [] | [bigint]], bigint>,
   'deleteContract' : ActorMethod<[bigint], undefined>,
+  'deleteGroup' : ActorMethod<[bigint], undefined>,
   'getAdvancesByContract' : ActorMethod<[bigint], Array<Advance>>,
   'getAdvancesByLabour' : ActorMethod<[bigint], Array<Advance>>,
   'getAllContracts' : ActorMethod<[], Array<Contract>>,
+  'getAllGroups' : ActorMethod<[], Array<Group>>,
   'getAllLabours' : ActorMethod<[], Array<Labour>>,
   'getAttendanceByContract' : ActorMethod<[bigint], Array<Attendance>>,
   'getContract' : ActorMethod<[bigint], Contract>,
@@ -93,7 +101,7 @@ export interface _SERVICE {
     ],
     undefined
   >,
-  'updateLabour' : ActorMethod<[bigint, string, [] | [string]], undefined>,
+  'updateLabour' : ActorMethod<[bigint, string, [] | [string], [] | [bigint]], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

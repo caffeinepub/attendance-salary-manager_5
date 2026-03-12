@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react";
 import type { AppMode } from "../App";
-import type { Group, Labour } from "../backend.d";
+import type { Group, Labour } from "../backend";
 import { useActor } from "../hooks/useActor";
 
 interface Props {
   mode: AppMode;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyActor = any;
-
 export function LaboursTab({ mode }: Props) {
   const { actor } = useActor();
-  const a = actor as AnyActor;
 
   const [labours, setLabours] = useState<Labour[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -28,18 +24,35 @@ export function LaboursTab({ mode }: Props) {
   // Group management
   const [newGroupName, setNewGroupName] = useState("");
   const [groupError, setGroupError] = useState("");
+  const [groupSaving, setGroupSaving] = useState(false);
 
-  const load = () => {
-    if (!a) return;
-    a.getAllLabours().then(setLabours);
-    a.getAllGroups
-      ? a.getAllGroups().then(setGroups)
-      : Promise.resolve([]).then(setGroups);
+  const loadGroups = async () => {
+    if (!actor) return;
+    try {
+      const result = await actor.getAllGroups();
+      setGroups(result);
+    } catch (_) {
+      // ignore
+    }
+  };
+
+  const load = async () => {
+    if (!actor) return;
+    try {
+      const [ls, gs] = await Promise.all([
+        actor.getAllLabours(),
+        actor.getAllGroups(),
+      ]);
+      setLabours(ls);
+      setGroups(gs);
+    } catch (_) {
+      // ignore
+    }
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: load captures actor from closure
   useEffect(() => {
-    if (a) load();
+    if (actor) load();
   }, [actor]);
 
   const handleAddGroup = async () => {
@@ -50,58 +63,58 @@ export function LaboursTab({ mode }: Props) {
       return;
     }
     setGroupError("");
-    if (a?.createGroup) await a.createGroup(name);
-    setNewGroupName("");
-    if (a?.getAllGroups) a.getAllGroups().then(setGroups);
+    setGroupSaving(true);
+    try {
+      await actor!.createGroup(name);
+      setNewGroupName("");
+      await loadGroups();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setGroupError(msg || "Failed to save group. Please try again.");
+    } finally {
+      setGroupSaving(false);
+    }
   };
 
   const handleDeleteGroup = async (id: bigint) => {
-    if (a?.deleteGroup) await a.deleteGroup(id);
-    if (a?.getAllGroups) a.getAllGroups().then(setGroups);
+    try {
+      await actor!.deleteGroup(id);
+      await loadGroups();
+    } catch (_) {
+      // ignore
+    }
   };
 
   const handleAdd = async () => {
-    if (!addForm.name.trim()) return;
+    if (!addForm.name.trim() || !actor) return;
     const groupId = addForm.groupId ? BigInt(addForm.groupId) : null;
-    if (a?.createGroup !== undefined) {
-      // New backend with groupId support
-      await a.createLabour(
-        addForm.name.trim(),
-        addForm.phone.trim() || null,
-        groupId,
-      );
-    } else {
-      await a.createLabour(addForm.name.trim(), addForm.phone.trim() || null);
+    const phone = addForm.phone.trim() || null;
+    try {
+      await actor.createLabour(addForm.name.trim(), phone, groupId);
+      setAddForm({ name: "", phone: "", groupId: "" });
+      setShowAdd(false);
+      await load();
+    } catch (_) {
+      // ignore
     }
-    setAddForm({ name: "", phone: "", groupId: "" });
-    setShowAdd(false);
-    load();
   };
 
   const handleUpdate = async (id: bigint) => {
+    if (!actor) return;
     const groupId = editForm.groupId ? BigInt(editForm.groupId) : null;
-    if (a?.createGroup !== undefined) {
-      // New backend with groupId support
-      await a.updateLabour(
-        id,
-        editForm.name.trim(),
-        editForm.phone.trim() || null,
-        groupId,
-      );
-    } else {
-      await a.updateLabour(
-        id,
-        editForm.name.trim(),
-        editForm.phone.trim() || null,
-      );
+    const phone = editForm.phone.trim() || null;
+    try {
+      await actor.updateLabour(id, editForm.name.trim(), phone, groupId);
+      setEditingId(null);
+      await load();
+    } catch (_) {
+      // ignore
     }
-    setEditingId(null);
-    load();
   };
 
-  const getGroupName = (groupId?: bigint) => {
-    if (!groupId) return "—";
-    return groups.find((g) => g.id === groupId)?.name ?? "—";
+  const getGroupName = (groupId: bigint | undefined) => {
+    if (groupId === undefined) return "\u2014";
+    return groups.find((g) => g.id === groupId)?.name ?? "\u2014";
   };
 
   const inputStyle = {
@@ -184,15 +197,21 @@ export function LaboursTab({ mode }: Props) {
                 setGroupError("");
               }}
               onKeyDown={(e) => e.key === "Enter" && handleAddGroup()}
+              disabled={groupSaving}
             />
             <button
               type="button"
               data-ocid="labours.group.add.button"
               onClick={handleAddGroup}
+              disabled={groupSaving || !newGroupName.trim()}
               className="px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap"
-              style={{ background: "#FF7F11", color: "#fff" }}
+              style={{
+                background: groupSaving ? "#FFB870" : "#FF7F11",
+                color: "#fff",
+                cursor: groupSaving ? "not-allowed" : "pointer",
+              }}
             >
-              Add Group
+              {groupSaving ? "Saving..." : "Add Group"}
             </button>
           </div>
           {groupError && (
@@ -245,7 +264,7 @@ export function LaboursTab({ mode }: Props) {
                     }}
                     aria-label={`Delete group ${g.name}`}
                   >
-                    ×
+                    \u00d7
                   </button>
                 </span>
               ))}
@@ -455,7 +474,10 @@ export function LaboursTab({ mode }: Props) {
                             setEditForm({
                               name: l.name,
                               phone: l.phone || "",
-                              groupId: l.groupId ? String(l.groupId) : "",
+                              groupId:
+                                l.groupId !== undefined
+                                  ? String(l.groupId)
+                                  : "",
                             });
                           }}
                           className="text-xs px-3 py-1 rounded"
