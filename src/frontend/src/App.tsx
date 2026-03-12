@@ -39,6 +39,10 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [activeTab, setActiveTab] = useState<TabId>("Contracts");
 
+  const visibleTabs = TABS.filter(
+    (tab) => !(tab.id === "Settled" && mode === "view"),
+  );
+
   if (screen === "home") {
     return (
       <div
@@ -73,6 +77,7 @@ export default function App() {
             onClick={() => {
               setMode("view");
               setScreen("app");
+              setActiveTab("Contracts");
             }}
             className="px-10 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all active:scale-95 hover:opacity-90"
             style={{ background: "#FF7F11", color: "#FFFFFF" }}
@@ -97,6 +102,10 @@ export default function App() {
       </div>
     );
   }
+
+  // If Settled tab is active but mode is view, redirect to Contracts
+  const safeActiveTab =
+    activeTab === "Settled" && mode === "view" ? "Contracts" : activeTab;
 
   // App screen
   return (
@@ -138,12 +147,12 @@ export default function App() {
 
       {/* Tab content */}
       <div className="flex-1 overflow-auto p-3 pb-24">
-        {activeTab === "Contracts" && <ContractsTab mode={mode} />}
-        {activeTab === "Attendance" && <AttendanceTab mode={mode} />}
-        {activeTab === "Advances" && <AdvancesTab mode={mode} />}
-        {activeTab === "Payments" && <PaymentsTab />}
-        {activeTab === "Labours" && <LaboursTab mode={mode} />}
-        {activeTab === "Settled" && <SettledTab mode={mode} />}
+        {safeActiveTab === "Contracts" && <ContractsTab mode={mode} />}
+        {safeActiveTab === "Attendance" && <AttendanceTab mode={mode} />}
+        {safeActiveTab === "Advances" && <AdvancesTab mode={mode} />}
+        {safeActiveTab === "Payments" && <PaymentsTab />}
+        {safeActiveTab === "Labours" && <LaboursTab mode={mode} />}
+        {safeActiveTab === "Settled" && <SettledTab mode={mode} />}
       </div>
 
       {/* Bottom navigation */}
@@ -151,9 +160,9 @@ export default function App() {
         className="fixed bottom-0 left-0 right-0 flex z-50"
         style={{ background: "#FFFFFF", borderTop: "1px solid #E5E5E5" }}
       >
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+          const isActive = safeActiveTab === tab.id;
           return (
             <button
               type="button"

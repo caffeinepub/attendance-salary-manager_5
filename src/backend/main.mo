@@ -8,10 +8,24 @@ import Runtime "mo:core/Runtime";
 
 actor {
   // Data Types
+  type Group = {
+    id : Nat;
+    name : Text;
+  };
+
+  // Storage type for Labour — keeps original fields only (backward compatible)
+  type LabourStorage = {
+    id : Nat;
+    name : Text;
+    phone : ?Text;
+  };
+
+  // Public Labour type includes optional groupId (joined at query time)
   type Labour = {
     id : Nat;
     name : Text;
     phone : ?Text;
+    groupId : ?Nat;
   };
 
   type Contract = {
@@ -78,32 +92,64 @@ actor {
   };
 
   // ID Counters
+  var groupCounter = 0;
   var labourCounter = 0;
   var contractCounter = 0;
   var attendanceCounter = 0;
   var advanceCounter = 0;
 
   // Persistent Maps
-  let labours = Map.empty<Nat, Labour>();
+  // labours uses LabourStorage (no groupId) — preserves backward compatibility
+  let labours = Map.empty<Nat, LabourStorage>();
+  // Separate map for labour->group assignment (new, no migration needed)
+  let labourGroups = Map.empty<Nat, Nat>();
+  let groups = Map.empty<Nat, Group>();
   let contracts = Map.empty<Nat, Contract>();
   let attendances = Map.empty<Nat, Attendance>();
   let advances = Map.empty<Nat, Advance>();
 
-  // Labour CRUD
-  public shared ({ caller }) func createLabour(name : Text, phone : ?Text) : async Nat {
-    let id = labourCounter;
-    labourCounter += 1;
-    let labour : Labour = { id; name; phone };
-    labours.add(id, labour);
+  // Group CRUD
+  public shared ({ caller }) func createGroup(name : Text) : async Nat {
+    for (g in groups.values()) {
+      if (g.name == name) { Runtime.trap("Group name already exists") };
+    };
+    let id = groupCounter;
+    groupCounter += 1;
+    groups.add(id, { id; name });
     id;
   };
 
-  public shared ({ caller }) func updateLabour(id : Nat, name : Text, phone : ?Text) : async () {
+  public shared ({ caller }) func deleteGroup(id : Nat) : async () {
+    groups.remove(id);
+  };
+
+  public query ({ caller }) func getAllGroups() : async [Group] {
+    groups.values().toArray();
+  };
+
+  // Labour CRUD
+  public shared ({ caller }) func createLabour(name : Text, phone : ?Text, groupId : ?Nat) : async Nat {
+    let id = labourCounter;
+    labourCounter += 1;
+    let labour : LabourStorage = { id; name; phone };
+    labours.add(id, labour);
+    switch (groupId) {
+      case (null) {};
+      case (?gid) { labourGroups.add(id, gid) };
+    };
+    id;
+  };
+
+  public shared ({ caller }) func updateLabour(id : Nat, name : Text, phone : ?Text, groupId : ?Nat) : async () {
     switch (labours.get(id)) {
       case (null) { Runtime.trap("Labour not found") };
       case (?_) {
-        let labour : Labour = { id; name; phone };
+        let labour : LabourStorage = { id; name; phone };
         labours.add(id, labour);
+        switch (groupId) {
+          case (null) { labourGroups.remove(id) };
+          case (?gid) { labourGroups.add(id, gid) };
+        };
       };
     };
   };
@@ -261,7 +307,14 @@ actor {
 
   // Queries
   public query ({ caller }) func getAllLabours() : async [Labour] {
-    labours.values().toArray();
+    labours.values().toArray().map(func(s : LabourStorage) : Labour {
+      {
+        id = s.id;
+        name = s.name;
+        phone = s.phone;
+        groupId = labourGroups.get(s.id);
+      }
+    });
   };
 
   public query ({ caller }) func getAllContracts() : async [Contract] {
@@ -293,8 +346,7 @@ actor {
     );
   };
 
-  // Calculate Net Salaries — uses proportional formula matching the Attendance tab display:
-  // Each labour's salary = (labour_attendance / total_column_attendance) * contract_column_amount
+  // Calculate Net Salaries
   public query ({ caller }) func calculateNetSalaries(contractId : Nat) : async [SalaryBreakdown] {
     let contract = switch (contracts.get(contractId)) {
       case (null) { Runtime.trap("Contract not found") };
@@ -308,7 +360,6 @@ actor {
       func(a) { a.contractId == contractId }
     );
 
-    // Helper: parse attendance value string to float
     let parseVal = func(v : Text) : Float {
       switch (v) {
         case ("absent") { 0.0 };
@@ -326,7 +377,6 @@ actor {
       };
     };
 
-    // Step 1: Compute column totals across all labours
     var totalBed : Float = 0.0;
     var totalPaper : Float = 0.0;
     var totalMesh : Float = 0.0;
@@ -340,7 +390,6 @@ actor {
       };
     };
 
-    // Step 2: Compute per-labour attendance sums per column type
     let labourBed = Map.empty<Nat, Float>();
     let labourPaper = Map.empty<Nat, Float>();
     let labourMesh = Map.empty<Nat, Float>();
@@ -363,10 +412,8 @@ actor {
       };
     };
 
-    // Step 3: Build salary breakdown for each labour using proportional formula
     let salaryMap = Map.empty<Nat, SalaryBreakdown>();
 
-    // Collect unique labour IDs from attendance records
     for (a in contractAttendances.values()) {
       if (not salaryMap.containsKey(a.labourId)) {
         let labour = switch (labours.get(a.labourId)) {
@@ -395,7 +442,6 @@ actor {
       };
     };
 
-    // Step 4: Add advances per labour
     for (advance in contractAdvances.values()) {
       let current = switch (salaryMap.get(advance.labourId)) {
         case (null) {
@@ -419,7 +465,6 @@ actor {
       salaryMap.add(advance.labourId, { current with totalAdvances = current.totalAdvances + advance.amount });
     };
 
-    // Step 5: Compute netSalary = totalAttendanceSalary - totalAdvances
     for (labourId in salaryMap.keys()) {
       let breakdown = switch (salaryMap.get(labourId)) {
         case (null) { Runtime.trap("Breakdown not found") };

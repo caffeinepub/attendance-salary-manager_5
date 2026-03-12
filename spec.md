@@ -1,34 +1,31 @@
 # Attendance & Salary Manager
 
 ## Current State
-- App has a top header, top tab navigation, tab content area, and a fixed "Welcome" button at bottom-left.
-- Color scheme uses charcoal/orange.
-- Mode toggles between view and edit via the Welcome button.
+The app has a complete backend (Motoko) and frontend (React/TypeScript) with:
+- Contracts, Attendance, Advances, Payments, Labours, Settled tabs
+- Mobile-first UI with bottom tab navigation
+- View/Edit mode toggle via "Welcome" text
+- Labour type: id, name, phone (no group support)
+- All core features working except labour grouping was not added to backend
 
 ## Requested Changes (Diff)
 
 ### Add
-- Main/Home screen shown when app first loads (before any tab is selected).
-- "View AttendPay" button centered on the main screen — tapping it enters view-only mode and navigates to the tabs.
-- In view mode, the edit button (Welcome) is hidden entirely.
-- "Welcome" text (not a button) shown at the bottom of the main screen in small font.
+- Labour group support in backend: Group type (id, name), createGroup, deleteGroup, getAllGroups; Labour gets optional groupId field
+- Labours tab: manage groups section (add/delete groups), group dropdown when adding/editing labours, group column in table
+- Payments tab: filter labours by group or by individual labour selection
 
 ### Modify
-- Move all 6 tab navigation buttons to the bottom of the screen (phone-style bottom nav bar).
-- Tab bar fits phone screen width — icons or abbreviated labels.
-- Color scheme updated to: #FF7F11 (orange), #ACBFA4 (sage green), #E2E8CE (light cream), #262626 (near-black).
-- Welcome is no longer a button — just small text at the bottom of the main screen.
-- Edit mode toggle: only accessible from main screen or hidden in view-only mode.
+- Backend Labour type to include optional groupId
+- createLabour and updateLabour to accept optional groupId
+- LaboursTab to show Groups management and group assignment
+- PaymentsTab to include labour filter (All / By Group / By Labour)
 
 ### Remove
-- Welcome button (fixed bottom-left floating button) removed.
-- Top tab navigation bar removed (replaced with bottom nav).
+- Nothing removed
 
 ## Implementation Plan
-1. Add a `screen` state: `"home" | "app"`.
-2. Home screen: centered "View AttendPay" button, app title, and small "Welcome" text at the bottom. Welcome text is tappable to toggle edit mode so admin can still access edit.
-3. Tapping "View AttendPay" sets mode to `view` and navigates to app screen.
-4. App screen: tab content + bottom nav bar with 6 tabs.
-5. Bottom nav bar uses #FF7F11 active color, #ACBFA4 for inactive, #262626 background.
-6. In view mode, no visible edit button; Welcome text at bottom of home screen provides the only path to edit mode.
-7. Apply new color palette throughout.
+1. Update backend to add Group type, group CRUD, and groupId field on Labour
+2. Regenerate backend.d.ts bindings
+3. Update LaboursTab: groups management UI, group dropdown in add/edit forms, group column
+4. Update PaymentsTab: filter section with All/By Group/By Labour toggle

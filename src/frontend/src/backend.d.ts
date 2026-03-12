@@ -7,10 +7,15 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface Group {
+    id: bigint;
+    name: string;
+}
 export interface Labour {
     id: bigint;
     name: string;
     phone?: string;
+    groupId?: bigint;
 }
 export type ColumnType = {
     __kind__: "bed";
@@ -62,11 +67,14 @@ export interface backendInterface {
     calculateNetSalaries(contractId: bigint): Promise<Array<SalaryBreakdown>>;
     createAdvance(contractId: bigint, labourId: bigint, amount: bigint, note: string): Promise<bigint>;
     createContract(name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<bigint>;
-    createLabour(name: string, phone: string | null): Promise<bigint>;
+    createGroup(name: string): Promise<bigint>;
+    createLabour(name: string, phone: string | null, groupId: bigint | null): Promise<bigint>;
     deleteContract(id: bigint): Promise<void>;
+    deleteGroup(id: bigint): Promise<void>;
     getAdvancesByContract(contractId: bigint): Promise<Array<Advance>>;
     getAdvancesByLabour(labourId: bigint): Promise<Array<Advance>>;
     getAllContracts(): Promise<Array<Contract>>;
+    getAllGroups(): Promise<Array<Group>>;
     getAllLabours(): Promise<Array<Labour>>;
     getAttendanceByContract(contractId: bigint): Promise<Array<Attendance>>;
     getContract(id: bigint): Promise<Contract>;
@@ -74,5 +82,5 @@ export interface backendInterface {
     settleContract(id: bigint): Promise<void>;
     unsettleContract(id: bigint): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;
-    updateLabour(id: bigint, name: string, phone: string | null): Promise<void>;
+    updateLabour(id: bigint, name: string, phone: string | null, groupId: bigint | null): Promise<void>;
 }

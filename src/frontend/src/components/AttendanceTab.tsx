@@ -182,34 +182,40 @@ export function AttendanceTab({ mode }: Props) {
   };
 
   const handleSave = async () => {
-    if (!selectedContractId) return;
+    if (!selectedContractId || !actor) return;
     setSaving(true);
     try {
+      // Build all save calls and run them in parallel for speed
+      const saves: Promise<unknown>[] = [];
       for (const labour of labours) {
-        const bedVal = getVal(labour.id, "bed");
-        await actor?.saveAttendance(
-          selectedContractId,
-          labour.id,
-          { __kind__: "bed", bed: null },
-          bedVal,
-        );
-        const papVal = getVal(labour.id, "paper");
-        await actor?.saveAttendance(
-          selectedContractId,
-          labour.id,
-          { __kind__: "paper", paper: null },
-          papVal,
-        );
-        for (let i = 0; i < meshCols.length; i++) {
-          const meshVal = getVal(labour.id, `mesh_${i}`);
-          await actor?.saveAttendance(
+        saves.push(
+          actor.saveAttendance(
             selectedContractId,
             labour.id,
-            { __kind__: "mesh", mesh: BigInt(i) },
-            meshVal,
+            { __kind__: "bed", bed: null },
+            getVal(labour.id, "bed"),
+          ),
+        );
+        saves.push(
+          actor.saveAttendance(
+            selectedContractId,
+            labour.id,
+            { __kind__: "paper", paper: null },
+            getVal(labour.id, "paper"),
+          ),
+        );
+        for (let i = 0; i < meshCols.length; i++) {
+          saves.push(
+            actor.saveAttendance(
+              selectedContractId,
+              labour.id,
+              { __kind__: "mesh", mesh: BigInt(i) },
+              getVal(labour.id, `mesh_${i}`),
+            ),
           );
         }
       }
+      await Promise.all(saves);
     } finally {
       setSaving(false);
     }

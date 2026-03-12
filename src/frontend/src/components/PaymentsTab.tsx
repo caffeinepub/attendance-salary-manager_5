@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import type { Advance, Attendance, Contract, Labour } from "../backend.d";
+import type { Attendance, Contract, Group, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyActor = any;
 
 function attendanceNum(v: string): number {
   if (v === "Present" || v === "present") return 1;
@@ -8,10 +11,12 @@ function attendanceNum(v: string): number {
   return Number.parseFloat(v) || 0;
 }
 
+type FilterMode = "all" | "group" | "labour";
+
 interface LabourPayment {
   labourId: bigint;
   labourName: string;
-  contractSalaries: Map<string, number>; // contractId -> net salary for that contract
+  contractSalaries: Map<string, number>;
   totalGross: number;
   totalAdvances: number;
   finalPayment: number;
@@ -19,19 +24,30 @@ interface LabourPayment {
 
 export function PaymentsTab() {
   const { actor } = useActor();
+  const a = actor as AnyActor;
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [labours, setLabours] = useState<Labour[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [payments, setPayments] = useState<LabourPayment[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Filter state
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [filterGroupId, setFilterGroupId] = useState("");
+  const [filterLabourIds, setFilterLabourIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a is derived from actor
   useEffect(() => {
-    if (!actor) return;
-    actor
-      .getAllContracts()
-      .then((cs) => setContracts(cs.filter((c) => !c.isSettled)));
-    actor.getAllLabours().then(setLabours);
+    if (!a) return;
+    a.getAllContracts().then((cs: Contract[]) =>
+      setContracts(cs.filter((c) => !c.isSettled)),
+    );
+    a.getAllLabours().then(setLabours);
+    if (a.getAllGroups) a.getAllGroups().then(setGroups);
   }, [actor]);
 
   const toggleContract = (id: string) => {
@@ -43,16 +59,35 @@ export function PaymentsTab() {
     });
   };
 
+  const toggleLabourFilter = (id: string) => {
+    setFilterLabourIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const getFilteredLabours = (): Labour[] => {
+    if (filterMode === "all") return labours;
+    if (filterMode === "group" && filterGroupId) {
+      const gid = BigInt(filterGroupId);
+      return labours.filter((l) => l.groupId === gid);
+    }
+    if (filterMode === "labour" && filterLabourIds.size > 0) {
+      return labours.filter((l) => filterLabourIds.has(String(l.id)));
+    }
+    return labours;
+  };
+
   const calculate = async () => {
-    if (!actor) return;
+    if (!a) return;
     setLoading(true);
     try {
-      // For each selected contract, fetch attendance + advances and compute salary
-      // using the same proportional formula as AttendanceTab
+      const filteredLabours = getFilteredLabours();
       const labourMap = new Map<string, LabourPayment>();
 
-      // Initialize all labours
-      for (const l of labours) {
+      for (const l of filteredLabours) {
         labourMap.set(String(l.id), {
           labourId: l.id,
           labourName: l.name,
@@ -68,34 +103,24 @@ export function PaymentsTab() {
         const contract = contracts.find((c) => String(c.id) === idStr);
         if (!contract) continue;
 
-        // Fetch attendance and advances for this contract
         const [attendanceList, advancesList] = await Promise.all([
-          actor.getAttendanceByContract(cid),
-          actor.getAdvancesByContract(cid),
+          a.getAttendanceByContract(cid),
+          a.getAdvancesByContract(cid),
         ]);
 
-        // Build attendance map: labourId -> { bed, paper, mesh_0, mesh_1, ... }
         const attMap = new Map<string, Map<string, string>>();
-        for (const a of attendanceList) {
-          const lid = String(a.labourId);
+        for (const att of attendanceList as Attendance[]) {
+          const lid = String(att.labourId);
           if (!attMap.has(lid)) attMap.set(lid, new Map());
-          const colKey = getColKey(a);
-          attMap.get(lid)!.set(colKey, a.value);
-        }
-
-        // Build column keys list from contract
-        const colKeys: string[] = [];
-        if (Number(contract.bedAmount) > 0) colKeys.push("bed");
-        if (Number(contract.paperAmount) > 0) colKeys.push("paper");
-        for (let i = 0; i < contract.meshColumns.length; i++) {
-          colKeys.push(`mesh_${i}`);
+          const colKey = getColKey(att);
+          attMap.get(lid)!.set(colKey, att.value);
         }
 
         const getVal = (labourId: bigint, colKey: string): string => {
           return attMap.get(String(labourId))?.get(colKey) ?? "Absent";
         };
 
-        // Compute column totals (same as AttendanceTab colSum)
+        // Column sums use ALL labours for correct proportional calculation
         const colSum = (colKey: string): number =>
           labours.reduce((s, l) => s + attendanceNum(getVal(l.id, colKey)), 0);
 
@@ -103,15 +128,16 @@ export function PaymentsTab() {
           return s + colSum(`mesh_${i}`);
         }, 0);
 
-        // Compute advances per labour for this contract
         const advanceMap = new Map<string, number>();
-        for (const adv of advancesList) {
+        for (const adv of advancesList as Array<{
+          labourId: bigint;
+          amount: bigint;
+        }>) {
           const lid = String(adv.labourId);
           advanceMap.set(lid, (advanceMap.get(lid) ?? 0) + Number(adv.amount));
         }
 
-        // Calculate net salary per labour for this contract (same as AttendanceTab netSalary)
-        for (const l of labours) {
+        for (const l of filteredLabours) {
           const lid = String(l.id);
 
           const bedSum = colSum("bed");
@@ -140,32 +166,19 @@ export function PaymentsTab() {
 
           const netSalary = bedSal + paperSal + meshSal;
 
-          if (!labourMap.has(lid)) {
-            labourMap.set(lid, {
-              labourId: l.id,
-              labourName: l.name,
-              contractSalaries: new Map(),
-              totalGross: 0,
-              totalAdvances: 0,
-              finalPayment: 0,
-            });
+          const lp = labourMap.get(lid);
+          if (lp) {
+            lp.contractSalaries.set(idStr, netSalary);
+            lp.totalGross += netSalary;
+            lp.totalAdvances += advanceMap.get(lid) ?? 0;
           }
-
-          const lp = labourMap.get(lid)!;
-          lp.contractSalaries.set(idStr, netSalary);
-          lp.totalGross += netSalary;
-
-          // Add advances for this contract
-          lp.totalAdvances += advanceMap.get(lid) ?? 0;
         }
       }
 
-      // Compute final payment
       for (const lp of labourMap.values()) {
         lp.finalPayment = lp.totalGross - lp.totalAdvances;
       }
 
-      // Only include labours who have at least one contract salary > 0
       const result = Array.from(labourMap.values()).filter(
         (lp) => lp.totalGross > 0 || lp.totalAdvances > 0,
       );
@@ -178,7 +191,6 @@ export function PaymentsTab() {
   const selectedContracts = contracts.filter((c) =>
     selectedIds.has(String(c.id)),
   );
-
   const totalFinal = payments.reduce((s, lp) => s + lp.finalPayment, 0);
   const totalAdvances = payments.reduce((s, lp) => s + lp.totalAdvances, 0);
 
@@ -202,6 +214,18 @@ export function PaymentsTab() {
     verticalAlign: "middle",
   };
 
+  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: "6px 16px",
+    borderRadius: 999,
+    border: active ? "2px solid #FF7F11" : "2px solid #E2E8F0",
+    background: active ? "#FF7F11" : "#F1F5F9",
+    color: active ? "#fff" : "#475569",
+    fontWeight: active ? 700 : 500,
+    fontSize: 13,
+    cursor: "pointer",
+    transition: "all 0.15s",
+  });
+
   return (
     <div>
       {/* Section Header */}
@@ -213,12 +237,7 @@ export function PaymentsTab() {
         }}
       >
         <h2
-          style={{
-            fontSize: 20,
-            fontWeight: 800,
-            color: "#0F172A",
-            margin: 0,
-          }}
+          style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: 0 }}
         >
           Payments Sheet
         </h2>
@@ -303,41 +322,159 @@ export function PaymentsTab() {
             );
           })}
         </div>
+      </div>
 
-        {/* Calculate Button */}
-        <button
-          type="button"
-          data-ocid="payments.calculate.button"
-          onClick={calculate}
-          disabled={selectedIds.size === 0 || loading}
+      {/* Filter Labours */}
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #E5E5E5",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 16,
+        }}
+      >
+        <div
           style={{
-            marginTop: 14,
-            width: "100%",
-            maxWidth: 340,
-            display: "block",
-            background:
-              selectedIds.size === 0 || loading
-                ? "#CBD5E1"
-                : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-            color: "#fff",
-            border: "none",
-            borderRadius: 999,
-            padding: "12px 0",
-            fontSize: 15,
-            fontWeight: 800,
-            cursor:
-              selectedIds.size === 0 || loading ? "not-allowed" : "pointer",
-            boxShadow:
-              selectedIds.size === 0 || loading
-                ? "none"
-                : "0 4px 20px rgba(249,115,22,0.40)",
-            letterSpacing: "0.03em",
-            transition: "all 0.2s",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#64748B",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            marginBottom: 10,
           }}
         >
-          {loading ? "Calculating…" : "Calculate Payments"}
-        </button>
+          Filter Labours
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <button
+            type="button"
+            data-ocid="payments.filter.all.toggle"
+            style={filterBtnStyle(filterMode === "all")}
+            onClick={() => setFilterMode("all")}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            data-ocid="payments.filter.group.toggle"
+            style={filterBtnStyle(filterMode === "group")}
+            onClick={() => setFilterMode("group")}
+          >
+            By Group
+          </button>
+          <button
+            type="button"
+            data-ocid="payments.filter.labour.toggle"
+            style={filterBtnStyle(filterMode === "labour")}
+            onClick={() => setFilterMode("labour")}
+          >
+            By Labour
+          </button>
+        </div>
+
+        {filterMode === "group" && (
+          <select
+            data-ocid="payments.filter.group.select"
+            value={filterGroupId}
+            onChange={(e) => setFilterGroupId(e.target.value)}
+            style={{
+              background: "#FFFFFF",
+              border: "1px solid #E5E5E5",
+              color: "#1F1F1F",
+              borderRadius: 8,
+              padding: "8px 12px",
+              width: "100%",
+              maxWidth: 300,
+              fontSize: 13,
+            }}
+          >
+            <option value="">Select a group...</option>
+            {groups.map((g) => (
+              <option key={String(g.id)} value={String(g.id)}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {filterMode === "labour" && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {labours.map((l, i) => {
+              const checked = filterLabourIds.has(String(l.id));
+              return (
+                <label
+                  key={String(l.id)}
+                  data-ocid={`payments.filter.labour.checkbox.${i + 1}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "5px 12px",
+                    borderRadius: 999,
+                    cursor: "pointer",
+                    background: checked ? "#FFF3E0" : "#F1F5F9",
+                    border: checked
+                      ? "1.5px solid #FF7F11"
+                      : "1.5px solid #E2E8F0",
+                    color: checked ? "#FF7F11" : "#475569",
+                    fontWeight: checked ? 700 : 500,
+                    fontSize: 13,
+                    userSelect: "none",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleLabourFilter(String(l.id))}
+                    style={{ display: "none" }}
+                  />
+                  {checked ? "✓ " : ""}
+                  {l.name}
+                </label>
+              );
+            })}
+            {labours.length === 0 && (
+              <p style={{ color: "#9E9E9E", fontSize: 13 }}>
+                No labours available.
+              </p>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Calculate Button */}
+      <button
+        type="button"
+        data-ocid="payments.calculate.button"
+        onClick={calculate}
+        disabled={selectedIds.size === 0 || loading}
+        style={{
+          marginBottom: 16,
+          width: "100%",
+          maxWidth: 340,
+          display: "block",
+          background:
+            selectedIds.size === 0 || loading
+              ? "#CBD5E1"
+              : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+          color: "#fff",
+          border: "none",
+          borderRadius: 999,
+          padding: "12px 0",
+          fontSize: 15,
+          fontWeight: 800,
+          cursor: selectedIds.size === 0 || loading ? "not-allowed" : "pointer",
+          boxShadow:
+            selectedIds.size === 0 || loading
+              ? "none"
+              : "0 4px 20px rgba(249,115,22,0.40)",
+          letterSpacing: "0.03em",
+          transition: "all 0.2s",
+        }}
+      >
+        {loading ? "Calculating…" : "Calculate Payments"}
+      </button>
 
       {/* Stats Bar */}
       {payments.length > 0 && (
