@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Attendance, Contract, Group, Labour } from "../backend.d";
+import type { Attendance, Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -10,15 +10,6 @@ function attendanceNum(v: string): number {
   if (v === "Absent" || v === "absent") return 0;
   return Number.parseFloat(v) || 0;
 }
-
-// Handle both raw Motoko optional ([] | [bigint]) and friendly (bigint | undefined)
-function extractGroupId(gid: any): bigint | undefined {
-  if (gid === undefined || gid === null) return undefined;
-  if (Array.isArray(gid)) return gid.length > 0 ? gid[0] : undefined;
-  return gid as bigint;
-}
-
-type FilterMode = "all" | "group" | "labour";
 
 interface LabourPayment {
   labourId: bigint;
@@ -35,17 +26,12 @@ export function PaymentsTab() {
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [labours, setLabours] = useState<Labour[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [payments, setPayments] = useState<LabourPayment[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Filter state
-  const [filterMode, setFilterMode] = useState<FilterMode>("all");
-  const [filterGroupId, setFilterGroupId] = useState("");
-  const [filterLabourIds, setFilterLabourIds] = useState<Set<string>>(
+  const [selectedLabourIds, setSelectedLabourIds] = useState<Set<string>>(
     new Set(),
   );
+  const [payments, setPayments] = useState<LabourPayment[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a is derived from actor
   useEffect(() => {
@@ -53,8 +39,10 @@ export function PaymentsTab() {
     a.getAllContracts().then((cs: Contract[]) =>
       setContracts(cs.filter((c) => !c.isSettled)),
     );
-    a.getAllLabours().then(setLabours);
-    if (a.getAllGroups) a.getAllGroups().then(setGroups);
+    a.getAllLabours().then((ls: Labour[]) => {
+      setLabours(ls);
+      setSelectedLabourIds(new Set(ls.map((l) => String(l.id))));
+    });
   }, [actor]);
 
   const toggleContract = (id: string) => {
@@ -66,8 +54,8 @@ export function PaymentsTab() {
     });
   };
 
-  const toggleLabourFilter = (id: string) => {
-    setFilterLabourIds((prev) => {
+  const toggleLabour = (id: string) => {
+    setSelectedLabourIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -75,29 +63,29 @@ export function PaymentsTab() {
     });
   };
 
-  const getFilteredLabours = (): Labour[] => {
-    if (filterMode === "all") return labours;
-    if (filterMode === "group" && filterGroupId) {
-      const gid = BigInt(filterGroupId);
-      return labours.filter((l) => {
-        const labourGid = extractGroupId((l as any).groupId);
-        return labourGid !== undefined && labourGid === gid;
-      });
+  const allLaboursSelected =
+    labours.length > 0 &&
+    labours.every((l) => selectedLabourIds.has(String(l.id)));
+
+  const toggleAllLabours = () => {
+    if (allLaboursSelected) {
+      setSelectedLabourIds(new Set());
+    } else {
+      setSelectedLabourIds(new Set(labours.map((l) => String(l.id))));
     }
-    if (filterMode === "labour" && filterLabourIds.size > 0) {
-      return labours.filter((l) => filterLabourIds.has(String(l.id)));
-    }
-    return labours;
   };
+
+  const filteredLabours = labours.filter((l) =>
+    selectedLabourIds.has(String(l.id)),
+  );
 
   const calculate = async () => {
     if (!a) return;
     setLoading(true);
     try {
-      const filteredLabours = getFilteredLabours();
       const labourMap = new Map<string, LabourPayment>();
 
-      for (const l of filteredLabours) {
+      for (const l of labours) {
         labourMap.set(String(l.id), {
           labourId: l.id,
           labourName: l.name,
@@ -147,7 +135,7 @@ export function PaymentsTab() {
           advanceMap.set(lid, (advanceMap.get(lid) ?? 0) + Number(adv.amount));
         }
 
-        for (const l of filteredLabours) {
+        for (const l of labours) {
           const lid = String(l.id);
 
           const bedSum = colSum("bed");
@@ -190,7 +178,9 @@ export function PaymentsTab() {
       }
 
       const result = Array.from(labourMap.values()).filter(
-        (lp) => lp.totalGross > 0 || lp.totalAdvances > 0,
+        (lp) =>
+          (lp.totalGross > 0 || lp.totalAdvances > 0) &&
+          selectedLabourIds.has(String(lp.labourId)),
       );
       setPayments(result);
     } finally {
@@ -223,18 +213,6 @@ export function PaymentsTab() {
     borderBottom: "1px solid #E2E8F0",
     verticalAlign: "middle",
   };
-
-  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
-    padding: "6px 16px",
-    borderRadius: 999,
-    border: active ? "2px solid #FF7F11" : "2px solid #E2E8F0",
-    background: active ? "#FF7F11" : "#F1F5F9",
-    color: active ? "#fff" : "#475569",
-    fontWeight: active ? 700 : 500,
-    fontSize: 13,
-    cursor: "pointer",
-    transition: "all 0.15s",
-  });
 
   return (
     <div>
@@ -334,138 +312,119 @@ export function PaymentsTab() {
         </div>
       </div>
 
-      {/* Filter Labours */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #E5E5E5",
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 16,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#64748B",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            marginBottom: 10,
-          }}
-        >
-          Filter Labours
-        </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <button
-            type="button"
-            data-ocid="payments.filter.all.toggle"
-            style={filterBtnStyle(filterMode === "all")}
-            onClick={() => setFilterMode("all")}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            data-ocid="payments.filter.group.toggle"
-            style={filterBtnStyle(filterMode === "group")}
-            onClick={() => setFilterMode("group")}
-          >
-            By Group
-          </button>
-          <button
-            type="button"
-            data-ocid="payments.filter.labour.toggle"
-            style={filterBtnStyle(filterMode === "labour")}
-            onClick={() => setFilterMode("labour")}
-          >
-            By Labour
-          </button>
-        </div>
-
-        {filterMode === "group" && (
-          <select
-            data-ocid="payments.filter.group.select"
-            value={filterGroupId}
-            onChange={(e) => setFilterGroupId(e.target.value)}
+      {/* Labour Filter */}
+      {labours.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div
             style={{
-              background: "#FFFFFF",
-              border: "1px solid #E5E5E5",
-              color: "#1F1F1F",
-              borderRadius: 8,
-              padding: "8px 12px",
-              width: "100%",
-              maxWidth: 300,
-              fontSize: 13,
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#64748B",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginBottom: 8,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
             }}
           >
-            <option value="">Select a group...</option>
-            {groups.map((g) => (
-              <option key={String(g.id)} value={String(g.id)}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {filterMode === "labour" && (
+            Filter Labours
+            <button
+              type="button"
+              data-ocid="payments.labour.filter.toggle"
+              onClick={toggleAllLabours}
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: allLaboursSelected ? "#64748B" : "#F97316",
+                background: "transparent",
+                border: "1px solid #E2E8F0",
+                borderRadius: 6,
+                padding: "2px 10px",
+                cursor: "pointer",
+                letterSpacing: 0,
+                textTransform: "none",
+              }}
+            >
+              {allLaboursSelected ? "Deselect All" : "Select All"}
+            </button>
+          </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {labours.map((l, i) => {
-              const checked = filterLabourIds.has(String(l.id));
+              const isSelected = selectedLabourIds.has(String(l.id));
               return (
                 <label
                   key={String(l.id)}
-                  data-ocid={`payments.filter.labour.checkbox.${i + 1}`}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
-                    padding: "5px 12px",
+                    padding: "5px 13px",
                     borderRadius: 999,
                     cursor: "pointer",
-                    background: checked ? "#FFF3E0" : "#F1F5F9",
-                    border: checked
-                      ? "1.5px solid #FF7F11"
-                      : "1.5px solid #E2E8F0",
-                    color: checked ? "#FF7F11" : "#475569",
-                    fontWeight: checked ? 700 : 500,
+                    background: isSelected ? "#EFF6FF" : "#F8FAFC",
+                    color: isSelected ? "#1D4ED8" : "#94A3B8",
+                    fontWeight: isSelected ? 600 : 400,
                     fontSize: 13,
+                    border: isSelected
+                      ? "1.5px solid #93C5FD"
+                      : "1.5px solid #E2E8F0",
+                    transition: "all 0.15s",
                     userSelect: "none",
                   }}
                 >
                   <input
+                    data-ocid={`payments.labour.checkbox.${i + 1}`}
                     type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleLabourFilter(String(l.id))}
+                    checked={isSelected}
+                    onChange={() => toggleLabour(String(l.id))}
                     style={{ display: "none" }}
                   />
-                  {checked ? "✓ " : ""}
+                  <span
+                    style={{
+                      width: 13,
+                      height: 13,
+                      borderRadius: 3,
+                      border: isSelected
+                        ? "2px solid #3B82F6"
+                        : "2px solid #CBD5E1",
+                      background: isSelected ? "#3B82F6" : "transparent",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 8,
+                      color: "#fff",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isSelected ? "✓" : ""}
+                  </span>
                   {l.name}
                 </label>
               );
             })}
-            {labours.length === 0 && (
-              <p style={{ color: "#9E9E9E", fontSize: 13 }}>
-                No labours available.
-              </p>
-            )}
           </div>
-        )}
-      </div>
+          <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 6 }}>
+            {filteredLabours.length} of {labours.length} labours selected
+          </div>
+        </div>
+      )}
 
       {/* Calculate Button */}
       <button
         type="button"
         data-ocid="payments.calculate.button"
         onClick={calculate}
-        disabled={selectedIds.size === 0 || loading}
+        disabled={
+          selectedIds.size === 0 || loading || selectedLabourIds.size === 0
+        }
         style={{
           marginBottom: 16,
           width: "100%",
           maxWidth: 340,
           display: "block",
           background:
-            selectedIds.size === 0 || loading
+            selectedIds.size === 0 || loading || selectedLabourIds.size === 0
               ? "#CBD5E1"
               : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
           color: "#fff",
@@ -474,9 +433,12 @@ export function PaymentsTab() {
           padding: "12px 0",
           fontSize: 15,
           fontWeight: 800,
-          cursor: selectedIds.size === 0 || loading ? "not-allowed" : "pointer",
+          cursor:
+            selectedIds.size === 0 || loading || selectedLabourIds.size === 0
+              ? "not-allowed"
+              : "pointer",
           boxShadow:
-            selectedIds.size === 0 || loading
+            selectedIds.size === 0 || loading || selectedLabourIds.size === 0
               ? "none"
               : "0 4px 20px rgba(249,115,22,0.40)",
           letterSpacing: "0.03em",

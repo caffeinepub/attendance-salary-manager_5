@@ -1,11 +1,13 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import type { AppMode } from "../App";
-import type { Attendance, Contract, Labour } from "../backend.d";
+import type { Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
 interface Props {
   mode: AppMode;
+  initialContractId?: bigint | null;
+  onContractIdConsumed?: () => void;
 }
 
 const ATTENDANCE_VALUES = [
@@ -101,7 +103,11 @@ function getSelectStyle(val: string): React.CSSProperties {
   };
 }
 
-export function AttendanceTab({ mode }: Props) {
+export function AttendanceTab({
+  mode,
+  initialContractId,
+  onContractIdConsumed,
+}: Props) {
   const { actor } = useActor();
 
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -111,6 +117,8 @@ export function AttendanceTab({ mode }: Props) {
   );
   const [contract, setContract] = useState<Contract | null>(null);
   const [attendance, setAttendance] = useState<Map<string, string>>(new Map());
+  // Track which cells have been changed since last load/save
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [meshCols, setMeshCols] = useState<string[]>([]);
   const [renamingCol, setRenamingCol] = useState<number | null>(null);
@@ -125,8 +133,18 @@ export function AttendanceTab({ mode }: Props) {
     actor.getAllLabours().then(setLabours);
   }, [actor]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: onContractIdConsumed is a stable callback
+  useEffect(() => {
+    if (initialContractId != null && contracts.length > 0) {
+      setSelectedContractId(initialContractId);
+      onContractIdConsumed?.();
+    }
+  }, [initialContractId, contracts.length]);
+
   useEffect(() => {
     if (!selectedContractId || !actor) return;
+    // Clear dirty keys when switching contracts
+    setDirtyKeys(new Set());
     actor.getContract(selectedContractId).then((c) => {
       setContract(c);
       setMeshCols(c.meshColumns);
@@ -148,7 +166,9 @@ export function AttendanceTab({ mode }: Props) {
     attendance.get(`${labourId}_${colKey}`) || "Absent";
 
   const setVal = (labourId: bigint, colKey: string, val: string) => {
-    setAttendance((prev) => new Map(prev).set(`${labourId}_${colKey}`, val));
+    const key = `${labourId}_${colKey}`;
+    setAttendance((prev) => new Map(prev).set(key, val));
+    setDirtyKeys((prev) => new Set(prev).add(key));
   };
 
   const colSum = (colKey: string) =>
@@ -183,39 +203,54 @@ export function AttendanceTab({ mode }: Props) {
 
   const handleSave = async () => {
     if (!selectedContractId || !actor) return;
+    // Only save dirty cells (cells that changed since last load/save)
+    if (dirtyKeys.size === 0) return;
     setSaving(true);
+    const keysToSave = new Set(dirtyKeys);
     try {
-      // Build all save calls and run them in parallel for speed
       const saves: Promise<unknown>[] = [];
       for (const labour of labours) {
-        saves.push(
-          actor.saveAttendance(
-            selectedContractId,
-            labour.id,
-            { __kind__: "bed", bed: null },
-            getVal(labour.id, "bed"),
-          ),
-        );
-        saves.push(
-          actor.saveAttendance(
-            selectedContractId,
-            labour.id,
-            { __kind__: "paper", paper: null },
-            getVal(labour.id, "paper"),
-          ),
-        );
-        for (let i = 0; i < meshCols.length; i++) {
-          saves.push(
-            actor.saveAttendance(
-              selectedContractId,
-              labour.id,
-              { __kind__: "mesh", mesh: BigInt(i) },
-              getVal(labour.id, `mesh_${i}`),
-            ),
-          );
+        for (const colKey of [
+          "bed",
+          "paper",
+          ...meshCols.map((_, i) => `mesh_${i}`),
+        ]) {
+          const key = `${labour.id}_${colKey}`;
+          if (!keysToSave.has(key)) continue;
+          if (colKey === "bed") {
+            saves.push(
+              actor.saveAttendance(
+                selectedContractId,
+                labour.id,
+                { __kind__: "bed", bed: null },
+                getVal(labour.id, "bed"),
+              ),
+            );
+          } else if (colKey === "paper") {
+            saves.push(
+              actor.saveAttendance(
+                selectedContractId,
+                labour.id,
+                { __kind__: "paper", paper: null },
+                getVal(labour.id, "paper"),
+              ),
+            );
+          } else {
+            const meshIdx = Number(colKey.replace("mesh_", ""));
+            saves.push(
+              actor.saveAttendance(
+                selectedContractId,
+                labour.id,
+                { __kind__: "mesh", mesh: BigInt(meshIdx) },
+                getVal(labour.id, colKey),
+              ),
+            );
+          }
         }
       }
       await Promise.all(saves);
+      // Clear dirty keys after successful save
+      setDirtyKeys(new Set());
     } finally {
       setSaving(false);
     }
@@ -281,7 +316,6 @@ export function AttendanceTab({ mode }: Props) {
     (l) => getVal(l.id, "bed") === "Present",
   ).length;
 
-  // Styles
   const TH_DARK: React.CSSProperties = {
     padding: "11px 14px",
     textAlign: "left",
@@ -305,7 +339,6 @@ export function AttendanceTab({ mode }: Props) {
 
   return (
     <div>
-      {/* Section Header */}
       <div
         style={{
           borderLeft: "4px solid #F97316",
@@ -328,7 +361,6 @@ export function AttendanceTab({ mode }: Props) {
         </p>
       </div>
 
-      {/* Contract Selector */}
       <div className="mb-4">
         <label
           htmlFor="attendance-contract-select"
@@ -400,7 +432,6 @@ export function AttendanceTab({ mode }: Props) {
 
       {selectedContractId && contract && (
         <>
-          {/* Stats Bar */}
           <div
             style={{
               display: "flex",
@@ -464,7 +495,6 @@ export function AttendanceTab({ mode }: Props) {
             ))}
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-2 mb-3">
             {mode === "edit" && (
               <button
@@ -489,7 +519,6 @@ export function AttendanceTab({ mode }: Props) {
             )}
           </div>
 
-          {/* Table */}
           <div
             style={{
               overflowX: "auto",
@@ -715,7 +744,6 @@ export function AttendanceTab({ mode }: Props) {
                   );
                 })}
 
-                {/* Totals Row */}
                 <tr
                   style={{
                     background: "#0F172A",
@@ -785,25 +813,34 @@ export function AttendanceTab({ mode }: Props) {
               type="button"
               data-ocid="attendance.save.button"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || dirtyKeys.size === 0}
               style={{
                 marginTop: 16,
-                background: saving
-                  ? "#CBD5E1"
-                  : "linear-gradient(135deg, #F97316, #EA580C)",
-                color: "#fff",
+                background:
+                  saving || dirtyKeys.size === 0
+                    ? "#CBD5E1"
+                    : "linear-gradient(135deg, #F97316, #EA580C)",
+                color: saving || dirtyKeys.size === 0 ? "#94A3B8" : "#fff",
                 border: "none",
                 borderRadius: 999,
                 padding: "10px 28px",
                 fontSize: 14,
                 fontWeight: 800,
-                cursor: saving ? "not-allowed" : "pointer",
-                boxShadow: saving ? "none" : "0 4px 16px rgba(249,115,22,0.40)",
+                cursor:
+                  saving || dirtyKeys.size === 0 ? "not-allowed" : "pointer",
+                boxShadow:
+                  saving || dirtyKeys.size === 0
+                    ? "none"
+                    : "0 4px 16px rgba(249,115,22,0.40)",
                 letterSpacing: "0.02em",
                 transition: "all 0.2s",
               }}
             >
-              {saving ? "Saving…" : "Save Attendance"}
+              {saving
+                ? "Saving…"
+                : dirtyKeys.size === 0
+                  ? "No Changes"
+                  : `Save ${dirtyKeys.size} Change${dirtyKeys.size > 1 ? "s" : ""}`}
             </button>
           )}
         </>

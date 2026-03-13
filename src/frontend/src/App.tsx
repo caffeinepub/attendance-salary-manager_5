@@ -39,10 +39,14 @@ export default function App() {
   const [mode, setMode] = useState<AppMode>("view");
   const [screen, setScreen] = useState<Screen>("home");
   const [activeTab, setActiveTab] = useState<TabId>("Contracts");
+  const [attendanceContractId, setAttendanceContractId] = useState<
+    bigint | null
+  >(null);
 
-  const visibleTabs = TABS.filter(
-    (tab) => !(tab.id === "Settled" && mode === "view"),
-  );
+  const handleViewAttendance = (contractId: bigint) => {
+    setAttendanceContractId(contractId);
+    setActiveTab("Attendance");
+  };
 
   if (screen === "home") {
     return (
@@ -50,17 +54,13 @@ export default function App() {
         className="min-h-screen flex flex-col items-center justify-between relative"
         style={{ background: "#FFFFFF" }}
       >
-        {/* Top section */}
         <div className="flex flex-col items-center pt-16 px-6 flex-1 justify-center">
-          {/* Logo block */}
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg"
             style={{ background: "#FF7F11" }}
           >
             <CalendarCheck size={32} color="#FFFFFF" strokeWidth={2.5} />
           </div>
-
-          {/* App title */}
           <h1
             className="text-2xl font-bold text-center mb-2 tracking-tight"
             style={{ color: "#1F1F1F" }}
@@ -70,8 +70,6 @@ export default function App() {
           <p className="text-sm mb-12" style={{ color: "#9E9E9E" }}>
             Manager
           </p>
-
-          {/* View AttendPay button */}
           <button
             type="button"
             data-ocid="home.view_attendpay.button"
@@ -86,8 +84,6 @@ export default function App() {
             View AttendPay
           </button>
         </div>
-
-        {/* Welcome text at very bottom — tapping opens edit mode */}
         <button
           type="button"
           data-ocid="home.welcome.text"
@@ -104,18 +100,12 @@ export default function App() {
     );
   }
 
-  // If Settled tab is active but mode is view, redirect to Contracts
-  const safeActiveTab =
-    activeTab === "Settled" && mode === "view" ? "Contracts" : activeTab;
-
-  // App screen
   return (
     <ErrorBoundary>
       <div
         className="min-h-screen flex flex-col"
         style={{ background: "#F2F2F2" }}
       >
-        {/* Header */}
         <div
           className="flex items-center justify-between px-3 py-3 shrink-0"
           style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E5E5" }}
@@ -132,7 +122,6 @@ export default function App() {
               <span className="text-xs">Home</span>
             </button>
           </div>
-
           <div className="flex items-center gap-1.5">
             <div
               className="w-2 h-2 rounded-full"
@@ -147,24 +136,30 @@ export default function App() {
           </div>
         </div>
 
-        {/* Tab content */}
         <div className="flex-1 overflow-auto p-3 pb-24">
-          {safeActiveTab === "Contracts" && <ContractsTab mode={mode} />}
-          {safeActiveTab === "Attendance" && <AttendanceTab mode={mode} />}
-          {safeActiveTab === "Advances" && <AdvancesTab mode={mode} />}
-          {safeActiveTab === "Payments" && <PaymentsTab />}
-          {safeActiveTab === "Labours" && <LaboursTab mode={mode} />}
-          {safeActiveTab === "Settled" && <SettledTab mode={mode} />}
+          {activeTab === "Contracts" && (
+            <ContractsTab mode={mode} onViewAttendance={handleViewAttendance} />
+          )}
+          {activeTab === "Attendance" && (
+            <AttendanceTab
+              mode={mode}
+              initialContractId={attendanceContractId}
+              onContractIdConsumed={() => setAttendanceContractId(null)}
+            />
+          )}
+          {activeTab === "Advances" && <AdvancesTab mode={mode} />}
+          {activeTab === "Payments" && <PaymentsTab />}
+          {activeTab === "Labours" && <LaboursTab mode={mode} />}
+          {activeTab === "Settled" && <SettledTab mode={mode} />}
         </div>
 
-        {/* Bottom navigation */}
         <nav
           className="fixed bottom-0 left-0 right-0 flex z-50"
           style={{ background: "#FFFFFF", borderTop: "1px solid #E5E5E5" }}
         >
-          {visibleTabs.map((tab) => {
+          {TABS.map((tab) => {
             const Icon = tab.icon;
-            const isActive = safeActiveTab === tab.id;
+            const isActive = activeTab === tab.id;
             return (
               <button
                 type="button"

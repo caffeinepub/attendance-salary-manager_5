@@ -5,21 +5,22 @@ import { useActor } from "../hooks/useActor";
 
 interface Props {
   mode: AppMode;
+  onViewAttendance?: (contractId: bigint) => void;
 }
 
 function fmt(n: bigint) {
   return Number(n).toLocaleString();
 }
 
-export function ContractsTab({ mode }: Props) {
+export function ContractsTab({ mode, onViewAttendance }: Props) {
   const { actor } = useActor();
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [selected, setSelected] = useState<Contract | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
 
-  // form state
   const [form, setForm] = useState({
     name: "",
     multiplier: "",
@@ -59,21 +60,49 @@ export function ContractsTab({ mode }: Props) {
   const calcPaper = (m: number) => Math.round(7000 * m);
 
   const handleAdd = async () => {
+    if (!actor || !form.name.trim()) return;
     const m = Number.parseFloat(form.multiplier) || 0;
     const ca = Number.parseFloat(form.amount) || 0;
     const me = Number.parseFloat(form.machineExp) || 0;
-    await actor?.createContract(
-      form.name,
-      m,
-      BigInt(Math.round(ca)),
-      BigInt(Math.round(me)),
-      null,
-      null,
-      ["Mesh"],
-    );
+    const bed = calcBed(m);
+    const paper = calcPaper(m);
+    const mesh = ca - bed - paper - me;
+
+    // Optimistic update: add a placeholder contract immediately
+    const tempId = BigInt(-Date.now());
+    const optimistic: Contract = {
+      id: tempId,
+      name: form.name,
+      multiplierValue: m,
+      contractAmount: BigInt(Math.round(ca)),
+      machineExp: BigInt(Math.round(me)),
+      bedAmount: BigInt(bed),
+      paperAmount: BigInt(paper),
+      meshAmount: BigInt(Math.round(mesh)),
+      meshColumns: ["Mesh"],
+      isSettled: false,
+    };
+    setContracts((prev) => [optimistic, ...prev]);
     setForm({ name: "", multiplier: "", amount: "", machineExp: "" });
     setShowAdd(false);
-    await load();
+    setAdding(true);
+
+    try {
+      await actor.createContract(
+        form.name,
+        m,
+        BigInt(Math.round(ca)),
+        BigInt(Math.round(me)),
+        null,
+        null,
+        ["Mesh"],
+      );
+      // Refresh to get real ID
+      const all = await actor.getAllContracts();
+      setContracts((all ?? []).filter((c) => !c.isSettled));
+    } finally {
+      setAdding(false);
+    }
   };
 
   const openEdit = (c: Contract) => {
@@ -313,6 +342,21 @@ export function ContractsTab({ mode }: Props) {
               </div>
             )}
           </div>
+
+          {/* View Attendance Button */}
+          <button
+            type="button"
+            data-ocid="contract.view_attendance.button"
+            onClick={() => onViewAttendance?.(selected.id)}
+            className="mt-4 w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+            style={{
+              background: "linear-gradient(135deg, #1E293B, #334155)",
+              color: "#FFFFFF",
+              border: "none",
+            }}
+          >
+            <span>📋</span> View Attendance
+          </button>
         </div>
       </div>
     );
@@ -547,16 +591,21 @@ export function ContractsTab({ mode }: Props) {
               type="button"
               data-ocid="contract.add.submit.button"
               onClick={handleAdd}
+              disabled={adding}
               className="py-2 rounded font-semibold"
-              style={{ background: "#FF7F11", color: "#fff" }}
+              style={{
+                background: adding ? "#CBD5E1" : "#FF7F11",
+                color: adding ? "#94A3B8" : "#fff",
+                cursor: adding ? "not-allowed" : "pointer",
+              }}
             >
-              Save Contract
+              {adding ? "Saving…" : "Save Contract"}
             </button>
           </div>
         </div>
       )}
 
-      {loading ? (
+      {loading && contracts.length === 0 ? (
         <div data-ocid="contracts.loading_state" style={{ color: "#9E9E9E" }}>
           Loading...
         </div>
@@ -577,11 +626,16 @@ export function ContractsTab({ mode }: Props) {
               key={String(c.id)}
               data-ocid={`contract.item.${i + 1}`}
               className="flex items-center justify-between w-full px-4 py-3 rounded-lg cursor-pointer transition-all text-left"
-              style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
-              onClick={() => setSelected(c)}
+              style={{
+                background: "#FFFFFF",
+                border: "1px solid #E5E5E5",
+                opacity: c.id < 0n ? 0.6 : 1,
+              }}
+              onClick={() => c.id >= 0n && setSelected(c)}
             >
               <span className="font-medium" style={{ color: "#1F1F1F" }}>
                 {c.name}
+                {c.id < 0n ? " (saving…)" : ""}
               </span>
               <span className="text-sm" style={{ color: "#FF7F11" }}>
                 ₹{fmt(c.contractAmount)}
