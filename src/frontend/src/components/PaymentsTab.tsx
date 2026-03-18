@@ -52,6 +52,11 @@ export function PaymentsTab() {
   const contractDropRef = useRef<HTMLDivElement>(null);
   const labourDropRef = useRef<HTMLDivElement>(null);
 
+  // Overview dialog state
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const [overviewIndex, setOverviewIndex] = useState(0);
+  const [heldIndex, setHeldIndex] = useState<number | null>(null);
+
   useClickOutside(contractDropRef, () => setContractDropOpen(false));
   useClickOutside(labourDropRef, () => setLabourDropOpen(false));
 
@@ -214,6 +219,23 @@ export function PaymentsTab() {
   );
   const totalFinal = payments.reduce((s, lp) => s + lp.finalPayment, 0);
   const totalAdvances = payments.reduce((s, lp) => s + lp.totalAdvances, 0);
+
+  const openOverview = () => {
+    setOverviewIndex(0);
+    setHeldIndex(null);
+    setOverviewOpen(true);
+  };
+
+  const closeOverview = () => {
+    setOverviewOpen(false);
+    setHeldIndex(null);
+  };
+
+  const currentOverview = payments[overviewIndex];
+  const heldOverview = heldIndex !== null ? payments[heldIndex] : null;
+  const isCurrentHeld = heldIndex !== null && heldIndex === overviewIndex;
+  // Show dual view when there's a held labour that's different from the current
+  const isDualView = heldIndex !== null && heldIndex !== overviewIndex;
 
   const downloadPDF = () => {
     const contractNames = selectedContracts.map((c) => c.name).join(", ");
@@ -672,7 +694,7 @@ export function PaymentsTab() {
         {loading ? "Calculating…" : "Calculate Payments"}
       </button>
 
-      {/* Stats Bar + Download PDF */}
+      {/* Stats Bar + Download PDF + Overview */}
       {payments.length > 0 && (
         <>
           <div
@@ -743,58 +765,126 @@ export function PaymentsTab() {
               ))}
             </div>
 
-            {/* Download PDF Button */}
-            <button
-              type="button"
-              data-ocid="payments.pdf.button"
-              onClick={downloadPDF}
+            {/* Action Buttons */}
+            <div
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 14px",
-                background: "#FFFFFF",
-                border: "1.5px solid #F97316",
-                borderRadius: 10,
-                color: "#F97316",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                transition: "background 0.15s, box-shadow 0.15s",
+                gap: 8,
                 alignSelf: "center",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "#FFF7ED";
-                (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                  "0 2px 8px rgba(249,115,22,0.18)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "#FFFFFF";
-                (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                  "0 1px 3px rgba(0,0,0,0.06)";
+                flexWrap: "wrap",
               }}
             >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
+              {/* Overview Button */}
+              <button
+                type="button"
+                data-ocid="payments.overview.open_modal_button"
+                onClick={openOverview}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  background: "#FFFFFF",
+                  border: "1.5px solid #F97316",
+                  borderRadius: 10,
+                  color: "#F97316",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                  transition: "background 0.15s, box-shadow 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "#FFF7ED";
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                    "0 2px 8px rgba(249,115,22,0.18)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "#FFFFFF";
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                    "0 1px 3px rgba(0,0,0,0.06)";
+                }}
               >
-                <path
-                  d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
-                  stroke="#F97316"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Download PDF
-            </button>
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    stroke="#F97316"
+                    strokeWidth="2.2"
+                  />
+                  <path
+                    d="M12 8v4l3 3"
+                    stroke="#F97316"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Overview
+              </button>
+
+              {/* Download PDF Button */}
+              <button
+                type="button"
+                data-ocid="payments.pdf.button"
+                onClick={downloadPDF}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  background: "#FFFFFF",
+                  border: "1.5px solid #F97316",
+                  borderRadius: 10,
+                  color: "#F97316",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                  transition: "background 0.15s, box-shadow 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "#FFF7ED";
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                    "0 2px 8px rgba(249,115,22,0.18)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "#FFFFFF";
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                    "0 1px 3px rgba(0,0,0,0.06)";
+                }}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+                    stroke="#F97316"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Download PDF
+              </button>
+            </div>
           </div>
 
           {/* Payments Table */}
@@ -952,6 +1042,541 @@ export function PaymentsTab() {
             </table>
           </div>
         </>
+      )}
+
+      {/* Labour Overview Dialog */}
+      {overviewOpen && currentOverview && (
+        <div
+          data-ocid="payments.overview.modal"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+            background: "rgba(15, 23, 42, 0.72)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeOverview();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") closeOverview();
+          }}
+          role="presentation"
+          tabIndex={-1}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: 20,
+              width: "100%",
+              maxWidth: 400,
+              boxShadow: "0 24px 80px rgba(15,23,42,0.28)",
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
+            {/* Dialog Header */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#94A3B8",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      marginBottom: 2,
+                    }}
+                  >
+                    Labour Overview
+                  </div>
+                  <div style={{ fontSize: 11, color: "#64748B" }}>
+                    {overviewIndex + 1} of {payments.length}
+                    {isDualView && " · Adding"}
+                  </div>
+                </div>
+
+                {/* Hold / Release button */}
+                {heldIndex === null ? (
+                  <button
+                    type="button"
+                    data-ocid="payments.overview.toggle"
+                    onClick={() => setHeldIndex(overviewIndex)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "6px 12px",
+                      background: "rgba(59,130,246,0.15)",
+                      border: "1.5px solid rgba(147,197,253,0.5)",
+                      borderRadius: 8,
+                      color: "#93C5FD",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      letterSpacing: "0.03em",
+                      transition: "background 0.15s",
+                      flexShrink: 0,
+                    }}
+                    title="Hold this labour to compare with another"
+                  >
+                    📌 Hold
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    data-ocid="payments.overview.toggle"
+                    onClick={() => setHeldIndex(null)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "6px 12px",
+                      background: "rgba(239,68,68,0.15)",
+                      border: "1.5px solid rgba(252,165,165,0.5)",
+                      borderRadius: 8,
+                      color: "#FCA5A5",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      letterSpacing: "0.03em",
+                      transition: "background 0.15s",
+                      flexShrink: 0,
+                    }}
+                    title="Release held labour"
+                  >
+                    ✕ Release
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                data-ocid="payments.overview.close_button"
+                onClick={closeOverview}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1.5px solid rgba(255,255,255,0.15)",
+                  color: "#94A3B8",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  transition: "background 0.15s",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "rgba(255,255,255,0.16)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "rgba(255,255,255,0.08)";
+                }}
+                aria-label="Close overview"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Held status banner */}
+            {isCurrentHeld && heldIndex !== null && (
+              <div
+                style={{
+                  background: "#EFF6FF",
+                  borderBottom: "1.5px solid #BFDBFE",
+                  padding: "8px 20px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#1D4ED8",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                📌 This labour is held — navigate with Prev/Next to add
+              </div>
+            )}
+
+            {/* Content area */}
+            {isDualView && heldOverview ? (
+              // COMBINED VIEW: sum amounts of held + current
+              <>
+                {/* Labour names */}
+                <div style={{ padding: "16px 24px 0 24px" }}>
+                  <div
+                    style={{
+                      background: "#F8FAFC",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: 12,
+                      padding: "12px 16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#3B82F6",
+                          background: "rgba(59,130,246,0.1)",
+                          borderRadius: 4,
+                          padding: "2px 6px",
+                        }}
+                      >
+                        📌
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: "#1E293B",
+                        }}
+                      >
+                        {heldOverview.labourName}
+                      </span>
+                    </div>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#EA580C",
+                          background: "rgba(234,88,12,0.1)",
+                          borderRadius: 4,
+                          padding: "2px 6px",
+                        }}
+                      >
+                        +
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: "#1E293B",
+                        }}
+                      >
+                        {currentOverview.labourName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div
+                  style={{
+                    height: 1,
+                    background: "#F1F5F9",
+                    margin: "16px 24px 0 24px",
+                  }}
+                />
+
+                {/* Combined Advances */}
+                <div
+                  style={{
+                    padding: "12px 24px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    Total Advances
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 800,
+                      color: "#DC2626",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    ₹
+                    {(
+                      heldOverview.totalAdvances + currentOverview.totalAdvances
+                    ).toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Combined Net Pay hero */}
+                <div
+                  style={{
+                    margin: "0 16px 24px 16px",
+                    background:
+                      "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+                    border: "2px solid #FED7AA",
+                    borderRadius: 16,
+                    padding: "20px 24px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#C2410C",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Combined Net Pay
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 48,
+                      fontWeight: 900,
+                      color: "#EA580C",
+                      lineHeight: 1,
+                      letterSpacing: "-0.03em",
+                    }}
+                  >
+                    ₹
+                    {(
+                      heldOverview.finalPayment + currentOverview.finalPayment
+                    ).toFixed(0)}
+                  </div>
+                </div>
+              </>
+            ) : (
+              // SINGLE VIEW: original layout
+              <>
+                {/* Labour Name */}
+                <div
+                  style={{
+                    padding: "28px 24px 8px 24px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 32,
+                      fontWeight: 900,
+                      color: "#0F172A",
+                      lineHeight: 1.15,
+                      letterSpacing: "-0.02em",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {currentOverview.labourName}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div
+                  style={{
+                    height: 1,
+                    background: "#F1F5F9",
+                    margin: "16px 24px",
+                  }}
+                />
+
+                {/* Advances Row */}
+                <div
+                  style={{
+                    padding: "0 24px 16px 24px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    Advances
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 800,
+                      color: "#DC2626",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    ₹{currentOverview.totalAdvances.toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Net Pay — Hero */}
+                <div
+                  style={{
+                    margin: "0 16px 24px 16px",
+                    background:
+                      "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+                    border: "2px solid #FED7AA",
+                    borderRadius: 16,
+                    padding: "20px 24px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#C2410C",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Net Pay
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 48,
+                      fontWeight: 900,
+                      color: "#EA580C",
+                      lineHeight: 1,
+                      letterSpacing: "-0.03em",
+                    }}
+                  >
+                    ₹{currentOverview.finalPayment.toFixed(0)}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Navigation */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: isDualView ? "0 16px 16px" : "0 16px 20px",
+                gap: 12,
+              }}
+            >
+              <button
+                type="button"
+                data-ocid="payments.overview.pagination_prev"
+                onClick={() => setOverviewIndex((v) => Math.max(0, v - 1))}
+                disabled={overviewIndex === 0}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "14px 0",
+                  background: overviewIndex === 0 ? "#F8FAFC" : "#FFFFFF",
+                  border:
+                    overviewIndex === 0
+                      ? "1.5px solid #E2E8F0"
+                      : "1.5px solid #F97316",
+                  borderRadius: 12,
+                  color: overviewIndex === 0 ? "#CBD5E1" : "#F97316",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  cursor: overviewIndex === 0 ? "not-allowed" : "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                ← Prev
+              </button>
+
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "#64748B",
+                  whiteSpace: "nowrap",
+                  minWidth: 56,
+                  textAlign: "center",
+                }}
+              >
+                {overviewIndex + 1} / {payments.length}
+              </div>
+
+              <button
+                type="button"
+                data-ocid="payments.overview.pagination_next"
+                onClick={() =>
+                  setOverviewIndex((v) => Math.min(payments.length - 1, v + 1))
+                }
+                disabled={overviewIndex === payments.length - 1}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "14px 0",
+                  background:
+                    overviewIndex === payments.length - 1
+                      ? "#F8FAFC"
+                      : "#FFFFFF",
+                  border:
+                    overviewIndex === payments.length - 1
+                      ? "1.5px solid #E2E8F0"
+                      : "1.5px solid #F97316",
+                  borderRadius: 12,
+                  color:
+                    overviewIndex === payments.length - 1
+                      ? "#CBD5E1"
+                      : "#F97316",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  cursor:
+                    overviewIndex === payments.length - 1
+                      ? "not-allowed"
+                      : "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
