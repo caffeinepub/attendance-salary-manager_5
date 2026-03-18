@@ -24,6 +24,12 @@ export interface Attendance {
   'labourId' : bigint,
   'contractId' : bigint,
 }
+export interface AttendanceNote {
+  'id' : bigint,
+  'note' : string,
+  'labourId' : bigint,
+  'contractId' : bigint,
+}
 export type ColumnType = { 'bed' : null } |
   { 'mesh' : bigint } |
   { 'paper' : null };
@@ -39,15 +45,17 @@ export interface Contract {
   'contractAmount' : bigint,
   'multiplierValue' : number,
 }
-export interface Group {
+export interface Group { 'id' : bigint, 'name' : string }
+export interface Holiday {
   'id' : bigint,
-  'name' : string,
+  'columnKey' : string,
+  'contractId' : bigint,
 }
 export interface Labour {
   'id' : bigint,
   'name' : string,
-  'phone' : [] | [string],
   'groupId' : [] | [bigint],
+  'phone' : [] | [string],
 }
 export interface SalaryBreakdown {
   'meshSalary' : bigint,
@@ -76,18 +84,26 @@ export interface _SERVICE {
   >,
   'createGroup' : ActorMethod<[string], bigint>,
   'createLabour' : ActorMethod<[string, [] | [string], [] | [bigint]], bigint>,
+  'deleteAdvance' : ActorMethod<[bigint], undefined>,
   'deleteContract' : ActorMethod<[bigint], undefined>,
   'deleteGroup' : ActorMethod<[bigint], undefined>,
   'getAdvancesByContract' : ActorMethod<[bigint], Array<Advance>>,
   'getAdvancesByLabour' : ActorMethod<[bigint], Array<Advance>>,
+  'getAllAdvances' : ActorMethod<[], Array<Advance>>,
   'getAllContracts' : ActorMethod<[], Array<Contract>>,
   'getAllGroups' : ActorMethod<[], Array<Group>>,
   'getAllLabours' : ActorMethod<[], Array<Labour>>,
   'getAttendanceByContract' : ActorMethod<[bigint], Array<Attendance>>,
   'getContract' : ActorMethod<[bigint], Contract>,
+  'getHolidaysByContract' : ActorMethod<[bigint], Array<Holiday>>,
+  'getNotesByContract' : ActorMethod<[bigint], Array<AttendanceNote>>,
+  'markHoliday' : ActorMethod<[bigint, string], bigint>,
+  'removeHoliday' : ActorMethod<[bigint, string], undefined>,
   'saveAttendance' : ActorMethod<[bigint, bigint, ColumnType, string], bigint>,
+  'saveAttendanceNote' : ActorMethod<[bigint, bigint, string], bigint>,
   'settleContract' : ActorMethod<[bigint], undefined>,
   'unsettleContract' : ActorMethod<[bigint], undefined>,
+  'updateAdvance' : ActorMethod<[bigint, bigint, string], undefined>,
   'updateContract' : ActorMethod<
     [
       bigint,
@@ -101,7 +117,10 @@ export interface _SERVICE {
     ],
     undefined
   >,
-  'updateLabour' : ActorMethod<[bigint, string, [] | [string], [] | [bigint]], undefined>,
+  'updateLabour' : ActorMethod<
+    [bigint, string, [] | [string], [] | [bigint]],
+    undefined
+  >,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

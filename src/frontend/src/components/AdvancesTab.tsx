@@ -77,6 +77,39 @@ export function AdvancesTab({ mode }: Props) {
     await loadForContract(cId);
   };
 
+  const handleDelete = async (adv: Advance) => {
+    // Optimistic UI update
+    setAllAdvances((prev) => prev.filter((a) => a.id !== adv.id));
+    // Persist to backend
+    try {
+      await actor?.deleteAdvance(adv.id);
+    } catch (err) {
+      console.error("Failed to delete advance", err);
+      // Restore on failure
+      setAllAdvances((prev) => [...prev, adv]);
+    }
+  };
+
+  const handleEditSave = async (adv: Advance) => {
+    const newAmount = BigInt(Math.round(Number.parseFloat(editForm.amount)));
+    const newNote = editForm.note;
+    // Optimistic UI update
+    setAllAdvances((prev) =>
+      prev.map((a) =>
+        a.id === adv.id ? { ...a, amount: newAmount, note: newNote } : a,
+      ),
+    );
+    setEditingId(null);
+    // Persist to backend
+    try {
+      await actor?.updateAdvance(adv.id, newAmount, newNote);
+    } catch (err) {
+      console.error("Failed to update advance", err);
+      // Restore original on failure
+      setAllAdvances((prev) => prev.map((a) => (a.id === adv.id ? adv : a)));
+    }
+  };
+
   const inputStyle = {
     background: "#FFFFFF",
     border: "1px solid #E5E5E5",
@@ -329,24 +362,7 @@ export function AdvancesTab({ mode }: Props) {
                         <button
                           type="button"
                           data-ocid={`advances.save.button.${i + 1}`}
-                          onClick={() => {
-                            setAllAdvances((prev) =>
-                              prev.map((a) =>
-                                a.id === adv.id
-                                  ? {
-                                      ...a,
-                                      amount: BigInt(
-                                        Math.round(
-                                          Number.parseFloat(editForm.amount),
-                                        ),
-                                      ),
-                                      note: editForm.note,
-                                    }
-                                  : a,
-                              ),
-                            );
-                            setEditingId(null);
-                          }}
+                          onClick={() => handleEditSave(adv)}
                           className="text-xs px-2 py-1 rounded mr-1"
                           style={{ background: "#FF7F11", color: "#fff" }}
                         >
@@ -398,11 +414,7 @@ export function AdvancesTab({ mode }: Props) {
                           <button
                             type="button"
                             data-ocid={`advances.delete.button.${i + 1}`}
-                            onClick={() =>
-                              setAllAdvances((prev) =>
-                                prev.filter((a) => a.id !== adv.id),
-                              )
-                            }
+                            onClick={() => handleDelete(adv)}
                             className="text-xs px-2 py-1 rounded"
                             style={{ background: "#FEE2E2", color: "#DC2626" }}
                           >

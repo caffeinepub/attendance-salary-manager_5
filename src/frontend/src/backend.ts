@@ -89,26 +89,39 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Labour {
+    id: bigint;
+    name: string;
+    groupId?: bigint;
+    phone?: string;
+}
+export interface SalaryBreakdown {
+    meshSalary: bigint;
+    totalAttendanceSalary: bigint;
+    labourId: bigint;
+    netSalary: bigint;
+    totalAdvances: bigint;
+    labourName: string;
+    bedSalary: bigint;
+    paperSalary: bigint;
+}
+export interface AttendanceNote {
+    id: bigint;
+    note: string;
+    labourId: bigint;
+    contractId: bigint;
+}
+export interface Attendance {
+    id: bigint;
+    columnType: ColumnType;
+    value: string;
+    labourId: bigint;
+    contractId: bigint;
+}
 export interface Group {
     id: bigint;
     name: string;
 }
-export interface Labour {
-    id: bigint;
-    name: string;
-    phone?: string;
-    groupId?: bigint;
-}
-export type ColumnType = {
-    __kind__: "bed";
-    bed: null;
-} | {
-    __kind__: "mesh";
-    mesh: bigint;
-} | {
-    __kind__: "paper";
-    paper: null;
-};
 export interface Contract {
     id: bigint;
     isSettled: boolean;
@@ -121,23 +134,21 @@ export interface Contract {
     contractAmount: bigint;
     multiplierValue: number;
 }
-export interface SalaryBreakdown {
-    meshSalary: bigint;
-    totalAttendanceSalary: bigint;
-    labourId: bigint;
-    netSalary: bigint;
-    totalAdvances: bigint;
-    labourName: string;
-    bedSalary: bigint;
-    paperSalary: bigint;
-}
-export interface Attendance {
+export interface Holiday {
     id: bigint;
-    columnType: ColumnType;
-    value: string;
-    labourId: bigint;
+    columnKey: string;
     contractId: bigint;
 }
+export type ColumnType = {
+    __kind__: "bed";
+    bed: null;
+} | {
+    __kind__: "mesh";
+    mesh: bigint;
+} | {
+    __kind__: "paper";
+    paper: null;
+};
 export interface Advance {
     id: bigint;
     note: string;
@@ -151,18 +162,26 @@ export interface backendInterface {
     createContract(name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<bigint>;
     createGroup(name: string): Promise<bigint>;
     createLabour(name: string, phone: string | null, groupId: bigint | null): Promise<bigint>;
+    deleteAdvance(id: bigint): Promise<void>;
     deleteContract(id: bigint): Promise<void>;
     deleteGroup(id: bigint): Promise<void>;
     getAdvancesByContract(contractId: bigint): Promise<Array<Advance>>;
     getAdvancesByLabour(labourId: bigint): Promise<Array<Advance>>;
+    getAllAdvances(): Promise<Array<Advance>>;
     getAllContracts(): Promise<Array<Contract>>;
     getAllGroups(): Promise<Array<Group>>;
     getAllLabours(): Promise<Array<Labour>>;
     getAttendanceByContract(contractId: bigint): Promise<Array<Attendance>>;
     getContract(id: bigint): Promise<Contract>;
+    getHolidaysByContract(contractId: bigint): Promise<Array<Holiday>>;
+    getNotesByContract(contractId: bigint): Promise<Array<AttendanceNote>>;
+    markHoliday(contractId: bigint, columnKey: string): Promise<bigint>;
+    removeHoliday(contractId: bigint, columnKey: string): Promise<void>;
     saveAttendance(contractId: bigint, labourId: bigint, columnType: ColumnType, value: string): Promise<bigint>;
+    saveAttendanceNote(contractId: bigint, labourId: bigint, note: string): Promise<bigint>;
     settleContract(id: bigint): Promise<void>;
     unsettleContract(id: bigint): Promise<void>;
+    updateAdvance(id: bigint, amount: bigint, note: string): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;
     updateLabour(id: bigint, name: string, phone: string | null, groupId: bigint | null): Promise<void>;
 }
@@ -228,14 +247,28 @@ export class Backend implements backendInterface {
     async createLabour(arg0: string, arg1: string | null, arg2: bigint | null): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.createLabour(arg0, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg2));
+                const result = await this.actor.createLabour(arg0, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg2));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.createLabour(arg0, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg2));
+            const result = await this.actor.createLabour(arg0, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg2));
+            return result;
+        }
+    }
+    async deleteAdvance(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteAdvance(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteAdvance(arg0);
             return result;
         }
     }
@@ -295,6 +328,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getAllAdvances(): Promise<Array<Advance>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllAdvances();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllAdvances();
+            return result;
+        }
+    }
     async getAllContracts(): Promise<Array<Contract>> {
         if (this.processError) {
             try {
@@ -327,28 +374,28 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getAllLabours();
-                return from_candid_vec_n3(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n4(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getAllLabours();
-            return from_candid_vec_n3(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n4(this._uploadFile, this._downloadFile, result);
         }
     }
     async getAttendanceByContract(arg0: bigint): Promise<Array<Attendance>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getAttendanceByContract(arg0);
-                return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getAttendanceByContract(arg0);
-            return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n9(this._uploadFile, this._downloadFile, result);
         }
     }
     async getContract(arg0: bigint): Promise<Contract> {
@@ -365,17 +412,87 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async saveAttendance(arg0: bigint, arg1: bigint, arg2: ColumnType, arg3: string): Promise<bigint> {
+    async getHolidaysByContract(arg0: bigint): Promise<Array<Holiday>> {
         if (this.processError) {
             try {
-                const result = await this.actor.saveAttendance(arg0, arg1, to_candid_ColumnType_n12(this._uploadFile, this._downloadFile, arg2), arg3);
+                const result = await this.actor.getHolidaysByContract(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.saveAttendance(arg0, arg1, to_candid_ColumnType_n12(this._uploadFile, this._downloadFile, arg2), arg3);
+            const result = await this.actor.getHolidaysByContract(arg0);
+            return result;
+        }
+    }
+    async getNotesByContract(arg0: bigint): Promise<Array<AttendanceNote>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getNotesByContract(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getNotesByContract(arg0);
+            return result;
+        }
+    }
+    async markHoliday(arg0: bigint, arg1: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.markHoliday(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.markHoliday(arg0, arg1);
+            return result;
+        }
+    }
+    async removeHoliday(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.removeHoliday(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.removeHoliday(arg0, arg1);
+            return result;
+        }
+    }
+    async saveAttendance(arg0: bigint, arg1: bigint, arg2: ColumnType, arg3: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveAttendance(arg0, arg1, to_candid_ColumnType_n14(this._uploadFile, this._downloadFile, arg2), arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveAttendance(arg0, arg1, to_candid_ColumnType_n14(this._uploadFile, this._downloadFile, arg2), arg3);
+            return result;
+        }
+    }
+    async saveAttendanceNote(arg0: bigint, arg1: bigint, arg2: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveAttendanceNote(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveAttendanceNote(arg0, arg1, arg2);
             return result;
         }
     }
@@ -407,6 +524,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateAdvance(arg0: bigint, arg1: bigint, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateAdvance(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateAdvance(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async updateContract(arg0: bigint, arg1: string, arg2: number, arg3: bigint, arg4: bigint, arg5: bigint | null, arg6: bigint | null, arg7: Array<string>): Promise<void> {
         if (this.processError) {
             try {
@@ -424,53 +555,34 @@ export class Backend implements backendInterface {
     async updateLabour(arg0: bigint, arg1: string, arg2: string | null, arg3: bigint | null): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg3));
+                const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg3));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg3));
+            const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg3));
             return result;
         }
     }
 }
-function from_candid_Attendance_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Attendance): Attendance {
-    return from_candid_record_n9(_uploadFile, _downloadFile, value);
+function from_candid_Attendance_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Attendance): Attendance {
+    return from_candid_record_n11(_uploadFile, _downloadFile, value);
 }
-function from_candid_ColumnType_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ColumnType): ColumnType {
-    return from_candid_variant_n11(_uploadFile, _downloadFile, value);
+function from_candid_ColumnType_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ColumnType): ColumnType {
+    return from_candid_variant_n13(_uploadFile, _downloadFile, value);
 }
-function from_candid_Labour_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Labour): Labour {
-    return from_candid_record_n5(_uploadFile, _downloadFile, value);
+function from_candid_Labour_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Labour): Labour {
+    return from_candid_record_n6(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+function from_candid_opt_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_bigint(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
+function from_candid_opt_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    id: bigint;
-    name: string;
-    phone: [] | [string];
-    groupId: [] | [bigint];
-}): {
-    id: bigint;
-    name: string;
-    phone?: string;
-    groupId?: bigint;
-} {
-    const groupIdVal = from_candid_opt_bigint(_uploadFile, _downloadFile, value.groupId);
-    return {
-        id: value.id,
-        name: value.name,
-        phone: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.phone)),
-        groupId: groupIdVal === null ? undefined : groupIdVal
-    };
-}
-function from_candid_record_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: bigint;
     columnType: _ColumnType;
     value: string;
@@ -485,13 +597,31 @@ function from_candid_record_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint
 } {
     return {
         id: value.id,
-        columnType: from_candid_ColumnType_n10(_uploadFile, _downloadFile, value.columnType),
+        columnType: from_candid_ColumnType_n12(_uploadFile, _downloadFile, value.columnType),
         value: value.value,
         labourId: value.labourId,
         contractId: value.contractId
     };
 }
-function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    id: bigint;
+    name: string;
+    groupId: [] | [bigint];
+    phone: [] | [string];
+}): {
+    id: bigint;
+    name: string;
+    groupId?: bigint;
+    phone?: string;
+} {
+    return {
+        id: value.id,
+        name: value.name,
+        groupId: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.groupId)),
+        phone: record_opt_to_undefined(from_candid_opt_n8(_uploadFile, _downloadFile, value.phone))
+    };
+}
+function from_candid_variant_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     bed: null;
 } | {
     mesh: bigint;
@@ -518,14 +648,14 @@ function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Ui
         paper: value.paper
     } : value;
 }
-function from_candid_vec_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Labour>): Array<Labour> {
-    return value.map((x)=>from_candid_Labour_n4(_uploadFile, _downloadFile, x));
+function from_candid_vec_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Labour>): Array<Labour> {
+    return value.map((x)=>from_candid_Labour_n5(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Attendance>): Array<Attendance> {
-    return value.map((x)=>from_candid_Attendance_n8(_uploadFile, _downloadFile, x));
+function from_candid_vec_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Attendance>): Array<Attendance> {
+    return value.map((x)=>from_candid_Attendance_n10(_uploadFile, _downloadFile, x));
 }
-function to_candid_ColumnType_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ColumnType): _ColumnType {
-    return to_candid_variant_n13(_uploadFile, _downloadFile, value);
+function to_candid_ColumnType_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ColumnType): _ColumnType {
+    return to_candid_variant_n15(_uploadFile, _downloadFile, value);
 }
 function to_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: bigint | null): [] | [bigint] {
     return value === null ? candid_none() : candid_some(value);
@@ -533,7 +663,10 @@ function to_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Arra
 function to_candid_opt_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: string | null): [] | [string] {
     return value === null ? candid_none() : candid_some(value);
 }
-function to_candid_variant_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function to_candid_opt_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: bigint | null): [] | [bigint] {
+    return value === null ? candid_none() : candid_some(value);
+}
+function to_candid_variant_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     __kind__: "bed";
     bed: null;
 } | {

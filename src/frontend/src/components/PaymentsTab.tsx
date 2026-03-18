@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Attendance, Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
@@ -20,6 +20,20 @@ interface LabourPayment {
   finalPayment: number;
 }
 
+function useClickOutside(
+  ref: React.RefObject<HTMLElement | null>,
+  handler: () => void,
+) {
+  useEffect(() => {
+    const listener = (e: MouseEvent) => {
+      if (!ref.current || ref.current.contains(e.target as Node)) return;
+      handler();
+    };
+    document.addEventListener("mousedown", listener);
+    return () => document.removeEventListener("mousedown", listener);
+  }, [ref, handler]);
+}
+
 export function PaymentsTab() {
   const { actor } = useActor();
   const a = actor as AnyActor;
@@ -32,6 +46,14 @@ export function PaymentsTab() {
   );
   const [payments, setPayments] = useState<LabourPayment[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const [contractDropOpen, setContractDropOpen] = useState(false);
+  const [labourDropOpen, setLabourDropOpen] = useState(false);
+  const contractDropRef = useRef<HTMLDivElement>(null);
+  const labourDropRef = useRef<HTMLDivElement>(null);
+
+  useClickOutside(contractDropRef, () => setContractDropOpen(false));
+  useClickOutside(labourDropRef, () => setLabourDropOpen(false));
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a is derived from actor
   useEffect(() => {
@@ -118,7 +140,6 @@ export function PaymentsTab() {
           return attMap.get(String(labourId))?.get(colKey) ?? "Absent";
         };
 
-        // Column sums use ALL labours for correct proportional calculation
         const colSum = (colKey: string): number =>
           labours.reduce((s, l) => s + attendanceNum(getVal(l.id, colKey)), 0);
 
@@ -194,6 +215,119 @@ export function PaymentsTab() {
   const totalFinal = payments.reduce((s, lp) => s + lp.finalPayment, 0);
   const totalAdvances = payments.reduce((s, lp) => s + lp.totalAdvances, 0);
 
+  const downloadPDF = () => {
+    const contractNames = selectedContracts.map((c) => c.name).join(", ");
+    const contractTotals = selectedContracts.map((c) => {
+      const total = payments.reduce(
+        (s, lp) => s + (lp.contractSalaries.get(String(c.id)) ?? 0),
+        0,
+      );
+      return { name: c.name, total };
+    });
+
+    const rowsHtml = payments
+      .map(
+        (lp, i) => `
+      <tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"}">
+        <td style="padding:9px 14px;font-weight:700;color:#0f172a;border-bottom:1px solid #e2e8f0;white-space:nowrap">${lp.labourName}</td>
+        ${selectedContracts
+          .map((c) => {
+            const sal = lp.contractSalaries.get(String(c.id)) ?? 0;
+            return `<td style="padding:9px 14px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right">${sal > 0 ? `&#8377;${sal.toFixed(0)}` : "&mdash;"}</td>`;
+          })
+          .join("")}
+        <td style="padding:9px 14px;color:#dc2626;font-weight:700;border-bottom:1px solid #e2e8f0;text-align:right">&#8377;${lp.totalAdvances.toLocaleString()}</td>
+        <td style="padding:9px 14px;color:#ea580c;font-weight:800;font-size:15px;border-bottom:1px solid #e2e8f0;text-align:right">&#8377;${lp.finalPayment.toFixed(0)}</td>
+      </tr>`,
+      )
+      .join("");
+
+    const totalsHtml = `
+      <tr style="background:#0f172a">
+        <td style="padding:9px 14px;color:#94a3b8;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.06em">Totals</td>
+        ${contractTotals.map((ct) => `<td style="padding:9px 14px;color:#f97316;font-weight:800;text-align:right">&#8377;${ct.total.toFixed(0)}</td>`).join("")}
+        <td style="padding:9px 14px;color:#fca5a5;font-weight:800;text-align:right">&#8377;${payments.reduce((s, lp) => s + lp.totalAdvances, 0).toLocaleString()}</td>
+        <td style="padding:9px 14px;color:#fed7aa;font-weight:800;font-size:15px;text-align:right">&#8377;${totalFinal.toFixed(0)}</td>
+      </tr>`;
+
+    const contractHeadersHtml = selectedContracts
+      .map(
+        (c) =>
+          `<th style="padding:11px 14px;background:#1e293b;color:#ffffff;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">${c.name}</th>`,
+      )
+      .join("");
+
+    const printDate = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Payment Sheet</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #0f172a; padding: 32px; }
+    h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 4px; }
+    .date { font-size: 12px; color: #94a3b8; margin-bottom: 24px; }
+    .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+    .stat { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 16px; min-width: 120px; }
+    .stat-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+    .stat-value { font-size: 17px; font-weight: 800; }
+    table { width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
+    @media print {
+      body { padding: 16px; }
+      @page { margin: 16mm; size: A4 landscape; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Payment Sheet</h1>
+  <div class="subtitle">Contracts: ${contractNames}</div>
+  <div class="date">Generated on ${printDate}</div>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Labours</div><div class="stat-value" style="color:#f97316">${payments.length}</div></div>
+    <div class="stat"><div class="stat-label">Contracts</div><div class="stat-value" style="color:#7c3aed">${selectedContracts.length}</div></div>
+    <div class="stat"><div class="stat-label">Total Advances</div><div class="stat-value" style="color:#dc2626">&#8377;${totalAdvances.toLocaleString()}</div></div>
+    <div class="stat"><div class="stat-label">Total Payout</div><div class="stat-value" style="color:#16a34a">&#8377;${totalFinal.toFixed(0)}</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="padding:11px 14px;background:#1e293b;color:#ffffff;font-weight:700;font-size:12px;text-align:left;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Labour</th>
+        ${contractHeadersHtml}
+        <th style="padding:11px 14px;background:#1e293b;color:#fca5a5;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Advances</th>
+        <th style="padding:11px 14px;background:#1e293b;color:#fed7aa;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Net Pay</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+      ${totalsHtml}
+    </tbody>
+  </table>
+</body>
+</html>`;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    // Wait for content to load before printing
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+    // Fallback if onload doesn't fire (content already loaded)
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
   const TH_DARK: React.CSSProperties = {
     padding: "11px 14px",
     textAlign: "left",
@@ -213,6 +347,97 @@ export function PaymentsTab() {
     borderBottom: "1px solid #E2E8F0",
     verticalAlign: "middle",
   };
+
+  const dropTriggerStyle = (open: boolean): React.CSSProperties => ({
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "9px 14px",
+    background: "#FFFFFF",
+    border: open ? "2px solid #F97316" : "2px solid #E2E8F0",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#1E293B",
+    transition: "border-color 0.15s",
+    outline: "none",
+    boxShadow: open ? "0 0 0 3px rgba(249,115,22,0.12)" : "none",
+  });
+
+  const dropPanelStyle: React.CSSProperties = {
+    position: "absolute",
+    top: "calc(100% + 4px)",
+    left: 0,
+    right: 0,
+    background: "#FFFFFF",
+    border: "1.5px solid #E2E8F0",
+    borderRadius: 10,
+    boxShadow: "0 8px 32px rgba(15,23,42,0.13)",
+    zIndex: 50,
+    maxHeight: 240,
+    overflowY: "auto",
+  };
+
+  const labelStyle = (
+    isSelected: boolean,
+    accent: string,
+  ): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "9px 14px",
+    cursor: "pointer",
+    background: isSelected ? `${accent}0d` : "transparent",
+    borderBottom: "1px solid #F1F5F9",
+    fontSize: 13,
+    color: isSelected ? accent : "#334155",
+    fontWeight: isSelected ? 600 : 400,
+    transition: "background 0.12s",
+    userSelect: "none",
+  });
+
+  const checkboxStyle = (
+    isSelected: boolean,
+    accent: string,
+  ): React.CSSProperties => ({
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    border: isSelected ? `2px solid ${accent}` : "2px solid #CBD5E1",
+    background: isSelected ? accent : "transparent",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 9,
+    color: "#fff",
+    flexShrink: 0,
+    transition: "all 0.12s",
+  });
+
+  const chevron = (open: boolean) => (
+    <svg
+      aria-hidden="true"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      style={{
+        transition: "transform 0.15s",
+        transform: open ? "rotate(180deg)" : "rotate(0deg)",
+        flexShrink: 0,
+      }}
+    >
+      <path
+        d="M4 6l4 4 4-4"
+        stroke="#94A3B8"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 
   return (
     <div>
@@ -234,7 +459,7 @@ export function PaymentsTab() {
         </p>
       </div>
 
-      {/* Contract Selection */}
+      {/* Contract Selection Dropdown */}
       <div style={{ marginBottom: 16 }}>
         <div
           style={{
@@ -243,76 +468,68 @@ export function PaymentsTab() {
             color: "#64748B",
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            marginBottom: 8,
+            marginBottom: 6,
           }}
         >
           Select Contracts
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {contracts.map((c) => {
-            const isSelected = selectedIds.has(String(c.id));
-            return (
-              <label
-                key={String(c.id)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "7px 16px",
-                  borderRadius: 999,
-                  cursor: "pointer",
-                  background: isSelected
-                    ? "linear-gradient(135deg, #F97316, #EA580C)"
-                    : "#F1F5F9",
-                  color: isSelected ? "#FFFFFF" : "#475569",
-                  fontWeight: isSelected ? 700 : 500,
-                  fontSize: 13,
-                  border: isSelected
-                    ? "2px solid transparent"
-                    : "2px solid #E2E8F0",
-                  transition: "all 0.18s",
-                  boxShadow: isSelected
-                    ? "0 2px 8px rgba(249,115,22,0.30)"
-                    : "none",
-                  userSelect: "none",
-                }}
-              >
-                <input
-                  data-ocid={`payments.contract.checkbox.${contracts.indexOf(c) + 1}`}
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleContract(String(c.id))}
-                  style={{ display: "none" }}
-                />
-                <span
+        <div ref={contractDropRef} style={{ position: "relative" }}>
+          <button
+            type="button"
+            data-ocid="payments.contract.select"
+            onClick={() => setContractDropOpen((v) => !v)}
+            style={dropTriggerStyle(contractDropOpen)}
+          >
+            <span
+              style={{ color: selectedIds.size === 0 ? "#94A3B8" : "#1E293B" }}
+            >
+              {selectedIds.size === 0
+                ? "Select contracts..."
+                : `${selectedIds.size} contract${selectedIds.size > 1 ? "s" : ""} selected`}
+            </span>
+            {chevron(contractDropOpen)}
+          </button>
+          {contractDropOpen && (
+            <div style={dropPanelStyle}>
+              {contracts.length === 0 ? (
+                <div
                   style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 4,
-                    border: isSelected
-                      ? "2px solid rgba(255,255,255,0.7)"
-                      : "2px solid #94A3B8",
-                    background: isSelected
-                      ? "rgba(255,255,255,0.25)"
-                      : "transparent",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 9,
-                    color: "#fff",
-                    flexShrink: 0,
+                    padding: "12px 14px",
+                    fontSize: 13,
+                    color: "#94A3B8",
                   }}
                 >
-                  {isSelected ? "✓" : ""}
-                </span>
-                {c.name}
-              </label>
-            );
-          })}
+                  No contracts available
+                </div>
+              ) : (
+                contracts.map((c, i) => {
+                  const isSelected = selectedIds.has(String(c.id));
+                  return (
+                    <label
+                      key={String(c.id)}
+                      style={labelStyle(isSelected, "#F97316")}
+                    >
+                      <input
+                        data-ocid={`payments.contract.checkbox.${i + 1}`}
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleContract(String(c.id))}
+                        style={{ display: "none" }}
+                      />
+                      <span style={checkboxStyle(isSelected, "#F97316")}>
+                        {isSelected ? "✓" : ""}
+                      </span>
+                      {c.name}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Labour Filter */}
+      {/* Labour Filter Dropdown */}
       {labours.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div
@@ -322,90 +539,97 @@ export function PaymentsTab() {
               color: "#64748B",
               letterSpacing: "0.06em",
               textTransform: "uppercase",
-              marginBottom: 8,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
+              marginBottom: 6,
             }}
           >
             Filter Labours
+          </div>
+          <div ref={labourDropRef} style={{ position: "relative" }}>
             <button
               type="button"
-              data-ocid="payments.labour.filter.toggle"
-              onClick={toggleAllLabours}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: allLaboursSelected ? "#64748B" : "#F97316",
-                background: "transparent",
-                border: "1px solid #E2E8F0",
-                borderRadius: 6,
-                padding: "2px 10px",
-                cursor: "pointer",
-                letterSpacing: 0,
-                textTransform: "none",
-              }}
+              data-ocid="payments.labour.select"
+              onClick={() => setLabourDropOpen((v) => !v)}
+              style={dropTriggerStyle(labourDropOpen)}
             >
-              {allLaboursSelected ? "Deselect All" : "Select All"}
+              <span
+                style={{
+                  color: selectedLabourIds.size === 0 ? "#94A3B8" : "#1E293B",
+                }}
+              >
+                {selectedLabourIds.size === 0
+                  ? "No labours selected"
+                  : `${filteredLabours.length} of ${labours.length} labours selected`}
+              </span>
+              {chevron(labourDropOpen)}
             </button>
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {labours.map((l, i) => {
-              const isSelected = selectedLabourIds.has(String(l.id));
-              return (
-                <label
-                  key={String(l.id)}
+            {labourDropOpen && (
+              <div style={dropPanelStyle}>
+                {/* Select All / Deselect All header */}
+                <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    padding: "5px 13px",
-                    borderRadius: 999,
-                    cursor: "pointer",
-                    background: isSelected ? "#EFF6FF" : "#F8FAFC",
-                    color: isSelected ? "#1D4ED8" : "#94A3B8",
-                    fontWeight: isSelected ? 600 : 400,
-                    fontSize: 13,
-                    border: isSelected
-                      ? "1.5px solid #93C5FD"
-                      : "1.5px solid #E2E8F0",
-                    transition: "all 0.15s",
-                    userSelect: "none",
+                    justifyContent: "space-between",
+                    padding: "8px 14px",
+                    borderBottom: "1.5px solid #E2E8F0",
+                    background: "#F8FAFC",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 1,
                   }}
                 >
-                  <input
-                    data-ocid={`payments.labour.checkbox.${i + 1}`}
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleLabour(String(l.id))}
-                    style={{ display: "none" }}
-                  />
                   <span
                     style={{
-                      width: 13,
-                      height: 13,
-                      borderRadius: 3,
-                      border: isSelected
-                        ? "2px solid #3B82F6"
-                        : "2px solid #CBD5E1",
-                      background: isSelected ? "#3B82F6" : "transparent",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 8,
-                      color: "#fff",
-                      flexShrink: 0,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#94A3B8",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
                     }}
                   >
-                    {isSelected ? "✓" : ""}
+                    {labours.length} Labours
                   </span>
-                  {l.name}
-                </label>
-              );
-            })}
-          </div>
-          <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 6 }}>
-            {filteredLabours.length} of {labours.length} labours selected
+                  <button
+                    type="button"
+                    data-ocid="payments.labour.filter.toggle"
+                    onClick={toggleAllLabours}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: allLaboursSelected ? "#64748B" : "#3B82F6",
+                      background: "transparent",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: 6,
+                      padding: "3px 10px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {allLaboursSelected ? "Deselect All" : "Select All"}
+                  </button>
+                </div>
+                {labours.map((l, i) => {
+                  const isSelected = selectedLabourIds.has(String(l.id));
+                  return (
+                    <label
+                      key={String(l.id)}
+                      style={labelStyle(isSelected, "#3B82F6")}
+                    >
+                      <input
+                        data-ocid={`payments.labour.checkbox.${i + 1}`}
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleLabour(String(l.id))}
+                        style={{ display: "none" }}
+                      />
+                      <span style={checkboxStyle(isSelected, "#3B82F6")}>
+                        {isSelected ? "✓" : ""}
+                      </span>
+                      {l.name}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -448,69 +672,129 @@ export function PaymentsTab() {
         {loading ? "Calculating…" : "Calculate Payments"}
       </button>
 
-      {/* Stats Bar */}
+      {/* Stats Bar + Download PDF */}
       {payments.length > 0 && (
         <>
           <div
             style={{
               display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
               gap: 10,
               marginBottom: 16,
-              flexWrap: "wrap",
             }}
           >
-            {[
-              { label: "Labours", value: payments.length, color: "#F97316" },
-              {
-                label: "Contracts",
-                value: selectedContracts.length,
-                color: "#7C3AED",
-              },
-              {
-                label: "Total Advances",
-                value: `₹${totalAdvances.toLocaleString()}`,
-                color: "#DC2626",
-              },
-              {
-                label: "Total Payout",
-                value: `₹${totalFinal.toFixed(0)}`,
-                color: "#16A34A",
-              },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                style={{
-                  background: "#FFFFFF",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  padding: "8px 14px",
-                  minWidth: 110,
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                }}
+            {/* Stats */}
+            <div
+              style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: 1 }}
+            >
+              {[
+                { label: "Labours", value: payments.length, color: "#F97316" },
+                {
+                  label: "Contracts",
+                  value: selectedContracts.length,
+                  color: "#7C3AED",
+                },
+                {
+                  label: "Total Advances",
+                  value: `₹${totalAdvances.toLocaleString()}`,
+                  color: "#DC2626",
+                },
+                {
+                  label: "Total Payout",
+                  value: `₹${totalFinal.toFixed(0)}`,
+                  color: "#16A34A",
+                },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 10,
+                    padding: "8px 14px",
+                    minWidth: 110,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "#94A3B8",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {stat.label}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 800,
+                      color: stat.color,
+                      marginTop: 2,
+                    }}
+                  >
+                    {stat.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Download PDF Button */}
+            <button
+              type="button"
+              data-ocid="payments.pdf.button"
+              onClick={downloadPDF}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 14px",
+                background: "#FFFFFF",
+                border: "1.5px solid #F97316",
+                borderRadius: 10,
+                color: "#F97316",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                transition: "background 0.15s, box-shadow 0.15s",
+                alignSelf: "center",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background =
+                  "#FFF7ED";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                  "0 2px 8px rgba(249,115,22,0.18)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background =
+                  "#FFFFFF";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                  "0 1px 3px rgba(0,0,0,0.06)";
+              }}
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
               >
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#94A3B8",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  {stat.label}
-                </div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: stat.color,
-                    marginTop: 2,
-                  }}
-                >
-                  {stat.value}
-                </div>
-              </div>
-            ))}
+                <path
+                  d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+                  stroke="#F97316"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Download PDF
+            </button>
           </div>
 
           {/* Payments Table */}
@@ -559,9 +843,7 @@ export function PaymentsTab() {
                   <tr
                     key={String(lp.labourId)}
                     data-ocid={`payments.item.${i + 1}`}
-                    style={{
-                      background: i % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
-                    }}
+                    style={{ background: i % 2 === 0 ? "#FFFFFF" : "#F8FAFC" }}
                   >
                     <td
                       style={{

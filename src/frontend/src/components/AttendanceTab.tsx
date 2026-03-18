@@ -1,7 +1,17 @@
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { MessageSquare, Sun } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import type { AppMode } from "../App";
-import type { Contract, Labour } from "../backend.d";
+import type { AttendanceNote, Contract, Holiday, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
 interface Props {
@@ -66,6 +76,26 @@ function BadgeCell({ val }: { val: string }) {
   );
 }
 
+function HolidayBadge() {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        background: "#F1F5F9",
+        color: "#64748B",
+        fontWeight: 700,
+        fontSize: 11,
+        borderRadius: 999,
+        padding: "2px 9px",
+        letterSpacing: "0.03em",
+        border: "1px solid #CBD5E1",
+      }}
+    >
+      Holiday
+    </span>
+  );
+}
+
 function getSelectStyle(val: string): React.CSSProperties {
   if (val === "Present") {
     return {
@@ -117,13 +147,24 @@ export function AttendanceTab({
   );
   const [contract, setContract] = useState<Contract | null>(null);
   const [attendance, setAttendance] = useState<Map<string, string>>(new Map());
-  // Track which cells have been changed since last load/save
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [meshCols, setMeshCols] = useState<string[]>([]);
   const [renamingCol, setRenamingCol] = useState<number | null>(null);
   const [renameVal, setRenameVal] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
+
+  // Notes
+  const [notes, setNotes] = useState<Map<string, string>>(new Map());
+  const [noteDialogLabourId, setNoteDialogLabourId] = useState<bigint | null>(
+    null,
+  );
+  const [noteDialogText, setNoteDialogText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+
+  // Holidays
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
+  const [togglingHoliday, setTogglingHoliday] = useState<string | null>(null);
 
   useEffect(() => {
     if (!actor) return;
@@ -143,13 +184,18 @@ export function AttendanceTab({
 
   useEffect(() => {
     if (!selectedContractId || !actor) return;
-    // Clear dirty keys when switching contracts
     setDirtyKeys(new Set());
-    actor.getContract(selectedContractId).then((c) => {
+    setNotes(new Map());
+    setHolidays(new Set());
+    Promise.all([
+      actor.getContract(selectedContractId),
+      actor.getAttendanceByContract(selectedContractId),
+      actor.getNotesByContract(selectedContractId),
+      actor.getHolidaysByContract(selectedContractId),
+    ]).then(([c, records, noteRecords, holidayRecords]) => {
       setContract(c);
       setMeshCols(c.meshColumns);
-    });
-    actor.getAttendanceByContract(selectedContractId).then((records) => {
+
       const map = new Map<string, string>();
       for (const r of records) {
         const colKey =
@@ -159,6 +205,18 @@ export function AttendanceTab({
         map.set(`${r.labourId}_${colKey}`, r.value);
       }
       setAttendance(map);
+
+      const nMap = new Map<string, string>();
+      for (const n of noteRecords) {
+        nMap.set(String(n.labourId), n.note);
+      }
+      setNotes(nMap);
+
+      const hSet = new Set<string>();
+      for (const h of holidayRecords) {
+        hSet.add(h.columnKey);
+      }
+      setHolidays(hSet);
     });
   }, [selectedContractId, actor]);
 
@@ -174,36 +232,40 @@ export function AttendanceTab({
   const colSum = (colKey: string) =>
     labours.reduce((s, l) => s + attendanceNum(getVal(l.id, colKey)), 0);
 
-  const allMeshSum = () =>
-    meshCols.reduce((s, _, i) => s + colSum(`mesh_${i}`), 0);
-
   const labourNetSalary = (labourId: bigint) => {
     if (!contract) return 0;
+    const bedIsHoliday = holidays.has("bed");
+    const paperIsHoliday = holidays.has("paper");
+
     const bedS =
-      colSum("bed") > 0
+      !bedIsHoliday && colSum("bed") > 0
         ? (attendanceNum(getVal(labourId, "bed")) / colSum("bed")) *
           Number(contract.bedAmount)
         : 0;
     const papS =
-      colSum("paper") > 0
+      !paperIsHoliday && colSum("paper") > 0
         ? (attendanceNum(getVal(labourId, "paper")) / colSum("paper")) *
           Number(contract.paperAmount)
         : 0;
-    const meshTotal = allMeshSum();
-    const labourMesh = meshCols.reduce(
-      (s, _, i) => s + attendanceNum(getVal(labourId, `mesh_${i}`)),
+
+    const activeMeshKeys = meshCols
+      .map((_, i) => `mesh_${i}`)
+      .filter((ck) => !holidays.has(ck));
+    const meshTotalPool = activeMeshKeys.reduce((s, ck) => s + colSum(ck), 0);
+    const labourMeshSum = activeMeshKeys.reduce(
+      (s, ck) => s + attendanceNum(getVal(labourId, ck)),
       0,
     );
     const meshS =
-      meshTotal > 0
-        ? (labourMesh / meshTotal) * Number(contract.meshAmount)
+      meshTotalPool > 0
+        ? (labourMeshSum / meshTotalPool) * Number(contract.meshAmount)
         : 0;
+
     return bedS + papS + meshS;
   };
 
   const handleSave = async () => {
     if (!selectedContractId || !actor) return;
-    // Only save dirty cells (cells that changed since last load/save)
     if (dirtyKeys.size === 0) return;
     setSaving(true);
     const keysToSave = new Set(dirtyKeys);
@@ -249,10 +311,52 @@ export function AttendanceTab({
         }
       }
       await Promise.all(saves);
-      // Clear dirty keys after successful save
       setDirtyKeys(new Set());
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleHoliday = async (colKey: string) => {
+    if (!selectedContractId || !actor) return;
+    setTogglingHoliday(colKey);
+    try {
+      if (holidays.has(colKey)) {
+        await actor.removeHoliday(selectedContractId, colKey);
+        setHolidays((prev) => {
+          const s = new Set(prev);
+          s.delete(colKey);
+          return s;
+        });
+      } else {
+        await actor.markHoliday(selectedContractId, colKey);
+        setHolidays((prev) => new Set(prev).add(colKey));
+      }
+    } finally {
+      setTogglingHoliday(null);
+    }
+  };
+
+  const openNoteDialog = (labourId: bigint) => {
+    setNoteDialogLabourId(labourId);
+    setNoteDialogText(notes.get(String(labourId)) ?? "");
+  };
+
+  const handleSaveNote = async () => {
+    if (!selectedContractId || !actor || noteDialogLabourId === null) return;
+    setSavingNote(true);
+    try {
+      await actor.saveAttendanceNote(
+        selectedContractId,
+        noteDialogLabourId,
+        noteDialogText,
+      );
+      setNotes((prev) =>
+        new Map(prev).set(String(noteDialogLabourId), noteDialogText),
+      );
+      setNoteDialogLabourId(null);
+    } finally {
+      setSavingNote(false);
     }
   };
 
@@ -347,12 +451,7 @@ export function AttendanceTab({
         }}
       >
         <h2
-          style={{
-            fontSize: 20,
-            fontWeight: 800,
-            color: "#0F172A",
-            margin: 0,
-          }}
+          style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: 0 }}
         >
           Attendance List
         </h2>
@@ -416,6 +515,7 @@ export function AttendanceTab({
 
       {!selectedContractId && (
         <div
+          data-ocid="attendance.empty_state"
           style={{
             background: "#F8FAFC",
             border: "1px dashed #CBD5E1",
@@ -432,6 +532,7 @@ export function AttendanceTab({
 
       {selectedContractId && contract && (
         <>
+          {/* Stats bar */}
           <div
             style={{
               display: "flex",
@@ -495,7 +596,11 @@ export function AttendanceTab({
             ))}
           </div>
 
-          <div className="flex items-center gap-2 mb-3">
+          {/* Action buttons */}
+          <div
+            className="flex items-center gap-2 mb-3"
+            style={{ flexWrap: "wrap" }}
+          >
             {mode === "edit" && (
               <button
                 type="button"
@@ -519,6 +624,7 @@ export function AttendanceTab({
             )}
           </div>
 
+          {/* Table */}
           <div
             style={{
               overflowX: "auto",
@@ -553,78 +659,225 @@ export function AttendanceTab({
                   >
                     Labour
                   </th>
-                  <th style={TH_DARK}>Bed</th>
-                  <th style={TH_DARK}>Paper</th>
-                  {meshCols.map((col, i) => (
-                    <th key={col + String(i)} style={TH_DARK}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                        }}
-                      >
-                        {renamingCol === i ? (
-                          <input
-                            ref={renameRef}
-                            style={{
-                              background: "#334155",
-                              border: "1px solid #F97316",
-                              color: "#fff",
-                              borderRadius: 6,
-                              padding: "2px 6px",
-                              width: 80,
-                              fontSize: 12,
-                            }}
-                            value={renameVal}
-                            onChange={(e) => setRenameVal(e.target.value)}
-                            onBlur={() => commitRename(i)}
-                            onKeyDown={(e) =>
-                              e.key === "Enter" && commitRename(i)
-                            }
-                          />
-                        ) : (
-                          <span>{col}</span>
-                        )}
-                        {mode === "edit" && (
-                          <div style={{ display: "flex", gap: 3 }}>
-                            <button
-                              type="button"
-                              data-ocid={`attendance.rename_mesh.button.${i + 1}`}
-                              onClick={() => startRename(i)}
+
+                  {/* Bed column */}
+                  <th style={TH_DARK}>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 5 }}
+                    >
+                      <span>Bed</span>
+                      {holidays.has("bed") && (
+                        <span
+                          style={{
+                            background: "#F97316",
+                            color: "#fff",
+                            fontSize: 9,
+                            borderRadius: 4,
+                            padding: "1px 5px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          HOLIDAY
+                        </span>
+                      )}
+                      {mode === "edit" && (
+                        <button
+                          type="button"
+                          data-ocid="attendance.bed.toggle"
+                          onClick={() => toggleHoliday("bed")}
+                          disabled={togglingHoliday === "bed"}
+                          title={
+                            holidays.has("bed")
+                              ? "Remove holiday"
+                              : "Mark as holiday"
+                          }
+                          style={{
+                            background: holidays.has("bed")
+                              ? "#F97316"
+                              : "rgba(255,255,255,0.15)",
+                            border: "none",
+                            borderRadius: 4,
+                            padding: "2px 4px",
+                            cursor: "pointer",
+                            lineHeight: 1,
+                            color: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Sun size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </th>
+
+                  {/* Paper column */}
+                  <th style={TH_DARK}>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 5 }}
+                    >
+                      <span>Paper</span>
+                      {holidays.has("paper") && (
+                        <span
+                          style={{
+                            background: "#F97316",
+                            color: "#fff",
+                            fontSize: 9,
+                            borderRadius: 4,
+                            padding: "1px 5px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          HOLIDAY
+                        </span>
+                      )}
+                      {mode === "edit" && (
+                        <button
+                          type="button"
+                          data-ocid="attendance.paper.toggle"
+                          onClick={() => toggleHoliday("paper")}
+                          disabled={togglingHoliday === "paper"}
+                          title={
+                            holidays.has("paper")
+                              ? "Remove holiday"
+                              : "Mark as holiday"
+                          }
+                          style={{
+                            background: holidays.has("paper")
+                              ? "#F97316"
+                              : "rgba(255,255,255,0.15)",
+                            border: "none",
+                            borderRadius: 4,
+                            padding: "2px 4px",
+                            cursor: "pointer",
+                            lineHeight: 1,
+                            color: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Sun size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </th>
+
+                  {/* Mesh columns */}
+                  {meshCols.map((col, i) => {
+                    const colKey = `mesh_${i}`;
+                    const isHoliday = holidays.has(colKey);
+                    return (
+                      <th key={col + String(i)} style={TH_DARK}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                          }}
+                        >
+                          {renamingCol === i ? (
+                            <input
+                              ref={renameRef}
                               style={{
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                color: "#FCD34D",
+                                background: "#334155",
+                                border: "1px solid #F97316",
+                                color: "#fff",
+                                borderRadius: 6,
+                                padding: "2px 6px",
+                                width: 80,
                                 fontSize: 12,
-                                padding: 0,
                               }}
-                              title="Rename"
-                            >
-                              ✏
-                            </button>
-                            <button
-                              type="button"
-                              data-ocid={`attendance.delete_mesh.button.${i + 1}`}
-                              onClick={() => deleteMeshCol(i)}
+                              value={renameVal}
+                              onChange={(e) => setRenameVal(e.target.value)}
+                              onBlur={() => commitRename(i)}
+                              onKeyDown={(e) =>
+                                e.key === "Enter" && commitRename(i)
+                              }
+                            />
+                          ) : (
+                            <span>{col}</span>
+                          )}
+                          {isHoliday && (
+                            <span
                               style={{
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                color: "#FCA5A5",
-                                fontSize: 12,
-                                padding: 0,
+                                background: "#F97316",
+                                color: "#fff",
+                                fontSize: 9,
+                                borderRadius: 4,
+                                padding: "1px 5px",
+                                fontWeight: 700,
                               }}
-                              title="Delete"
                             >
-                              ✕
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </th>
-                  ))}
+                              HOLIDAY
+                            </span>
+                          )}
+                          {mode === "edit" && (
+                            <div style={{ display: "flex", gap: 3 }}>
+                              <button
+                                type="button"
+                                data-ocid={`attendance.rename_mesh.button.${i + 1}`}
+                                onClick={() => startRename(i)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: "#FCD34D",
+                                  fontSize: 12,
+                                  padding: 0,
+                                }}
+                                title="Rename"
+                              >
+                                ✏
+                              </button>
+                              <button
+                                type="button"
+                                data-ocid={`attendance.delete_mesh.button.${i + 1}`}
+                                onClick={() => deleteMeshCol(i)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: "#FCA5A5",
+                                  fontSize: 12,
+                                  padding: 0,
+                                }}
+                                title="Delete"
+                              >
+                                ✕
+                              </button>
+                              <button
+                                type="button"
+                                data-ocid={`attendance.mesh_holiday.toggle.${i + 1}`}
+                                onClick={() => toggleHoliday(colKey)}
+                                disabled={togglingHoliday === colKey}
+                                title={
+                                  isHoliday
+                                    ? "Remove holiday"
+                                    : "Mark as holiday"
+                                }
+                                style={{
+                                  background: isHoliday
+                                    ? "#F97316"
+                                    : "rgba(255,255,255,0.15)",
+                                  border: "none",
+                                  borderRadius: 4,
+                                  padding: "2px 4px",
+                                  cursor: "pointer",
+                                  lineHeight: 1,
+                                  color: "#fff",
+                                  display: "flex",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Sun size={11} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </th>
+                    );
+                  })}
+
                   <th style={TH_DARK}>Total</th>
                   <th
                     style={{
@@ -635,12 +888,14 @@ export function AttendanceTab({
                   >
                     Net Salary
                   </th>
+                  <th style={{ ...TH_DARK }}>Note</th>
                 </tr>
               </thead>
               <tbody>
                 {labours.map((labour, idx) => {
                   const net = labourNetSalary(labour.id);
                   const rowBg = idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC";
+                  const hasNote = !!notes.get(String(labour.id));
                   return (
                     <tr
                       key={String(labour.id)}
@@ -648,6 +903,7 @@ export function AttendanceTab({
                         background: rowBg,
                         transition: "background 0.15s",
                       }}
+                      data-ocid={`attendance.row.item.${idx + 1}`}
                     >
                       <td
                         style={{
@@ -679,18 +935,22 @@ export function AttendanceTab({
                       >
                         {labour.name}
                       </td>
+
                       {[
                         "bed",
                         "paper",
                         ...meshCols.map((_, i) => `mesh_${i}`),
                       ].map((colKey) => {
+                        const isHoliday = holidays.has(colKey);
                         const val = getVal(labour.id, colKey);
                         return (
                           <td
                             key={colKey}
                             style={{ ...TD, padding: "6px 10px" }}
                           >
-                            {mode === "edit" ? (
+                            {isHoliday ? (
+                              <HolidayBadge />
+                            ) : mode === "edit" ? (
                               <select
                                 data-ocid={`attendance.${colKey}.select.${idx + 1}`}
                                 style={getSelectStyle(val)}
@@ -711,6 +971,7 @@ export function AttendanceTab({
                           </td>
                         );
                       })}
+
                       <td
                         style={{
                           ...TD,
@@ -724,6 +985,7 @@ export function AttendanceTab({
                           "paper",
                           ...meshCols.map((_, i) => `mesh_${i}`),
                         ]
+                          .filter((ck) => !holidays.has(ck))
                           .reduce(
                             (s, ck) => s + attendanceNum(getVal(labour.id, ck)),
                             0,
@@ -740,16 +1002,33 @@ export function AttendanceTab({
                       >
                         ₹{net.toFixed(0)}
                       </td>
+                      <td style={{ ...TD, padding: "6px 10px" }}>
+                        {(mode === "edit" || hasNote) && (
+                          <button
+                            type="button"
+                            data-ocid={`attendance.note.button.${idx + 1}`}
+                            onClick={() => openNoteDialog(labour.id)}
+                            title={hasNote ? "View/Edit note" : "Add note"}
+                            style={{
+                              background: hasNote ? "#FFF7ED" : "#F8FAFC",
+                              border: `1px solid ${hasNote ? "#F97316" : "#E2E8F0"}`,
+                              borderRadius: 6,
+                              padding: "4px 6px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              color: hasNote ? "#F97316" : "#94A3B8",
+                            }}
+                          >
+                            <MessageSquare size={14} />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
 
-                <tr
-                  style={{
-                    background: "#0F172A",
-                    fontWeight: 700,
-                  }}
-                >
+                <tr style={{ background: "#0F172A", fontWeight: 700 }}>
                   <td
                     style={{
                       ...TD,
@@ -773,12 +1052,12 @@ export function AttendanceTab({
                         key={colKey}
                         style={{
                           ...TD,
-                          color: "#F97316",
+                          color: holidays.has(colKey) ? "#475569" : "#F97316",
                           fontWeight: 800,
                           borderBottom: "none",
                         }}
                       >
-                        {colSum(colKey).toFixed(2)}
+                        {holidays.has(colKey) ? "—" : colSum(colKey).toFixed(2)}
                       </td>
                     ),
                   )}
@@ -803,6 +1082,7 @@ export function AttendanceTab({
                   >
                     ₹{totalNet.toFixed(0)}
                   </td>
+                  <td style={{ ...TD, borderBottom: "none" }} />
                 </tr>
               </tbody>
             </table>
@@ -845,6 +1125,47 @@ export function AttendanceTab({
           )}
         </>
       )}
+
+      {/* Note Dialog */}
+      <Dialog
+        open={noteDialogLabourId !== null}
+        onOpenChange={(open) => {
+          if (!open) setNoteDialogLabourId(null);
+        }}
+      >
+        <DialogContent data-ocid="attendance.note.dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {mode === "edit" ? "Attendance Note" : "Note"}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            data-ocid="attendance.note.textarea"
+            value={noteDialogText}
+            onChange={(e) => setNoteDialogText(e.target.value)}
+            placeholder="Type a note for this labour..."
+            readOnly={mode === "view"}
+            rows={4}
+            style={{ resize: "none" }}
+          />
+          {mode === "edit" && (
+            <DialogFooter>
+              <Button
+                data-ocid="attendance.note.save_button"
+                onClick={handleSaveNote}
+                disabled={savingNote}
+                style={{
+                  background: "linear-gradient(135deg, #F97316, #EA580C)",
+                  color: "#fff",
+                  border: "none",
+                }}
+              >
+                {savingNote ? "Saving…" : "Save Note"}
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

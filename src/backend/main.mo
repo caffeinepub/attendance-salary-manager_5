@@ -6,6 +6,8 @@ import Text "mo:core/Text";
 import Nat "mo:core/Nat";
 import Runtime "mo:core/Runtime";
 
+
+
 actor {
   // Data Types
   type Group = {
@@ -13,14 +15,12 @@ actor {
     name : Text;
   };
 
-  // Storage type for Labour — keeps original fields only (backward compatible)
   type LabourStorage = {
     id : Nat;
     name : Text;
     phone : ?Text;
   };
 
-  // Public Labour type includes optional groupId (joined at query time)
   type Labour = {
     id : Nat;
     name : Text;
@@ -74,6 +74,19 @@ actor {
     #mesh : Nat;
   };
 
+  type AttendanceNote = {
+    id : Nat;
+    contractId : Nat;
+    labourId : Nat;
+    note : Text;
+  };
+
+  type Holiday = {
+    id : Nat;
+    contractId : Nat;
+    columnKey : Text;
+  };
+
   module ColumnType {
     public func compare(a : ColumnType, b : ColumnType) : Order.Order {
       switch (a, b) {
@@ -97,16 +110,18 @@ actor {
   var contractCounter = 0;
   var attendanceCounter = 0;
   var advanceCounter = 0;
+  var noteCounter = 0;
+  var holidayCounter = 0;
 
   // Persistent Maps
-  // labours uses LabourStorage (no groupId) — preserves backward compatibility
   let labours = Map.empty<Nat, LabourStorage>();
-  // Separate map for labour->group assignment (new, no migration needed)
   let labourGroups = Map.empty<Nat, Nat>();
   let groups = Map.empty<Nat, Group>();
   let contracts = Map.empty<Nat, Contract>();
   let attendances = Map.empty<Nat, Attendance>();
   let advances = Map.empty<Nat, Advance>();
+  let attendanceNotes = Map.empty<Nat, AttendanceNote>();
+  let holidays = Map.empty<Nat, Holiday>();
 
   // Group CRUD
   public shared ({ caller }) func createGroup(name : Text) : async Nat {
@@ -305,6 +320,102 @@ actor {
     id;
   };
 
+  public shared ({ caller }) func deleteAdvance(id : Nat) : async () {
+    advances.remove(id);
+  };
+
+  public shared ({ caller }) func updateAdvance(id : Nat, amount : Int, note : Text) : async () {
+    switch (advances.get(id)) {
+      case (null) { Runtime.trap("Advance not found") };
+      case (?adv) {
+        advances.add(id, { adv with amount; note });
+      };
+    };
+  };
+
+  // Attendance Notes
+  public shared ({ caller }) func saveAttendanceNote(contractId : Nat, labourId : Nat, note : Text) : async Nat {
+    if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
+    if (not labours.containsKey(labourId)) { Runtime.trap("Labour not found") };
+
+    // Check if note already exists for (contractId, labourId)
+    let existing = attendanceNotes.values().find(
+      func(n) { n.contractId == contractId and n.labourId == labourId }
+    );
+
+    let id = switch (existing) {
+      case (null) {
+        let newId = noteCounter;
+        noteCounter += 1;
+        newId;
+      };
+      case (?n) { n.id };
+    };
+
+    let attendanceNote : AttendanceNote = {
+      id;
+      contractId;
+      labourId;
+      note;
+    };
+
+    attendanceNotes.add(id, attendanceNote);
+    id;
+  };
+
+  public query ({ caller }) func getNotesByContract(contractId : Nat) : async [AttendanceNote] {
+    attendanceNotes.values().toArray().filter(
+      func(a) { a.contractId == contractId }
+    );
+  };
+
+  // Holidays
+  public shared ({ caller }) func markHoliday(contractId : Nat, columnKey : Text) : async Nat {
+    if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
+
+    // Check if holiday already exists
+    let existing = holidays.values().find(
+      func(h) { h.contractId == contractId and h.columnKey == columnKey }
+    );
+
+    switch (existing) {
+      case (?h) { h.id };
+      case (null) {
+        let id = holidayCounter;
+        holidayCounter += 1;
+
+        let holiday : Holiday = {
+          id;
+          contractId;
+          columnKey;
+        };
+        holidays.add(id, holiday);
+        id;
+      };
+    };
+  };
+
+  public shared ({ caller }) func removeHoliday(contractId : Nat, columnKey : Text) : async () {
+    if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
+
+    // Find holiday and remove by key for contractId + columnKey
+    let toRemove = holidays.keys().toArray().filter(
+      func(k) {
+        switch (holidays.get(k)) {
+          case (null) { false };
+          case (?h) { h.contractId == contractId and h.columnKey == columnKey };
+        };
+      }
+    );
+    for (id in toRemove.values()) { holidays.remove(id) };
+  };
+
+  public query ({ caller }) func getHolidaysByContract(contractId : Nat) : async [Holiday] {
+    holidays.values().toArray().filter(
+      func(a) { a.contractId == contractId }
+    );
+  };
+
   // Queries
   public query ({ caller }) func getAllLabours() : async [Labour] {
     labours.values().toArray().map(func(s : LabourStorage) : Labour {
@@ -344,6 +455,10 @@ actor {
     advances.values().toArray().filter(
       func(a) { a.contractId == contractId }
     );
+  };
+
+  public query ({ caller }) func getAllAdvances() : async [Advance] {
+    advances.values().toArray();
   };
 
   // Calculate Net Salaries
