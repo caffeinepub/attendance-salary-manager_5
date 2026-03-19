@@ -446,19 +446,61 @@ export function PaymentsTab() {
       {/* Section Header */}
       <div
         style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           borderLeft: "4px solid #F97316",
           paddingLeft: 12,
           marginBottom: 16,
         }}
       >
-        <h2
-          style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: 0 }}
+        <div>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              color: "#0F172A",
+              margin: 0,
+            }}
+          >
+            Payments Sheet
+          </h2>
+          <p
+            style={{ fontSize: 12, color: "#64748B", margin: 0, marginTop: 2 }}
+          >
+            Net salary per contract minus advances
+          </p>
+        </div>
+        <button
+          type="button"
+          data-ocid="payments.calculate.button"
+          onClick={calculate}
+          disabled={selectedIds.size === 0 || loading}
+          style={{
+            background:
+              selectedIds.size === 0 || loading
+                ? "#CBD5E1"
+                : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 999,
+            padding: "10px 20px",
+            fontSize: 13,
+            fontWeight: 800,
+            cursor:
+              selectedIds.size === 0 || loading ? "not-allowed" : "pointer",
+            boxShadow:
+              selectedIds.size === 0 || loading
+                ? "none"
+                : "0 4px 16px rgba(249,115,22,0.35)",
+            letterSpacing: "0.03em",
+            transition: "all 0.2s",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
         >
-          Payments Sheet
-        </h2>
-        <p style={{ fontSize: 12, color: "#64748B", margin: 0, marginTop: 2 }}>
-          Net salary per contract minus advances
-        </p>
+          {loading ? "Calculating…" : "Calculate"}
+        </button>
       </div>
 
       {/* Contract Selection Dropdown */}
@@ -530,39 +572,6 @@ export function PaymentsTab() {
           )}
         </div>
       </div>
-
-      {/* Calculate Button */}
-      <button
-        type="button"
-        data-ocid="payments.calculate.button"
-        onClick={calculate}
-        disabled={selectedIds.size === 0 || loading}
-        style={{
-          marginBottom: 16,
-          width: "100%",
-          maxWidth: 340,
-          display: "block",
-          background:
-            selectedIds.size === 0 || loading
-              ? "#CBD5E1"
-              : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-          color: "#fff",
-          border: "none",
-          borderRadius: 999,
-          padding: "12px 0",
-          fontSize: 15,
-          fontWeight: 800,
-          cursor: selectedIds.size === 0 || loading ? "not-allowed" : "pointer",
-          boxShadow:
-            selectedIds.size === 0 || loading
-              ? "none"
-              : "0 4px 20px rgba(249,115,22,0.40)",
-          letterSpacing: "0.03em",
-          transition: "all 0.2s",
-        }}
-      >
-        {loading ? "Calculating…" : "Calculate Payments"}
-      </button>
 
       {/* Stats Bar + Download PDF + Overview */}
       {payments.length > 0 && (

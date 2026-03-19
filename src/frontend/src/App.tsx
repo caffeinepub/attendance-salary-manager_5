@@ -103,6 +103,7 @@ function parseCsvLine(line: string): string[] {
 export default function App() {
   const [mode, setMode] = useState<AppMode>("view");
   const [screen, setScreen] = useState<Screen>("home");
+  const [homeVisible, setHomeVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("Attendance");
   const [attendanceContractId, setAttendanceContractId] = useState<
     bigint | null
@@ -110,6 +111,15 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const { actor } = useActor();
+
+  // Home screen fade-in
+  useEffect(() => {
+    if (screen === "home") {
+      const t = setTimeout(() => setHomeVisible(true), 10);
+      return () => clearTimeout(t);
+    }
+    setHomeVisible(false);
+  }, [screen]);
 
   // Admin credential state
   const [showAdminDialog, setShowAdminDialog] = useState(false);
@@ -550,6 +560,8 @@ export default function App() {
           style={{
             background:
               "linear-gradient(160deg, #F8FAFC 0%, #EFF6FF 50%, #FFF7ED 100%)",
+            opacity: homeVisible ? 1 : 0,
+            transition: "opacity 0.35s ease",
           }}
         >
           {/* Decorative circles */}

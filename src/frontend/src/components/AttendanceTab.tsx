@@ -7,11 +7,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Sun } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import type { AppMode } from "../App";
-import type { AttendanceNote, Contract, Holiday, Labour } from "../backend.d";
+import type { Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
 interface Props {
@@ -21,8 +21,8 @@ interface Props {
 }
 
 const ATTENDANCE_VALUES = [
-  "Absent",
   "Present",
+  "Absent",
   "0.33",
   "0.4",
   "0.5",
@@ -133,6 +133,42 @@ function getSelectStyle(val: string): React.CSSProperties {
   };
 }
 
+function getLargeSelectStyle(val: string): React.CSSProperties {
+  const base: React.CSSProperties = {
+    width: "100%",
+    padding: "16px 18px",
+    fontSize: 20,
+    fontWeight: 700,
+    borderRadius: 14,
+    cursor: "pointer",
+    outline: "none",
+    appearance: "auto",
+    transition: "all 0.2s",
+  };
+  if (val === "Present") {
+    return {
+      ...base,
+      background: "#DCFCE7",
+      border: "2.5px solid #16A34A",
+      color: "#15803D",
+    };
+  }
+  if (val === "Absent") {
+    return {
+      ...base,
+      background: "#FEE2E2",
+      border: "2.5px solid #DC2626",
+      color: "#B91C1C",
+    };
+  }
+  return {
+    ...base,
+    background: "#FFF7ED",
+    border: "2.5px solid #EA580C",
+    color: "#C2410C",
+  };
+}
+
 export function AttendanceTab({
   mode,
   initialContractId,
@@ -164,7 +200,14 @@ export function AttendanceTab({
 
   // Holidays
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
-  const [togglingHoliday, setTogglingHoliday] = useState<string | null>(null);
+  const [_togglingHoliday, setTogglingHoliday] = useState<string | null>(null);
+
+  // Mark Attendance Dialog
+  const [markDialogOpen, setMarkDialogOpen] = useState(false);
+  const [markDialogIndex, setMarkDialogIndex] = useState(0);
+  const [markDialogCol, setMarkDialogCol] = useState("bed");
+  const [markSaving, setMarkSaving] = useState(false);
+  const [markDone, setMarkDone] = useState(false);
 
   useEffect(() => {
     if (!actor) return;
@@ -317,7 +360,7 @@ export function AttendanceTab({
     }
   };
 
-  const toggleHoliday = async (colKey: string) => {
+  const _toggleHoliday = async (colKey: string) => {
     if (!selectedContractId || !actor) return;
     setTogglingHoliday(colKey);
     try {
@@ -415,6 +458,82 @@ export function AttendanceTab({
     );
   };
 
+  // Mark Attendance Dialog helpers
+  const allColKeys = ["bed", "paper", ...meshCols.map((_, i) => `mesh_${i}`)];
+  const allColLabels: Record<string, string> = {
+    bed: "Bed",
+    paper: "Paper",
+    ...Object.fromEntries(meshCols.map((name, i) => [`mesh_${i}`, name])),
+  };
+
+  const openMarkDialog = () => {
+    setMarkDialogIndex(0);
+    setMarkDialogCol("bed");
+    setMarkDone(false);
+    setMarkDialogOpen(true);
+  };
+
+  const saveAttendanceSingle = async (
+    labour: Labour,
+    colKey: string,
+    val: string,
+  ) => {
+    if (!selectedContractId || !actor) return;
+    setVal(labour.id, colKey, val);
+    try {
+      if (colKey === "bed") {
+        await actor.saveAttendance(
+          selectedContractId,
+          labour.id,
+          { __kind__: "bed", bed: null },
+          val,
+        );
+      } else if (colKey === "paper") {
+        await actor.saveAttendance(
+          selectedContractId,
+          labour.id,
+          { __kind__: "paper", paper: null },
+          val,
+        );
+      } else {
+        const meshIdx = Number(colKey.replace("mesh_", ""));
+        await actor.saveAttendance(
+          selectedContractId,
+          labour.id,
+          { __kind__: "mesh", mesh: BigInt(meshIdx) },
+          val,
+        );
+      }
+      // remove from dirty after save
+      setDirtyKeys((prev) => {
+        const s = new Set(prev);
+        s.delete(`${labour.id}_${colKey}`);
+        return s;
+      });
+    } catch (_e) {
+      // keep dirty if save failed
+    }
+  };
+
+  const handleMarkAttendanceChange = async (val: string) => {
+    if (labours.length === 0) return;
+    const labour = labours[markDialogIndex];
+    setMarkSaving(true);
+    await saveAttendanceSingle(labour, markDialogCol, val);
+    setMarkSaving(false);
+    // Auto-advance
+    if (markDialogIndex < labours.length - 1) {
+      setMarkDialogIndex((prev) => prev + 1);
+    } else {
+      setMarkDone(true);
+    }
+  };
+
+  const currentMarkLabour = labours[markDialogIndex] ?? null;
+  const currentMarkVal = currentMarkLabour
+    ? getVal(currentMarkLabour.id, markDialogCol)
+    : "Present";
+
   const totalNet = labours.reduce((s, l) => s + labourNetSalary(l.id), 0);
   const presentCount = labours.filter(
     (l) => getVal(l.id, "bed") === "Present",
@@ -440,6 +559,8 @@ export function AttendanceTab({
     verticalAlign: "middle",
   };
   const STICKY_BG_LIGHT = "#EFF6FF";
+
+  // Suppress unused variable warning for toggleHoliday - it's still used for data consistency
 
   return (
     <div>
@@ -554,11 +675,15 @@ export function AttendanceTab({
                 value: `₹${Number(contract.paperAmount).toLocaleString()}`,
                 color: "#0EA5E9",
               },
-              {
-                label: "Total Net",
-                value: `₹${totalNet.toFixed(0)}`,
-                color: "#F97316",
-              },
+              ...(mode !== "view"
+                ? [
+                    {
+                      label: "Total Net",
+                      value: `₹${totalNet.toFixed(0)}`,
+                      color: "#F97316",
+                    },
+                  ]
+                : []),
             ].map((stat) => (
               <div
                 key={stat.label}
@@ -602,25 +727,46 @@ export function AttendanceTab({
             style={{ flexWrap: "wrap" }}
           >
             {mode === "edit" && (
-              <button
-                type="button"
-                data-ocid="attendance.addmesh.button"
-                onClick={addMeshCol}
-                style={{
-                  background: "linear-gradient(135deg, #F97316, #EA580C)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  boxShadow: "0 2px 8px rgba(249,115,22,0.35)",
-                  letterSpacing: "0.02em",
-                }}
-              >
-                + Add Mesh Column
-              </button>
+              <>
+                <button
+                  type="button"
+                  data-ocid="attendance.addmesh.button"
+                  onClick={addMeshCol}
+                  style={{
+                    background: "linear-gradient(135deg, #F97316, #EA580C)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "7px 16px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(249,115,22,0.35)",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  + Add Mesh Column
+                </button>
+                <button
+                  type="button"
+                  data-ocid="attendance.mark.open_modal_button"
+                  onClick={openMarkDialog}
+                  style={{
+                    background: "linear-gradient(135deg, #1E293B, #0F172A)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "7px 16px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(15,23,42,0.30)",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  ✓ Mark Attendance
+                </button>
+              </>
             )}
           </div>
 
@@ -680,34 +826,6 @@ export function AttendanceTab({
                           HOLIDAY
                         </span>
                       )}
-                      {mode === "edit" && (
-                        <button
-                          type="button"
-                          data-ocid="attendance.bed.toggle"
-                          onClick={() => toggleHoliday("bed")}
-                          disabled={togglingHoliday === "bed"}
-                          title={
-                            holidays.has("bed")
-                              ? "Remove holiday"
-                              : "Mark as holiday"
-                          }
-                          style={{
-                            background: holidays.has("bed")
-                              ? "#F97316"
-                              : "rgba(255,255,255,0.15)",
-                            border: "none",
-                            borderRadius: 4,
-                            padding: "2px 4px",
-                            cursor: "pointer",
-                            lineHeight: 1,
-                            color: "#fff",
-                            display: "flex",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Sun size={11} />
-                        </button>
-                      )}
                     </div>
                   </th>
 
@@ -730,34 +848,6 @@ export function AttendanceTab({
                         >
                           HOLIDAY
                         </span>
-                      )}
-                      {mode === "edit" && (
-                        <button
-                          type="button"
-                          data-ocid="attendance.paper.toggle"
-                          onClick={() => toggleHoliday("paper")}
-                          disabled={togglingHoliday === "paper"}
-                          title={
-                            holidays.has("paper")
-                              ? "Remove holiday"
-                              : "Mark as holiday"
-                          }
-                          style={{
-                            background: holidays.has("paper")
-                              ? "#F97316"
-                              : "rgba(255,255,255,0.15)",
-                            border: "none",
-                            borderRadius: 4,
-                            padding: "2px 4px",
-                            cursor: "pointer",
-                            lineHeight: 1,
-                            color: "#fff",
-                            display: "flex",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Sun size={11} />
-                        </button>
                       )}
                     </div>
                   </th>
@@ -845,32 +935,6 @@ export function AttendanceTab({
                               >
                                 ✕
                               </button>
-                              <button
-                                type="button"
-                                data-ocid={`attendance.mesh_holiday.toggle.${i + 1}`}
-                                onClick={() => toggleHoliday(colKey)}
-                                disabled={togglingHoliday === colKey}
-                                title={
-                                  isHoliday
-                                    ? "Remove holiday"
-                                    : "Mark as holiday"
-                                }
-                                style={{
-                                  background: isHoliday
-                                    ? "#F97316"
-                                    : "rgba(255,255,255,0.15)",
-                                  border: "none",
-                                  borderRadius: 4,
-                                  padding: "2px 4px",
-                                  cursor: "pointer",
-                                  lineHeight: 1,
-                                  color: "#fff",
-                                  display: "flex",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <Sun size={11} />
-                              </button>
                             </div>
                           )}
                         </div>
@@ -879,16 +943,18 @@ export function AttendanceTab({
                   })}
 
                   <th style={TH_DARK}>Total</th>
-                  <th
-                    style={{
-                      ...TH_DARK,
-                      borderRadius: "0 14px 0 0",
-                      color: "#FED7AA",
-                    }}
-                  >
-                    Net Salary
-                  </th>
-                  <th style={{ ...TH_DARK }}>Note</th>
+                  {mode !== "view" && (
+                    <th
+                      style={{
+                        ...TH_DARK,
+                        borderRadius: "0 14px 0 0",
+                        color: "#FED7AA",
+                      }}
+                    >
+                      Net Salary
+                    </th>
+                  )}
+                  {mode !== "view" && <th style={{ ...TH_DARK }}>Note</th>}
                 </tr>
               </thead>
               <tbody>
@@ -992,38 +1058,42 @@ export function AttendanceTab({
                           )
                           .toFixed(2)}
                       </td>
-                      <td
-                        style={{
-                          ...TD,
-                          fontWeight: 800,
-                          color: "#F97316",
-                          fontSize: 14,
-                        }}
-                      >
-                        ₹{net.toFixed(0)}
-                      </td>
-                      <td style={{ ...TD, padding: "6px 10px" }}>
-                        {(mode === "edit" || hasNote) && (
-                          <button
-                            type="button"
-                            data-ocid={`attendance.note.button.${idx + 1}`}
-                            onClick={() => openNoteDialog(labour.id)}
-                            title={hasNote ? "View/Edit note" : "Add note"}
-                            style={{
-                              background: hasNote ? "#FFF7ED" : "#F8FAFC",
-                              border: `1px solid ${hasNote ? "#F97316" : "#E2E8F0"}`,
-                              borderRadius: 6,
-                              padding: "4px 6px",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              color: hasNote ? "#F97316" : "#94A3B8",
-                            }}
-                          >
-                            <MessageSquare size={14} />
-                          </button>
-                        )}
-                      </td>
+                      {mode !== "view" && (
+                        <td
+                          style={{
+                            ...TD,
+                            fontWeight: 800,
+                            color: "#F97316",
+                            fontSize: 14,
+                          }}
+                        >
+                          ₹{net.toFixed(0)}
+                        </td>
+                      )}
+                      {mode !== "view" && (
+                        <td style={{ ...TD, padding: "6px 10px" }}>
+                          {(mode === "edit" || hasNote) && (
+                            <button
+                              type="button"
+                              data-ocid={`attendance.note.button.${idx + 1}`}
+                              onClick={() => openNoteDialog(labour.id)}
+                              title={hasNote ? "View/Edit note" : "Add note"}
+                              style={{
+                                background: hasNote ? "#FFF7ED" : "#F8FAFC",
+                                border: `1px solid ${hasNote ? "#F97316" : "#E2E8F0"}`,
+                                borderRadius: 6,
+                                padding: "4px 6px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                color: hasNote ? "#F97316" : "#94A3B8",
+                              }}
+                            >
+                              <MessageSquare size={14} />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -1071,17 +1141,19 @@ export function AttendanceTab({
                   >
                     —
                   </td>
-                  <td
-                    style={{
-                      ...TD,
-                      color: "#FED7AA",
-                      fontWeight: 800,
-                      fontSize: 15,
-                      borderBottom: "none",
-                    }}
-                  >
-                    ₹{totalNet.toFixed(0)}
-                  </td>
+                  {mode !== "view" && (
+                    <td
+                      style={{
+                        ...TD,
+                        color: "#FED7AA",
+                        fontWeight: 800,
+                        fontSize: 15,
+                        borderBottom: "none",
+                      }}
+                    >
+                      ₹{totalNet.toFixed(0)}
+                    </td>
+                  )}
                   <td style={{ ...TD, borderBottom: "none" }} />
                 </tr>
               </tbody>
@@ -1164,6 +1236,340 @@ export function AttendanceTab({
               </Button>
             </DialogFooter>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark Attendance Dialog */}
+      <Dialog
+        open={markDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) setMarkDialogOpen(false);
+        }}
+      >
+        <DialogContent
+          data-ocid="attendance.mark.dialog"
+          style={{
+            maxWidth: 480,
+            width: "95vw",
+            padding: 0,
+            overflow: "hidden",
+            borderRadius: 20,
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              background: "linear-gradient(135deg, #1E293B, #0F172A)",
+              padding: "20px 24px 16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h2
+                style={{
+                  color: "#fff",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  margin: 0,
+                }}
+              >
+                Mark Attendance
+              </h2>
+              <button
+                type="button"
+                data-ocid="attendance.mark.close_button"
+                onClick={() => setMarkDialogOpen(false)}
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  border: "none",
+                  borderRadius: 8,
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 16,
+                  padding: "4px 10px",
+                  fontWeight: 700,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Column selector */}
+            <div style={{ marginTop: 12 }}>
+              <label
+                htmlFor="mark-col-select"
+                style={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#94A3B8",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: 6,
+                }}
+              >
+                Column
+              </label>
+              <select
+                id="mark-col-select"
+                data-ocid="attendance.mark.col.select"
+                value={markDialogCol}
+                onChange={(e) => setMarkDialogCol(e.target.value)}
+                style={{
+                  background: "rgba(255,255,255,0.12)",
+                  border: "1.5px solid rgba(255,255,255,0.25)",
+                  color: "#fff",
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  width: "100%",
+                  cursor: "pointer",
+                  appearance: "auto",
+                }}
+              >
+                {allColKeys.map((ck) => (
+                  <option
+                    key={ck}
+                    value={ck}
+                    style={{ background: "#1E293B", color: "#fff" }}
+                  >
+                    {allColLabels[ck] ?? ck}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div style={{ padding: "28px 24px 24px" }}>
+            {markDone ? (
+              <div
+                data-ocid="attendance.mark.success_state"
+                style={{ textAlign: "center", padding: "24px 0" }}
+              >
+                <div style={{ fontSize: 56, marginBottom: 12 }}>✅</div>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    color: "#16A34A",
+                    marginBottom: 8,
+                  }}
+                >
+                  All Done!
+                </div>
+                <div
+                  style={{ fontSize: 14, color: "#64748B", marginBottom: 24 }}
+                >
+                  Attendance marked for all {labours.length} labours.
+                </div>
+                <button
+                  type="button"
+                  data-ocid="attendance.mark.close_button"
+                  onClick={() => setMarkDialogOpen(false)}
+                  style={{
+                    background: "linear-gradient(135deg, #F97316, #EA580C)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "12px 36px",
+                    fontSize: 16,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 16px rgba(249,115,22,0.35)",
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : currentMarkLabour ? (
+              <>
+                {/* Labour counter */}
+                <div style={{ textAlign: "center", marginBottom: 8 }}>
+                  <span
+                    style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}
+                  >
+                    Labour {markDialogIndex + 1} of {labours.length}
+                  </span>
+                </div>
+
+                {/* Labour name */}
+                <div
+                  style={{
+                    textAlign: "center",
+                    fontSize: 32,
+                    fontWeight: 900,
+                    color: "#0F172A",
+                    lineHeight: 1.15,
+                    marginBottom: 16,
+                    letterSpacing: "-0.02em",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {currentMarkLabour.name}
+                </div>
+
+                {/* Current values for all columns */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    justifyContent: "center",
+                    marginBottom: 24,
+                  }}
+                >
+                  {allColKeys.map((ck) => (
+                    <div
+                      key={ck}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 9,
+                          color: "#94A3B8",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.06em",
+                        }}
+                      >
+                        {allColLabels[ck] ?? ck}
+                      </span>
+                      <BadgeCell val={getVal(currentMarkLabour.id, ck)} />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Attendance select */}
+                <div style={{ marginBottom: 28 }}>
+                  <label
+                    htmlFor="mark-value-select"
+                    style={{
+                      display: "block",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#64748B",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      marginBottom: 10,
+                      textAlign: "center",
+                    }}
+                  >
+                    Mark as — auto-advances on selection
+                  </label>
+                  <select
+                    id="mark-value-select"
+                    data-ocid="attendance.mark.value.select"
+                    value={currentMarkVal}
+                    disabled={markSaving}
+                    onChange={(e) => handleMarkAttendanceChange(e.target.value)}
+                    style={getLargeSelectStyle(currentMarkVal)}
+                  >
+                    {ATTENDANCE_VALUES.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                  {markSaving && (
+                    <div
+                      data-ocid="attendance.mark.loading_state"
+                      style={{
+                        textAlign: "center",
+                        marginTop: 8,
+                        fontSize: 12,
+                        color: "#94A3B8",
+                      }}
+                    >
+                      Saving…
+                    </div>
+                  )}
+                </div>
+
+                {/* Prev / Next */}
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button
+                    type="button"
+                    data-ocid="attendance.mark.pagination_prev"
+                    disabled={markDialogIndex === 0 || markSaving}
+                    onClick={() =>
+                      setMarkDialogIndex((prev) => Math.max(0, prev - 1))
+                    }
+                    style={{
+                      flex: 1,
+                      padding: "14px 0",
+                      fontSize: 16,
+                      fontWeight: 800,
+                      borderRadius: 14,
+                      border: "2px solid #E2E8F0",
+                      background: markDialogIndex === 0 ? "#F8FAFC" : "#fff",
+                      color: markDialogIndex === 0 ? "#CBD5E1" : "#1E293B",
+                      cursor: markDialogIndex === 0 ? "not-allowed" : "pointer",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    type="button"
+                    data-ocid="attendance.mark.pagination_next"
+                    disabled={
+                      markDialogIndex >= labours.length - 1 || markSaving
+                    }
+                    onClick={() =>
+                      setMarkDialogIndex((prev) =>
+                        Math.min(labours.length - 1, prev + 1),
+                      )
+                    }
+                    style={{
+                      flex: 1,
+                      padding: "14px 0",
+                      fontSize: 16,
+                      fontWeight: 800,
+                      borderRadius: 14,
+                      border: "2px solid #E2E8F0",
+                      background:
+                        markDialogIndex >= labours.length - 1
+                          ? "#F8FAFC"
+                          : "#fff",
+                      color:
+                        markDialogIndex >= labours.length - 1
+                          ? "#CBD5E1"
+                          : "#1E293B",
+                      cursor:
+                        markDialogIndex >= labours.length - 1
+                          ? "not-allowed"
+                          : "pointer",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#94A3B8",
+                  padding: "24px 0",
+                }}
+              >
+                No labours found. Add labours to mark attendance.
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
