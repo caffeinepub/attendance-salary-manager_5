@@ -18,11 +18,13 @@ import {
   ChevronLeft,
   CreditCard,
   Download,
+  Eye,
   FileText,
   HardDrive,
   Loader2,
   Lock,
   MoreVertical,
+  ShieldCheck,
   TrendingDown,
   Upload,
   Users,
@@ -114,6 +116,7 @@ export default function App() {
   const [adminDialogMode, setAdminDialogMode] = useState<
     "set" | "enter" | "change"
   >("enter");
+  const [adminDialogChecking, setAdminDialogChecking] = useState(false);
   const [adminTokenInput, setAdminTokenInput] = useState("");
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
   const [adminPasswordConfirm, setAdminPasswordConfirm] = useState("");
@@ -386,7 +389,9 @@ export default function App() {
       );
 
       setImportResult(
-        `Imported ${contractRows.length} contract${contractRows.length !== 1 ? "s" : ""} and ${labourRows.length} labour${labourRows.length !== 1 ? "s" : ""}`,
+        `Imported ${contractRows.length} contract${
+          contractRows.length !== 1 ? "s" : ""
+        } and ${labourRows.length} labour${labourRows.length !== 1 ? "s" : ""}`,
       );
     } catch (err) {
       console.error("Import failed:", err);
@@ -403,13 +408,19 @@ export default function App() {
     setAdminPasswordInput("");
     setAdminPasswordConfirm("");
     setAdminError("");
+    // Open dialog immediately with a loading state
+    setAdminDialogChecking(true);
+    setAdminDialogMode("enter"); // default; will be updated after check
+    setShowAdminDialog(true);
+    // Check credentials in the background
     try {
       const hasCreds = await actor.hasAdminCredentials();
       setAdminDialogMode(hasCreds ? "enter" : "set");
     } catch {
       setAdminDialogMode("enter");
+    } finally {
+      setAdminDialogChecking(false);
     }
-    setShowAdminDialog(true);
   };
 
   const handleAdminSubmit = async () => {
@@ -419,7 +430,7 @@ export default function App() {
     try {
       if (adminDialogMode === "set") {
         if (!adminTokenInput.trim()) {
-          setAdminError("Token is required.");
+          setAdminError("Username is required.");
           return;
         }
         if (!adminPasswordInput.trim()) {
@@ -444,7 +455,7 @@ export default function App() {
         }
       } else if (adminDialogMode === "enter") {
         if (!adminTokenInput.trim() || !adminPasswordInput.trim()) {
-          setAdminError("Enter token and password.");
+          setAdminError("Enter username and password.");
           return;
         }
         const ok = await actor.verifyAdminCredentials(
@@ -456,16 +467,16 @@ export default function App() {
           setMode("edit");
           setScreen("app");
         } else {
-          setAdminError("Incorrect token or password.");
+          setAdminError("Incorrect username or password.");
           setAdminPasswordInput("");
         }
       } else if (adminDialogMode === "change") {
         if (!changeOldToken.trim() || !changeOldPassword.trim()) {
-          setAdminError("Enter current token and password.");
+          setAdminError("Enter current username and password.");
           return;
         }
         if (!changeNewToken.trim() || !changeNewPassword.trim()) {
-          setAdminError("Enter new token and password.");
+          setAdminError("Enter new username and password.");
           return;
         }
         const ok = await actor.changeAdminCredentials(
@@ -478,7 +489,7 @@ export default function App() {
           setShowAdminDialog(false);
           setAdminError("");
         } else {
-          setAdminError("Current token or password is incorrect.");
+          setAdminError("Current username or password is incorrect.");
         }
       }
     } catch {
@@ -533,49 +544,186 @@ export default function App() {
   if (screen === "home") {
     return (
       <>
+        {/* Background with subtle pattern */}
         <div
-          className="min-h-screen flex flex-col items-center justify-between relative"
-          style={{ background: "#FFFFFF" }}
+          className="min-h-screen flex flex-col items-center justify-center px-6 py-10 relative"
+          style={{
+            background:
+              "linear-gradient(160deg, #F8FAFC 0%, #EFF6FF 50%, #FFF7ED 100%)",
+          }}
         >
-          <div className="flex flex-col items-center pt-16 px-6 flex-1 justify-center">
+          {/* Decorative circles */}
+          <div
+            className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+            style={{
+              background: "#FF7F11",
+              transform: "translate(40%, -40%)",
+            }}
+          />
+          <div
+            className="absolute bottom-0 left-0 w-64 h-64 rounded-full opacity-8 pointer-events-none"
+            style={{
+              background: "#1E293B",
+              transform: "translate(-40%, 40%)",
+              opacity: 0.06,
+            }}
+          />
+
+          {/* App branding */}
+          <div className="flex flex-col items-center mb-10 z-10">
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg"
-              style={{ background: "#FF7F11" }}
+              className="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-xl"
+              style={{
+                background: "linear-gradient(135deg, #FF7F11 0%, #EA580C 100%)",
+              }}
             >
-              <CalendarCheck size={32} color="#FFFFFF" strokeWidth={2.5} />
+              <CalendarCheck size={38} color="#FFFFFF" strokeWidth={2.5} />
             </div>
             <h1
-              className="text-2xl font-bold text-center mb-2 tracking-tight"
-              style={{ color: "#1F1F1F" }}
+              className="text-3xl font-bold tracking-tight text-center"
+              style={{ color: "#1E293B" }}
             >
               Attendance &amp; Salary
             </h1>
-            <p className="text-sm mb-12" style={{ color: "#9E9E9E" }}>
+            <p
+              className="text-base font-medium mt-1"
+              style={{ color: "#94A3B8" }}
+            >
               Manager
             </p>
-            <button
-              type="button"
-              data-ocid="home.view_attendpay.button"
-              onClick={() => {
-                setMode("view");
-                setScreen("app");
-                setActiveTab("Attendance");
-              }}
-              className="px-10 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all active:scale-95 hover:opacity-90"
-              style={{ background: "#FF7F11", color: "#FFFFFF" }}
-            >
-              View AttendPay
-            </button>
           </div>
-          <button
-            type="button"
-            data-ocid="home.welcome.text"
-            onClick={handleWelcomeTap}
-            className="pb-8 text-xs bg-transparent border-0 cursor-pointer"
-            style={{ color: "#FFFFFF" }}
+
+          {/* Login card */}
+          <div
+            className="w-full max-w-sm rounded-3xl shadow-2xl z-10 overflow-hidden"
+            style={{ background: "#FFFFFF", border: "1px solid #E2E8F0" }}
           >
-            Welcome
-          </button>
+            {/* Card header */}
+            <div
+              className="px-6 pt-7 pb-5"
+              style={{ borderBottom: "1px solid #F1F5F9" }}
+            >
+              <h2 className="text-xl font-bold" style={{ color: "#1E293B" }}>
+                Welcome Back
+              </h2>
+              <p className="text-sm mt-1" style={{ color: "#94A3B8" }}>
+                Select how you would like to continue
+              </p>
+            </div>
+
+            {/* Login options */}
+            <div className="px-6 py-6 flex flex-col gap-4">
+              {/* Admin Login — primary */}
+              <div>
+                <button
+                  type="button"
+                  data-ocid="home.welcome.text"
+                  onClick={handleWelcomeTap}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-semibold text-base transition-all active:scale-95 hover:opacity-90"
+                  style={{
+                    background: "#1E293B",
+                    color: "#FFFFFF",
+                    boxShadow: "0 4px 16px rgba(30,41,59,0.25)",
+                  }}
+                >
+                  <span
+                    className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+                    style={{ background: "rgba(255,255,255,0.12)" }}
+                  >
+                    <ShieldCheck size={20} color="#FF7F11" />
+                  </span>
+                  <span className="flex flex-col items-start flex-1 text-left">
+                    <span className="font-bold text-base leading-snug">
+                      Admin Login
+                    </span>
+                    <span
+                      className="text-xs font-normal mt-0.5"
+                      style={{ color: "#94A3B8" }}
+                    >
+                      Full access to all features
+                    </span>
+                  </span>
+                  <Lock size={16} color="#64748B" />
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex-1 h-px"
+                  style={{ background: "#E2E8F0" }}
+                />
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: "#CBD5E1" }}
+                >
+                  or
+                </span>
+                <div
+                  className="flex-1 h-px"
+                  style={{ background: "#E2E8F0" }}
+                />
+              </div>
+
+              {/* User Login — secondary */}
+              <div>
+                <button
+                  type="button"
+                  data-ocid="home.view_attendpay.button"
+                  onClick={() => {
+                    setMode("view");
+                    setScreen("app");
+                    setActiveTab("Attendance");
+                  }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-semibold text-base transition-all active:scale-95 hover:bg-orange-50"
+                  style={{
+                    background: "#FFFFFF",
+                    color: "#FF7F11",
+                    border: "2px solid #FF7F11",
+                  }}
+                >
+                  <span
+                    className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+                    style={{ background: "#FFF3E8" }}
+                  >
+                    <Eye size={20} color="#FF7F11" />
+                  </span>
+                  <span className="flex flex-col items-start flex-1 text-left">
+                    <span className="font-bold text-base leading-snug">
+                      User Login
+                    </span>
+                    <span
+                      className="text-xs font-normal mt-0.5"
+                      style={{ color: "#94A3B8" }}
+                    >
+                      View attendance data only
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Card footer */}
+            <div
+              className="px-6 py-4"
+              style={{
+                background: "#F8FAFC",
+                borderTop: "1px solid #F1F5F9",
+              }}
+            >
+              <p className="text-center text-xs" style={{ color: "#CBD5E1" }}>
+                © {new Date().getFullYear()}.{" "}
+                <a
+                  href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "#FF7F11" }}
+                >
+                  caffeine.ai
+                </a>
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Admin Login Dialog */}
@@ -591,73 +739,46 @@ export default function App() {
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
                 <Lock size={18} style={{ color: "#F97316" }} />
-                {adminDialogMode === "set"
-                  ? "Create Admin Credentials"
-                  : "Admin Login"}
+                {adminDialogChecking
+                  ? "Admin Login"
+                  : adminDialogMode === "set"
+                    ? "Create Admin Credentials"
+                    : "Admin Login"}
               </DialogTitle>
             </DialogHeader>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {adminDialogMode === "set" && (
-                <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>
-                  First time setup. Create an admin token and password to
-                  protect edit mode.
-                </p>
-              )}
-              <div>
-                <p
-                  style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}
-                >
-                  Admin Token
-                </p>
-                <input
-                  data-ocid="admin.token.input"
-                  type="text"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  value={adminTokenInput}
-                  onChange={(e) => {
-                    setAdminTokenInput(e.target.value);
-                    setAdminError("");
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
-                  placeholder="Enter admin token"
-                  style={{
-                    border: "2px solid #E2E8F0",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    fontSize: 15,
-                    outline: "none",
-                    width: "100%",
-                  }}
+
+            {adminDialogChecking ? (
+              /* Loading state while checking credentials */
+              <div
+                data-ocid="admin.loading_state"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "24px 0",
+                  gap: 12,
+                }}
+              >
+                <Loader2
+                  size={28}
+                  className="animate-spin"
+                  style={{ color: "#F97316" }}
                 />
-              </div>
-              <div>
-                <p
-                  style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}
-                >
-                  Password
+                <p style={{ fontSize: 14, color: "#64748B", margin: 0 }}>
+                  Checking...
                 </p>
-                <input
-                  data-ocid="admin.password.input"
-                  type="password"
-                  value={adminPasswordInput}
-                  onChange={(e) => {
-                    setAdminPasswordInput(e.target.value);
-                    setAdminError("");
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
-                  placeholder="Enter password"
-                  style={{
-                    border: "2px solid #E2E8F0",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    fontSize: 15,
-                    outline: "none",
-                    width: "100%",
-                  }}
-                />
               </div>
-              {adminDialogMode === "set" && (
+            ) : (
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              >
+                {adminDialogMode === "set" && (
+                  <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>
+                    First time setup. Create an admin username and password to
+                    protect edit mode.
+                  </p>
+                )}
                 <div>
                   <p
                     style={{
@@ -666,18 +787,20 @@ export default function App() {
                       margin: "0 0 4px",
                     }}
                   >
-                    Confirm Password
+                    Username
                   </p>
                   <input
-                    data-ocid="admin.password.confirm.input"
-                    type="password"
-                    value={adminPasswordConfirm}
+                    data-ocid="admin.token.input"
+                    type="text"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    value={adminTokenInput}
                     onChange={(e) => {
-                      setAdminPasswordConfirm(e.target.value);
+                      setAdminTokenInput(e.target.value);
                       setAdminError("");
                     }}
                     onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
-                    placeholder="Confirm password"
+                    placeholder="Enter username"
                     style={{
                       border: "2px solid #E2E8F0",
                       borderRadius: 10,
@@ -688,35 +811,102 @@ export default function App() {
                     }}
                   />
                 </div>
-              )}
-              {adminError && (
-                <p
-                  data-ocid="admin.error_state"
-                  style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
+                <div>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#64748B",
+                      margin: "0 0 4px",
+                    }}
+                  >
+                    Password
+                  </p>
+                  <input
+                    data-ocid="admin.password.input"
+                    type="password"
+                    value={adminPasswordInput}
+                    onChange={(e) => {
+                      setAdminPasswordInput(e.target.value);
+                      setAdminError("");
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
+                    placeholder="Enter password"
+                    style={{
+                      border: "2px solid #E2E8F0",
+                      borderRadius: 10,
+                      padding: "10px 14px",
+                      fontSize: 15,
+                      outline: "none",
+                      width: "100%",
+                    }}
+                  />
+                </div>
+                {adminDialogMode === "set" && (
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#64748B",
+                        margin: "0 0 4px",
+                      }}
+                    >
+                      Confirm Password
+                    </p>
+                    <input
+                      data-ocid="admin.password.confirm.input"
+                      type="password"
+                      value={adminPasswordConfirm}
+                      onChange={(e) => {
+                        setAdminPasswordConfirm(e.target.value);
+                        setAdminError("");
+                      }}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleAdminSubmit()
+                      }
+                      placeholder="Confirm password"
+                      style={{
+                        border: "2px solid #E2E8F0",
+                        borderRadius: 10,
+                        padding: "10px 14px",
+                        fontSize: 15,
+                        outline: "none",
+                        width: "100%",
+                      }}
+                    />
+                  </div>
+                )}
+                {adminError && (
+                  <p
+                    data-ocid="admin.error_state"
+                    style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
+                  >
+                    {adminError}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!adminDialogChecking && (
+              <DialogFooter>
+                <Button
+                  data-ocid="admin.submit_button"
+                  onClick={handleAdminSubmit}
+                  disabled={adminLoading}
+                  style={{
+                    background: "linear-gradient(135deg, #F97316, #EA580C)",
+                    color: "#fff",
+                    border: "none",
+                    width: "100%",
+                  }}
                 >
-                  {adminError}
-                </p>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                data-ocid="admin.submit_button"
-                onClick={handleAdminSubmit}
-                disabled={adminLoading}
-                style={{
-                  background: "linear-gradient(135deg, #F97316, #EA580C)",
-                  color: "#fff",
-                  border: "none",
-                  width: "100%",
-                }}
-              >
-                {adminLoading
-                  ? "Verifying..."
-                  : adminDialogMode === "set"
-                    ? "Create & Enter Edit Mode"
-                    : "Login"}
-              </Button>
-            </DialogFooter>
+                  {adminLoading
+                    ? "Verifying..."
+                    : adminDialogMode === "set"
+                      ? "Create & Enter Edit Mode"
+                      : "Login"}
+                </Button>
+              </DialogFooter>
+            )}
           </DialogContent>
         </Dialog>
       </>
@@ -1062,7 +1252,7 @@ export default function App() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
               <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
-                Current Token
+                Current Username
               </p>
               <input
                 type="text"
@@ -1072,7 +1262,7 @@ export default function App() {
                   setChangeOldToken(e.target.value);
                   setAdminError("");
                 }}
-                placeholder="Current admin token"
+                placeholder="Current username"
                 style={{
                   border: "2px solid #E2E8F0",
                   borderRadius: 10,
@@ -1107,7 +1297,7 @@ export default function App() {
             </div>
             <div>
               <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
-                New Token
+                New Username
               </p>
               <input
                 type="text"
@@ -1117,7 +1307,7 @@ export default function App() {
                   setChangeNewToken(e.target.value);
                   setAdminError("");
                 }}
-                placeholder="New admin token"
+                placeholder="New username"
                 style={{
                   border: "2px solid #E2E8F0",
                   borderRadius: 10,
