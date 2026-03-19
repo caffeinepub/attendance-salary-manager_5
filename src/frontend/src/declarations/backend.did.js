@@ -307,6 +307,10 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'hasAdminCredentials' : IDL.Func([], [IDL.Bool], ['query']),
+    'setAdminCredentials' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'verifyAdminCredentials' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'changeAdminCredentials' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text], [IDL.Bool], []),
   });
 };
 

@@ -59,9 +59,14 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-const VIEW_ONLY_HIDDEN_TABS: TabId[] = ["Contracts", "Payments", "Settled"];
+const VIEW_ONLY_HIDDEN_TABS: TabId[] = [
+  "Contracts",
+  "Payments",
+  "Settled",
+  "Advances",
+  "Labours",
+];
 
-const PIN_KEY = "attendpay_pin";
 const REMINDER_KEY = "attendpay_reminder_date";
 
 function getTodayStr(): string {
@@ -104,17 +109,20 @@ export default function App() {
   const [showReminder, setShowReminder] = useState(false);
   const { actor } = useActor();
 
-  // PIN state
-  const [showPinDialog, setShowPinDialog] = useState(false);
-  const [pinDialogMode, setPinDialogMode] = useState<
+  // Admin credential state
+  const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [adminDialogMode, setAdminDialogMode] = useState<
     "set" | "enter" | "change"
   >("enter");
-  const [pinInput, setPinInput] = useState("");
-  const [pinConfirm, setPinConfirm] = useState("");
-  const [pinError, setPinError] = useState("");
-  const [changePinOld, setChangePinOld] = useState("");
-  const [changePinNew, setChangePinNew] = useState("");
-  const [changePinConfirm, setChangePinConfirm] = useState("");
+  const [adminTokenInput, setAdminTokenInput] = useState("");
+  const [adminPasswordInput, setAdminPasswordInput] = useState("");
+  const [adminPasswordConfirm, setAdminPasswordConfirm] = useState("");
+  const [adminError, setAdminError] = useState("");
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [changeOldToken, setChangeOldToken] = useState("");
+  const [changeOldPassword, setChangeOldPassword] = useState("");
+  const [changeNewToken, setChangeNewToken] = useState("");
+  const [changeNewPassword, setChangeNewPassword] = useState("");
 
   // Backup/Restore/Import state
   const [backingUp, setBackingUp] = useState(false);
@@ -388,74 +396,108 @@ export default function App() {
     }
   };
 
-  // ----------- PIN logic -----------
-  const handleWelcomeTap = () => {
-    const existingPin = localStorage.getItem(PIN_KEY);
-    setPinInput("");
-    setPinConfirm("");
-    setPinError("");
-    if (!existingPin) {
-      setPinDialogMode("set");
-    } else {
-      setPinDialogMode("enter");
+  // ----------- Admin credential logic -----------
+  const handleWelcomeTap = async () => {
+    if (!actor) return;
+    setAdminTokenInput("");
+    setAdminPasswordInput("");
+    setAdminPasswordConfirm("");
+    setAdminError("");
+    try {
+      const hasCreds = await actor.hasAdminCredentials();
+      setAdminDialogMode(hasCreds ? "enter" : "set");
+    } catch {
+      setAdminDialogMode("enter");
     }
-    setShowPinDialog(true);
+    setShowAdminDialog(true);
   };
 
-  const handlePinSubmit = () => {
-    if (pinDialogMode === "set") {
-      if (pinInput.length !== 4 || !/^\d{4}$/.test(pinInput)) {
-        setPinError("PIN must be exactly 4 digits.");
-        return;
+  const handleAdminSubmit = async () => {
+    if (!actor) return;
+    setAdminLoading(true);
+    setAdminError("");
+    try {
+      if (adminDialogMode === "set") {
+        if (!adminTokenInput.trim()) {
+          setAdminError("Token is required.");
+          return;
+        }
+        if (!adminPasswordInput.trim()) {
+          setAdminError("Password is required.");
+          return;
+        }
+        if (adminPasswordInput !== adminPasswordConfirm) {
+          setAdminError("Passwords do not match.");
+          return;
+        }
+        const ok = await actor.setAdminCredentials(
+          adminTokenInput.trim(),
+          adminPasswordInput,
+        );
+        if (ok) {
+          setShowAdminDialog(false);
+          setMode("edit");
+          setScreen("app");
+        } else {
+          setAdminError("Credentials already set. Please log in.");
+          setAdminDialogMode("enter");
+        }
+      } else if (adminDialogMode === "enter") {
+        if (!adminTokenInput.trim() || !adminPasswordInput.trim()) {
+          setAdminError("Enter token and password.");
+          return;
+        }
+        const ok = await actor.verifyAdminCredentials(
+          adminTokenInput.trim(),
+          adminPasswordInput,
+        );
+        if (ok) {
+          setShowAdminDialog(false);
+          setMode("edit");
+          setScreen("app");
+        } else {
+          setAdminError("Incorrect token or password.");
+          setAdminPasswordInput("");
+        }
+      } else if (adminDialogMode === "change") {
+        if (!changeOldToken.trim() || !changeOldPassword.trim()) {
+          setAdminError("Enter current token and password.");
+          return;
+        }
+        if (!changeNewToken.trim() || !changeNewPassword.trim()) {
+          setAdminError("Enter new token and password.");
+          return;
+        }
+        const ok = await actor.changeAdminCredentials(
+          changeOldToken.trim(),
+          changeOldPassword,
+          changeNewToken.trim(),
+          changeNewPassword,
+        );
+        if (ok) {
+          setShowAdminDialog(false);
+          setAdminError("");
+        } else {
+          setAdminError("Current token or password is incorrect.");
+        }
       }
-      if (pinInput !== pinConfirm) {
-        setPinError("PINs do not match.");
-        return;
-      }
-      localStorage.setItem(PIN_KEY, pinInput);
-      setShowPinDialog(false);
-      setMode("edit");
-      setScreen("app");
-    } else if (pinDialogMode === "enter") {
-      const stored = localStorage.getItem(PIN_KEY);
-      if (pinInput === stored) {
-        setShowPinDialog(false);
-        setMode("edit");
-        setScreen("app");
-      } else {
-        setPinError("Incorrect PIN. Try again.");
-        setPinInput("");
-      }
-    } else if (pinDialogMode === "change") {
-      const stored = localStorage.getItem(PIN_KEY);
-      if (changePinOld !== stored) {
-        setPinError("Current PIN is incorrect.");
-        return;
-      }
-      if (changePinNew.length !== 4 || !/^\d{4}$/.test(changePinNew)) {
-        setPinError("New PIN must be exactly 4 digits.");
-        return;
-      }
-      if (changePinNew !== changePinConfirm) {
-        setPinError("New PINs do not match.");
-        return;
-      }
-      localStorage.setItem(PIN_KEY, changePinNew);
-      setShowPinDialog(false);
-      setPinError("");
+    } catch {
+      setAdminError("Error communicating with backend.");
+    } finally {
+      setAdminLoading(false);
     }
   };
 
-  const handleChangePin = () => {
-    setPinDialogMode("change");
-    setChangePinOld("");
-    setChangePinNew("");
-    setChangePinConfirm("");
-    setPinError("");
-    setShowPinDialog(true);
+  const handleChangeAdminCredentials = () => {
+    setChangeOldToken("");
+    setChangeOldPassword("");
+    setChangeNewToken("");
+    setChangeNewPassword("");
+    setAdminError("");
+    setAdminDialogMode("change");
+    setShowAdminDialog(true);
   };
 
-  // ----------- 6pm reminder -----------
   const reminderIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
@@ -530,228 +572,137 @@ export default function App() {
             data-ocid="home.welcome.text"
             onClick={handleWelcomeTap}
             className="pb-8 text-xs bg-transparent border-0 cursor-pointer"
-            style={{ color: "#000000" }}
+            style={{ color: "#FFFFFF" }}
           >
             Welcome
           </button>
         </div>
 
-        {/* PIN Dialog */}
+        {/* Admin Login Dialog */}
         <Dialog
-          open={showPinDialog}
+          open={showAdminDialog && adminDialogMode !== "change"}
           onOpenChange={(open) => {
-            if (!open) setShowPinDialog(false);
+            if (!open) setShowAdminDialog(false);
           }}
         >
-          <DialogContent data-ocid="pin.dialog">
+          <DialogContent data-ocid="admin.dialog">
             <DialogHeader>
               <DialogTitle
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
                 <Lock size={18} style={{ color: "#F97316" }} />
-                {pinDialogMode === "set"
-                  ? "Set Edit PIN"
-                  : pinDialogMode === "change"
-                    ? "Change PIN"
-                    : "Enter PIN"}
+                {adminDialogMode === "set"
+                  ? "Create Admin Credentials"
+                  : "Admin Login"}
               </DialogTitle>
             </DialogHeader>
-
-            {pinDialogMode === "enter" && (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              >
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {adminDialogMode === "set" && (
                 <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>
-                  Enter your 4-digit PIN to access edit mode.
+                  First time setup. Create an admin token and password to
+                  protect edit mode.
+                </p>
+              )}
+              <div>
+                <p
+                  style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}
+                >
+                  Admin Token
                 </p>
                 <input
-                  data-ocid="pin.input"
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pinInput}
+                  data-ocid="admin.token.input"
+                  type="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  value={adminTokenInput}
                   onChange={(e) => {
-                    setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4));
-                    setPinError("");
+                    setAdminTokenInput(e.target.value);
+                    setAdminError("");
                   }}
-                  onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-                  placeholder="••••"
+                  onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
+                  placeholder="Enter admin token"
                   style={{
                     border: "2px solid #E2E8F0",
                     borderRadius: 10,
-                    padding: "12px 16px",
-                    fontSize: 24,
-                    textAlign: "center",
-                    letterSpacing: 8,
+                    padding: "10px 14px",
+                    fontSize: 15,
                     outline: "none",
                     width: "100%",
                   }}
                 />
-                {pinError && (
-                  <p
-                    data-ocid="pin.error_state"
-                    style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
-                  >
-                    {pinError}
-                  </p>
-                )}
               </div>
-            )}
-
-            {pinDialogMode === "set" && (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              >
-                <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>
-                  No PIN set. Create a 4-digit PIN to protect edit mode.
+              <div>
+                <p
+                  style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}
+                >
+                  Password
                 </p>
                 <input
-                  data-ocid="pin.input"
+                  data-ocid="admin.password.input"
                   type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pinInput}
+                  value={adminPasswordInput}
                   onChange={(e) => {
-                    setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4));
-                    setPinError("");
+                    setAdminPasswordInput(e.target.value);
+                    setAdminError("");
                   }}
-                  placeholder="New PIN (4 digits)"
+                  onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
+                  placeholder="Enter password"
                   style={{
                     border: "2px solid #E2E8F0",
                     borderRadius: 10,
-                    padding: "12px 16px",
-                    fontSize: 24,
-                    textAlign: "center",
-                    letterSpacing: 8,
+                    padding: "10px 14px",
+                    fontSize: 15,
                     outline: "none",
                     width: "100%",
                   }}
                 />
-                <input
-                  data-ocid="pin.confirm_input"
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pinConfirm}
-                  onChange={(e) => {
-                    setPinConfirm(
-                      e.target.value.replace(/\D/g, "").slice(0, 4),
-                    );
-                    setPinError("");
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-                  placeholder="Confirm PIN"
-                  style={{
-                    border: "2px solid #E2E8F0",
-                    borderRadius: 10,
-                    padding: "12px 16px",
-                    fontSize: 24,
-                    textAlign: "center",
-                    letterSpacing: 8,
-                    outline: "none",
-                    width: "100%",
-                  }}
-                />
-                {pinError && (
-                  <p
-                    data-ocid="pin.error_state"
-                    style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
-                  >
-                    {pinError}
-                  </p>
-                )}
               </div>
-            )}
-
-            {pinDialogMode === "change" && (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              >
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={changePinOld}
-                  onChange={(e) => {
-                    setChangePinOld(
-                      e.target.value.replace(/\D/g, "").slice(0, 4),
-                    );
-                    setPinError("");
-                  }}
-                  placeholder="Current PIN"
-                  style={{
-                    border: "2px solid #E2E8F0",
-                    borderRadius: 10,
-                    padding: "12px 16px",
-                    fontSize: 20,
-                    textAlign: "center",
-                    letterSpacing: 6,
-                    outline: "none",
-                    width: "100%",
-                  }}
-                />
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={changePinNew}
-                  onChange={(e) => {
-                    setChangePinNew(
-                      e.target.value.replace(/\D/g, "").slice(0, 4),
-                    );
-                    setPinError("");
-                  }}
-                  placeholder="New PIN (4 digits)"
-                  style={{
-                    border: "2px solid #E2E8F0",
-                    borderRadius: 10,
-                    padding: "12px 16px",
-                    fontSize: 20,
-                    textAlign: "center",
-                    letterSpacing: 6,
-                    outline: "none",
-                    width: "100%",
-                  }}
-                />
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={changePinConfirm}
-                  onChange={(e) => {
-                    setChangePinConfirm(
-                      e.target.value.replace(/\D/g, "").slice(0, 4),
-                    );
-                    setPinError("");
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-                  placeholder="Confirm New PIN"
-                  style={{
-                    border: "2px solid #E2E8F0",
-                    borderRadius: 10,
-                    padding: "12px 16px",
-                    fontSize: 20,
-                    textAlign: "center",
-                    letterSpacing: 6,
-                    outline: "none",
-                    width: "100%",
-                  }}
-                />
-                {pinError && (
+              {adminDialogMode === "set" && (
+                <div>
                   <p
-                    data-ocid="pin.error_state"
-                    style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
+                    style={{
+                      fontSize: 12,
+                      color: "#64748B",
+                      margin: "0 0 4px",
+                    }}
                   >
-                    {pinError}
+                    Confirm Password
                   </p>
-                )}
-              </div>
-            )}
-
+                  <input
+                    data-ocid="admin.password.confirm.input"
+                    type="password"
+                    value={adminPasswordConfirm}
+                    onChange={(e) => {
+                      setAdminPasswordConfirm(e.target.value);
+                      setAdminError("");
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
+                    placeholder="Confirm password"
+                    style={{
+                      border: "2px solid #E2E8F0",
+                      borderRadius: 10,
+                      padding: "10px 14px",
+                      fontSize: 15,
+                      outline: "none",
+                      width: "100%",
+                    }}
+                  />
+                </div>
+              )}
+              {adminError && (
+                <p
+                  data-ocid="admin.error_state"
+                  style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
+                >
+                  {adminError}
+                </p>
+              )}
+            </div>
             <DialogFooter>
               <Button
-                data-ocid="pin.submit_button"
-                onClick={handlePinSubmit}
+                data-ocid="admin.submit_button"
+                onClick={handleAdminSubmit}
+                disabled={adminLoading}
                 style={{
                   background: "linear-gradient(135deg, #F97316, #EA580C)",
                   color: "#fff",
@@ -759,11 +710,11 @@ export default function App() {
                   width: "100%",
                 }}
               >
-                {pinDialogMode === "set"
-                  ? "Set PIN"
-                  : pinDialogMode === "change"
-                    ? "Change PIN"
-                    : "Enter"}
+                {adminLoading
+                  ? "Verifying..."
+                  : adminDialogMode === "set"
+                    ? "Create & Enter Edit Mode"
+                    : "Login"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -949,12 +900,12 @@ export default function App() {
                     {importing ? "Importing…" : "Import CSV"}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    data-ocid="header.change_pin.button"
-                    onClick={handleChangePin}
+                    data-ocid="header.change_admin.button"
+                    onClick={handleChangeAdminCredentials}
                     style={{ gap: 8, cursor: "pointer" }}
                   >
                     <Lock size={14} />
-                    Change PIN
+                    Change Admin Password
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1092,102 +1043,128 @@ export default function App() {
         </DialogContent>
       </Dialog>
 
-      {/* Change PIN dialog (when accessed from within app) */}
+      {/* Change Admin Credentials Dialog */}
       <Dialog
-        open={showPinDialog && pinDialogMode === "change"}
+        open={showAdminDialog && adminDialogMode === "change"}
         onOpenChange={(open) => {
-          if (!open) setShowPinDialog(false);
+          if (!open) setShowAdminDialog(false);
         }}
       >
-        <DialogContent data-ocid="pin.change.dialog">
+        <DialogContent data-ocid="admin.change.dialog">
           <DialogHeader>
             <DialogTitle
               style={{ display: "flex", alignItems: "center", gap: 8 }}
             >
               <Lock size={18} style={{ color: "#F97316" }} />
-              Change PIN
+              Change Admin Credentials
             </DialogTitle>
           </DialogHeader>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <input
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              value={changePinOld}
-              onChange={(e) => {
-                setChangePinOld(e.target.value.replace(/\D/g, "").slice(0, 4));
-                setPinError("");
-              }}
-              placeholder="Current PIN"
-              style={{
-                border: "2px solid #E2E8F0",
-                borderRadius: 10,
-                padding: "12px 16px",
-                fontSize: 20,
-                textAlign: "center",
-                letterSpacing: 6,
-                outline: "none",
-                width: "100%",
-              }}
-            />
-            <input
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              value={changePinNew}
-              onChange={(e) => {
-                setChangePinNew(e.target.value.replace(/\D/g, "").slice(0, 4));
-                setPinError("");
-              }}
-              placeholder="New PIN (4 digits)"
-              style={{
-                border: "2px solid #E2E8F0",
-                borderRadius: 10,
-                padding: "12px 16px",
-                fontSize: 20,
-                textAlign: "center",
-                letterSpacing: 6,
-                outline: "none",
-                width: "100%",
-              }}
-            />
-            <input
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              value={changePinConfirm}
-              onChange={(e) => {
-                setChangePinConfirm(
-                  e.target.value.replace(/\D/g, "").slice(0, 4),
-                );
-                setPinError("");
-              }}
-              onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-              placeholder="Confirm New PIN"
-              style={{
-                border: "2px solid #E2E8F0",
-                borderRadius: 10,
-                padding: "12px 16px",
-                fontSize: 20,
-                textAlign: "center",
-                letterSpacing: 6,
-                outline: "none",
-                width: "100%",
-              }}
-            />
-            {pinError && (
+            <div>
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
+                Current Token
+              </p>
+              <input
+                type="text"
+                autoCapitalize="none"
+                value={changeOldToken}
+                onChange={(e) => {
+                  setChangeOldToken(e.target.value);
+                  setAdminError("");
+                }}
+                placeholder="Current admin token"
+                style={{
+                  border: "2px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  fontSize: 15,
+                  outline: "none",
+                  width: "100%",
+                }}
+              />
+            </div>
+            <div>
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
+                Current Password
+              </p>
+              <input
+                type="password"
+                value={changeOldPassword}
+                onChange={(e) => {
+                  setChangeOldPassword(e.target.value);
+                  setAdminError("");
+                }}
+                placeholder="Current password"
+                style={{
+                  border: "2px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  fontSize: 15,
+                  outline: "none",
+                  width: "100%",
+                }}
+              />
+            </div>
+            <div>
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
+                New Token
+              </p>
+              <input
+                type="text"
+                autoCapitalize="none"
+                value={changeNewToken}
+                onChange={(e) => {
+                  setChangeNewToken(e.target.value);
+                  setAdminError("");
+                }}
+                placeholder="New admin token"
+                style={{
+                  border: "2px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  fontSize: 15,
+                  outline: "none",
+                  width: "100%",
+                }}
+              />
+            </div>
+            <div>
+              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
+                New Password
+              </p>
+              <input
+                type="password"
+                value={changeNewPassword}
+                onChange={(e) => {
+                  setChangeNewPassword(e.target.value);
+                  setAdminError("");
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
+                placeholder="New password"
+                style={{
+                  border: "2px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  fontSize: 15,
+                  outline: "none",
+                  width: "100%",
+                }}
+              />
+            </div>
+            {adminError && (
               <p
-                data-ocid="pin.error_state"
+                data-ocid="admin.change.error_state"
                 style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
               >
-                {pinError}
+                {adminError}
               </p>
             )}
           </div>
           <DialogFooter>
             <Button
-              data-ocid="pin.change.submit_button"
-              onClick={handlePinSubmit}
+              data-ocid="admin.change.submit_button"
+              onClick={handleAdminSubmit}
+              disabled={adminLoading}
               style={{
                 background: "linear-gradient(135deg, #F97316, #EA580C)",
                 color: "#fff",
@@ -1195,7 +1172,7 @@ export default function App() {
                 width: "100%",
               }}
             >
-              Change PIN
+              {adminLoading ? "Saving..." : "Change Credentials"}
             </Button>
           </DialogFooter>
         </DialogContent>

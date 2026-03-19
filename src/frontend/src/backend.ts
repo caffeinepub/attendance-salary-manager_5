@@ -184,6 +184,10 @@ export interface backendInterface {
     updateAdvance(id: bigint, amount: bigint, note: string): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;
     updateLabour(id: bigint, name: string, phone: string | null, groupId: bigint | null): Promise<void>;
+    hasAdminCredentials(): Promise<boolean>;
+    setAdminCredentials(token: string, password: string): Promise<boolean>;
+    verifyAdminCredentials(token: string, password: string): Promise<boolean>;
+    changeAdminCredentials(oldToken: string, oldPassword: string, newToken: string, newPassword: string): Promise<boolean>;
 }
 import type { Attendance as _Attendance, ColumnType as _ColumnType, Labour as _Labour } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -565,6 +569,22 @@ export class Backend implements backendInterface {
             const result = await this.actor.updateLabour(arg0, arg1, to_candid_opt_n2(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg3));
             return result;
         }
+    }
+    async hasAdminCredentials(): Promise<boolean> {
+        const result = await this.actor.hasAdminCredentials();
+        return result;
+    }
+    async setAdminCredentials(arg0: string, arg1: string): Promise<boolean> {
+        const result = await this.actor.setAdminCredentials(arg0, arg1);
+        return result;
+    }
+    async verifyAdminCredentials(arg0: string, arg1: string): Promise<boolean> {
+        const result = await this.actor.verifyAdminCredentials(arg0, arg1);
+        return result;
+    }
+    async changeAdminCredentials(arg0: string, arg1: string, arg2: string, arg3: string): Promise<boolean> {
+        const result = await this.actor.changeAdminCredentials(arg0, arg1, arg2, arg3);
+        return result;
     }
 }
 function from_candid_Attendance_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Attendance): Attendance {

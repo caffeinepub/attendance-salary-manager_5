@@ -121,6 +121,10 @@ export interface _SERVICE {
     [bigint, string, [] | [string], [] | [bigint]],
     undefined
   >,
+  'hasAdminCredentials' : ActorMethod<[], boolean>,
+  'setAdminCredentials' : ActorMethod<[string, string], boolean>,
+  'verifyAdminCredentials' : ActorMethod<[string, string], boolean>,
+  'changeAdminCredentials' : ActorMethod<[string, string, string, string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
