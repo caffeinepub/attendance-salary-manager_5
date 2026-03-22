@@ -15,6 +15,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Figtree', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "oklch(var(--border))",
         input: "oklch(var(--input))",
@@ -74,6 +77,8 @@ export default {
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0,0,0,0.05)",
+        "orange-glow": "0 0 40px 12px rgba(255,127,17,0.35), 0 0 80px 24px rgba(255,127,17,0.15)",
+        "btn-orange": "0 4px 24px rgba(255,127,17,0.5), 0 1px 6px rgba(0,0,0,0.25)",
       },
       keyframes: {
         "accordion-down": {

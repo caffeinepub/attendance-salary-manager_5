@@ -518,11 +518,11 @@ export function AttendanceTab({
   const TD: React.CSSProperties = {
     padding: "8px 14px",
     fontSize: 13,
-    color: "#1E293B",
-    borderBottom: "1px solid #E2E8F0",
+    color: "#F1F5F9",
+    borderBottom: "1px solid rgba(255,255,255,0.07)",
     verticalAlign: "middle",
   };
-  const STICKY_BG_LIGHT = "#EFF6FF";
+  const STICKY_BG_LIGHT = "#0F1C2E";
 
   // Suppress unused variable warning for toggleHoliday - it's still used for data consistency
 
@@ -536,11 +536,11 @@ export function AttendanceTab({
         }}
       >
         <h2
-          style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: 0 }}
+          style={{ fontSize: 20, fontWeight: 800, color: "#F1F5F9", margin: 0 }}
         >
           Attendance List
         </h2>
-        <p style={{ fontSize: 12, color: "#64748B", margin: 0, marginTop: 2 }}>
+        <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, marginTop: 2 }}>
           Track daily attendance and salary calculations
         </p>
       </div>
@@ -552,7 +552,7 @@ export function AttendanceTab({
             display: "block",
             fontSize: 11,
             fontWeight: 700,
-            color: "#64748B",
+            color: "#94A3B8",
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             marginBottom: 6,
@@ -570,9 +570,9 @@ export function AttendanceTab({
             )
           }
           style={{
-            background: "#FFFFFF",
-            border: "2px solid #E2E8F0",
-            color: "#0F172A",
+            background: "rgba(255,255,255,0.07)",
+            border: "1.5px solid rgba(255,255,255,0.15)",
+            color: "#F1F5F9",
             borderRadius: 999,
             padding: "8px 16px",
             fontSize: 13,
@@ -583,10 +583,10 @@ export function AttendanceTab({
             appearance: "auto",
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = "#F97316";
+            e.target.style.borderColor = "#FF7F11";
           }}
           onBlur={(e) => {
-            e.target.style.borderColor = "#E2E8F0";
+            e.target.style.borderColor = "rgba(255,255,255,0.15)";
           }}
         >
           <option value="">-- Select Contract --</option>
@@ -602,8 +602,8 @@ export function AttendanceTab({
         <div
           data-ocid="attendance.empty_state"
           style={{
-            background: "#F8FAFC",
-            border: "1px dashed #CBD5E1",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px dashed rgba(255,255,255,0.15)",
             borderRadius: 12,
             padding: "32px 20px",
             textAlign: "center",
@@ -628,7 +628,7 @@ export function AttendanceTab({
           >
             {[
               { label: "Labours", value: labours.length, color: "#F97316" },
-              { label: "Present Today", value: presentCount, color: "#1D4ED8" },
+              { label: "Present Today", value: presentCount, color: "#60A5FA" },
               {
                 label: "Bed Pool",
                 value: `₹${Number(contract.bedAmount).toLocaleString()}`,
@@ -653,7 +653,7 @@ export function AttendanceTab({
                 key={stat.label}
                 style={{
                   background: "#FFFFFF",
-                  border: "1px solid #E2E8F0",
+                  border: "1px solid rgba(255,255,255,0.1)",
                   borderRadius: 10,
                   padding: "8px 14px",
                   minWidth: 100,
@@ -739,8 +739,9 @@ export function AttendanceTab({
             style={{
               overflowX: "auto",
               borderRadius: 14,
-              boxShadow: "0 4px 24px rgba(15,23,42,0.10)",
-              border: "1px solid #E2E8F0",
+              boxShadow:
+                "0 4px 24px rgba(255,127,17,0.08), 0 0 60px rgba(255,127,17,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
             <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
@@ -924,7 +925,7 @@ export function AttendanceTab({
               <tbody>
                 {labours.map((labour, idx) => {
                   const net = labourNetSalary(labour.id);
-                  const rowBg = idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC";
+                  const rowBg = idx % 2 === 0 ? "#111827" : "#0D1626";
                   const hasNote = !!notes.get(String(labour.id));
                   return (
                     <tr
@@ -1006,7 +1007,7 @@ export function AttendanceTab({
                         style={{
                           ...TD,
                           fontWeight: 700,
-                          color: "#0EA5E9",
+                          color: "#7DD3FC",
                           fontSize: 13,
                         }}
                       >
@@ -1043,8 +1044,10 @@ export function AttendanceTab({
                               onClick={() => openNoteDialog(labour.id)}
                               title={hasNote ? "View/Edit note" : "Add note"}
                               style={{
-                                background: hasNote ? "#FFF7ED" : "#F8FAFC",
-                                border: `1px solid ${hasNote ? "#F97316" : "#E2E8F0"}`,
+                                background: hasNote
+                                  ? "rgba(255,127,17,0.15)"
+                                  : "rgba(255,255,255,0.06)",
+                                border: `1px solid ${hasNote ? "#FF7F11" : "rgba(255,255,255,0.1)"}`,
                                 borderRadius: 6,
                                 padding: "4px 6px",
                                 cursor: "pointer",
@@ -1136,7 +1139,10 @@ export function AttendanceTab({
                   saving || dirtyKeys.size === 0
                     ? "#CBD5E1"
                     : "linear-gradient(135deg, #F97316, #EA580C)",
-                color: saving || dirtyKeys.size === 0 ? "#94A3B8" : "#fff",
+                color:
+                  saving || dirtyKeys.size === 0
+                    ? "rgba(255,255,255,0.3)"
+                    : "#fff",
                 border: "none",
                 borderRadius: 999,
                 padding: "10px 28px",

@@ -173,13 +173,13 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
   const inputStyle = {
     background: "#FFFFFF",
     border: "1px solid #E5E5E5",
-    color: "#1F1F1F",
+    color: "#F1F5F9",
     borderRadius: 6,
     padding: "6px 10px",
     width: "100%",
   };
   const labelStyle = {
-    color: "#9E9E9E",
+    color: "#94A3B8",
     fontSize: 12,
     marginBottom: 2,
     display: "block" as const,
@@ -202,10 +202,14 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
         </button>
         <div
           className="rounded-xl p-6 max-w-xl"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
+          style={{
+            background: "rgba(255,255,255,0.055)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(12px)",
+          }}
         >
           <div className="flex items-start justify-between mb-4">
-            <h2 className="text-xl font-bold" style={{ color: "#1F1F1F" }}>
+            <h2 className="text-xl font-bold" style={{ color: "#F1F5F9" }}>
               {selected.name}
             </h2>
             {mode === "edit" && (
@@ -216,9 +220,9 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
                   onClick={() => openEdit(selected)}
                   className="text-xs px-3 py-1 rounded"
                   style={{
-                    background: "#FFFFFF",
+                    background: "transparent",
                     color: "#FF7F11",
-                    border: "1px solid #FF7F11",
+                    border: "1px solid rgba(255,127,17,0.6)",
                   }}
                 >
                   Edit
@@ -228,28 +232,28 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <span style={{ color: "#9E9E9E" }}>Contract Amount:</span>
+              <span style={{ color: "#94A3B8" }}>Contract Amount:</span>
               <br />
-              <span className="font-semibold" style={{ color: "#1F1F1F" }}>
+              <span className="font-semibold" style={{ color: "#F1F5F9" }}>
                 ₹{fmt(selected.contractAmount)}
               </span>
             </div>
             <div>
-              <span style={{ color: "#9E9E9E" }}>Multiplier:</span>
+              <span style={{ color: "#94A3B8" }}>Multiplier:</span>
               <br />
-              <span className="font-semibold" style={{ color: "#1F1F1F" }}>
+              <span className="font-semibold" style={{ color: "#F1F5F9" }}>
                 {selected.multiplierValue}
               </span>
             </div>
             <div>
-              <span style={{ color: "#9E9E9E" }}>Machine Exp:</span>
+              <span style={{ color: "#94A3B8" }}>Machine Exp:</span>
               <br />
-              <span className="font-semibold" style={{ color: "#1F1F1F" }}>
+              <span className="font-semibold" style={{ color: "#F1F5F9" }}>
                 ₹{fmt(selected.machineExp)}
               </span>
             </div>
             <div>
-              <span style={{ color: "#9E9E9E" }}>Mesh Amount:</span>
+              <span style={{ color: "#94A3B8" }}>Mesh Amount:</span>
               <br />
               <span className="font-semibold" style={{ color: "#FF7F11" }}>
                 ₹{previewMesh.toLocaleString()}
@@ -258,7 +262,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
           </div>
           <div
             className="mt-4 p-3 rounded-lg"
-            style={{ background: "#F2F2F2", border: "1px solid #E5E5E5" }}
+            style={{ background: "#111827", border: "1px solid #E5E5E5" }}
           >
             <div className="flex items-center justify-between mb-2">
               <span
@@ -316,8 +320,8 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
                     onClick={() => setEditingAmounts(false)}
                     className="text-xs px-3 py-1 rounded"
                     style={{
-                      background: "#F2F2F2",
-                      color: "#9E9E9E",
+                      background: "#111827",
+                      color: "#94A3B8",
                       border: "1px solid #E5E5E5",
                     }}
                   >
@@ -328,14 +332,14 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
             ) : (
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span style={{ color: "#9E9E9E" }}>Bed:</span>{" "}
-                  <span className="font-semibold" style={{ color: "#1F1F1F" }}>
+                  <span style={{ color: "#94A3B8" }}>Bed:</span>{" "}
+                  <span className="font-semibold" style={{ color: "#F1F5F9" }}>
                     ₹{previewBed.toLocaleString()}
                   </span>
                 </div>
                 <div>
-                  <span style={{ color: "#9E9E9E" }}>Paper:</span>{" "}
-                  <span className="font-semibold" style={{ color: "#1F1F1F" }}>
+                  <span style={{ color: "#94A3B8" }}>Paper:</span>{" "}
+                  <span className="font-semibold" style={{ color: "#F1F5F9" }}>
                     ₹{previewPaper.toLocaleString()}
                   </span>
                 </div>
@@ -385,9 +389,13 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
         </button>
         <div
           className="rounded-xl p-6 max-w-md"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
+          style={{
+            background: "rgba(255,255,255,0.055)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(12px)",
+          }}
         >
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#1F1F1F" }}>
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#F1F5F9" }}>
             Edit Contract
           </h2>
           <div className="flex flex-col gap-3">
@@ -464,8 +472,8 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
                 }
               />
             </div>
-            <div className="p-3 rounded" style={{ background: "#F2F2F2" }}>
-              <div className="text-xs" style={{ color: "#9E9E9E" }}>
+            <div className="p-3 rounded" style={{ background: "#111827" }}>
+              <div className="text-xs" style={{ color: "#94A3B8" }}>
                 Mesh Amount Preview:{" "}
                 <span style={{ color: "#FF7F11" }}>
                   ₹{meshP.toLocaleString()}
@@ -490,7 +498,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold" style={{ color: "#1F1F1F" }}>
+        <h2 className="text-lg font-bold" style={{ color: "#F1F5F9" }}>
           Contracts
         </h2>
         {mode === "edit" && (
@@ -509,7 +517,11 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
       {showAdd && mode === "edit" && (
         <div
           className="rounded-xl p-5 mb-4 max-w-md"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
+          style={{
+            background: "rgba(255,255,255,0.055)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(12px)",
+          }}
         >
           <h3
             className="text-sm font-semibold mb-3"
@@ -568,7 +580,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
             {form.multiplier && (
               <div
                 className="p-3 rounded text-xs"
-                style={{ background: "#F2F2F2", color: "#9E9E9E" }}
+                style={{ background: "#111827", color: "#94A3B8" }}
               >
                 Bed: ₹
                 {calcBed(
@@ -594,8 +606,8 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
               disabled={adding}
               className="py-2 rounded font-semibold"
               style={{
-                background: adding ? "#CBD5E1" : "#FF7F11",
-                color: adding ? "#94A3B8" : "#fff",
+                background: adding ? "#334155" : "#FF7F11",
+                color: adding ? "#64748B" : "#fff",
                 cursor: adding ? "not-allowed" : "pointer",
               }}
             >
@@ -606,7 +618,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
       )}
 
       {loading && contracts.length === 0 ? (
-        <div data-ocid="contracts.loading_state" style={{ color: "#9E9E9E" }}>
+        <div data-ocid="contracts.loading_state" style={{ color: "#94A3B8" }}>
           Loading...
         </div>
       ) : (
@@ -615,7 +627,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
             <div
               data-ocid="contracts.empty_state"
               className="text-sm"
-              style={{ color: "#9E9E9E" }}
+              style={{ color: "#94A3B8" }}
             >
               No contracts yet.
             </div>
@@ -627,13 +639,13 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
               data-ocid={`contract.item.${i + 1}`}
               className="flex items-center justify-between w-full px-4 py-3 rounded-lg cursor-pointer transition-all text-left"
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #E5E5E5",
+                background: "rgba(255,255,255,0.055)",
+                border: "1px solid rgba(255,255,255,0.1)",
                 opacity: c.id < 0n ? 0.6 : 1,
               }}
               onClick={() => c.id >= 0n && setSelected(c)}
             >
-              <span className="font-medium" style={{ color: "#1F1F1F" }}>
+              <span className="font-medium" style={{ color: "#F1F5F9" }}>
                 {c.name}
                 {c.id < 0n ? " (saving…)" : ""}
               </span>

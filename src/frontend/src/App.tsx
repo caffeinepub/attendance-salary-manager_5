@@ -554,177 +554,365 @@ export default function App() {
   if (screen === "home") {
     return (
       <>
-        {/* Background with subtle pattern */}
+        {/* Dark premium background */}
         <div
-          className="min-h-screen flex flex-col items-center justify-center px-6 py-10 relative"
+          className="min-h-screen flex flex-col items-center justify-center px-5 py-10 relative overflow-hidden"
           style={{
-            background:
-              "linear-gradient(160deg, #F8FAFC 0%, #EFF6FF 50%, #FFF7ED 100%)",
+            background: "#0B1120",
             opacity: homeVisible ? 1 : 0,
-            transition: "opacity 0.35s ease",
+            transition: "opacity 0.4s ease",
           }}
         >
-          {/* Decorative circles */}
+          {/* Mesh gradient blob — top right */}
           <div
-            className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+            className="absolute pointer-events-none"
             style={{
-              background: "#FF7F11",
-              transform: "translate(40%, -40%)",
+              top: "-80px",
+              right: "-80px",
+              width: "360px",
+              height: "360px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(255,127,17,0.22) 0%, transparent 70%)",
+              filter: "blur(40px)",
             }}
           />
+          {/* Mesh gradient blob — bottom left */}
           <div
-            className="absolute bottom-0 left-0 w-64 h-64 rounded-full opacity-8 pointer-events-none"
+            className="absolute pointer-events-none"
             style={{
-              background: "#1E293B",
-              transform: "translate(-40%, 40%)",
-              opacity: 0.06,
+              bottom: "-100px",
+              left: "-80px",
+              width: "400px",
+              height: "400px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(255,127,17,0.10) 0%, transparent 70%)",
+              filter: "blur(60px)",
+            }}
+          />
+          {/* Subtle grid overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
+              backgroundSize: "40px 40px",
             }}
           />
 
           {/* App branding */}
           <div className="flex flex-col items-center mb-10 z-10">
-            <div
-              className="w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-xl"
-              style={{
-                background: "linear-gradient(135deg, #FF7F11 0%, #EA580C 100%)",
-              }}
-            >
-              <CalendarCheck size={38} color="#FFFFFF" strokeWidth={2.5} />
+            {/* Icon with glow halo */}
+            <div style={{ position: "relative", marginBottom: "20px" }}>
+              {/* Outer glow */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "-10px",
+                  borderRadius: "36px",
+                  background:
+                    "radial-gradient(circle, rgba(255,127,17,0.4) 0%, transparent 70%)",
+                  filter: "blur(14px)",
+                }}
+              />
+              <div
+                style={{
+                  width: "88px",
+                  height: "88px",
+                  borderRadius: "28px",
+                  background:
+                    "linear-gradient(135deg, #FF7F11 0%, #EA580C 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative",
+                  boxShadow:
+                    "0 0 0 1px rgba(255,127,17,0.4), 0 8px 32px rgba(255,127,17,0.45)",
+                }}
+              >
+                <CalendarCheck size={42} color="#FFFFFF" strokeWidth={2.2} />
+              </div>
             </div>
+
             <h1
-              className="text-3xl font-bold tracking-tight text-center"
-              style={{ color: "#1E293B" }}
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                color: "#FFFFFF",
+                textAlign: "center",
+                lineHeight: 1.2,
+                margin: 0,
+              }}
             >
               Attendance &amp; Salary
             </h1>
             <p
-              className="text-base font-medium mt-1"
-              style={{ color: "#94A3B8" }}
+              style={{
+                fontSize: "18px",
+                fontWeight: 700,
+                color: "#FF7F11",
+                margin: "4px 0 0",
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+              }}
             >
               Manager
             </p>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "rgba(255,255,255,0.38)",
+                marginTop: "8px",
+                fontWeight: 400,
+              }}
+            >
+              Your workforce, simplified
+            </p>
           </div>
 
-          {/* Login card */}
+          {/* Glassmorphism login card */}
           <div
-            className="w-full max-w-sm rounded-3xl shadow-2xl z-10 overflow-hidden"
-            style={{ background: "#FFFFFF", border: "1px solid #E2E8F0" }}
+            className="w-full z-10"
+            style={{
+              maxWidth: "360px",
+              background: "rgba(255,255,255,0.055)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "28px",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              overflow: "hidden",
+              boxShadow:
+                "0 4px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+            }}
           >
             {/* Card header */}
             <div
-              className="px-6 pt-7 pb-5"
-              style={{ borderBottom: "1px solid #F1F5F9" }}
+              style={{
+                padding: "24px 24px 20px",
+                borderBottom: "1px solid rgba(255,255,255,0.07)",
+              }}
             >
-              <h2 className="text-xl font-bold" style={{ color: "#1E293B" }}>
-                Welcome Back
+              <h2
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                  margin: 0,
+                }}
+              >
+                Welcome back
               </h2>
-              <p className="text-sm mt-1" style={{ color: "#94A3B8" }}>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "rgba(255,255,255,0.45)",
+                  margin: "4px 0 0",
+                }}
+              >
                 Select how you would like to continue
               </p>
             </div>
 
-            {/* Login options */}
-            <div className="px-6 py-6 flex flex-col gap-4">
-              {/* Admin Login — primary */}
-              <div>
-                <button
-                  type="button"
-                  data-ocid="home.welcome.text"
-                  onClick={handleWelcomeTap}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-semibold text-base transition-all active:scale-95 hover:opacity-90"
+            {/* Login buttons */}
+            <div
+              style={{
+                padding: "20px 24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+              }}
+            >
+              {/* Admin Login — gradient orange */}
+              <button
+                type="button"
+                data-ocid="home.welcome.text"
+                onClick={handleWelcomeTap}
+                className="w-full transition-all active:scale-95"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "14px",
+                  padding: "15px 20px",
+                  borderRadius: "16px",
+                  background:
+                    "linear-gradient(135deg, #FF7F11 0%, #EA580C 100%)",
+                  color: "#FFFFFF",
+                  border: "none",
+                  cursor: "pointer",
+                  boxShadow:
+                    "0 4px 24px rgba(255,127,17,0.5), 0 1px 6px rgba(0,0,0,0.25)",
+                  fontFamily: "inherit",
+                }}
+              >
+                <span
                   style={{
-                    background: "#1E293B",
-                    color: "#FFFFFF",
-                    boxShadow: "0 4px 16px rgba(30,41,59,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "12px",
+                    background: "rgba(255,255,255,0.18)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <ShieldCheck size={20} color="#FFFFFF" strokeWidth={2.2} />
+                </span>
+                <span
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    flex: 1,
+                    textAlign: "left",
                   }}
                 >
                   <span
-                    className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-                    style={{ background: "rgba(255,255,255,0.12)" }}
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: 700,
+                      lineHeight: 1.3,
+                    }}
                   >
-                    <ShieldCheck size={20} color="#FF7F11" />
+                    Admin Login
                   </span>
-                  <span className="flex flex-col items-start flex-1 text-left">
-                    <span className="font-bold text-base leading-snug">
-                      Admin Login
-                    </span>
-                    <span
-                      className="text-xs font-normal mt-0.5"
-                      style={{ color: "#94A3B8" }}
-                    >
-                      Full access to all features
-                    </span>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 400,
+                      color: "rgba(255,255,255,0.75)",
+                      marginTop: "2px",
+                    }}
+                  >
+                    Full access to all features
                   </span>
-                  <Lock size={16} color="#64748B" />
-                </button>
-              </div>
+                </span>
+                <Lock size={15} color="rgba(255,255,255,0.7)" />
+              </button>
 
               {/* Divider */}
-              <div className="flex items-center gap-3">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
                 <div
-                  className="flex-1 h-px"
-                  style={{ background: "#E2E8F0" }}
+                  style={{
+                    flex: 1,
+                    height: "1px",
+                    background: "rgba(255,255,255,0.1)",
+                  }}
                 />
                 <span
-                  className="text-xs font-medium"
-                  style={{ color: "#CBD5E1" }}
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.25)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
                 >
                   or
                 </span>
                 <div
-                  className="flex-1 h-px"
-                  style={{ background: "#E2E8F0" }}
+                  style={{
+                    flex: 1,
+                    height: "1px",
+                    background: "rgba(255,255,255,0.1)",
+                  }}
                 />
               </div>
 
-              {/* User Login — secondary */}
-              <div>
-                <button
-                  type="button"
-                  data-ocid="home.view_attendpay.button"
-                  onClick={() => {
-                    setMode("view");
-                    setScreen("app");
-                    setActiveTab("Attendance");
-                  }}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-semibold text-base transition-all active:scale-95 hover:bg-orange-50"
+              {/* User Login — ghost outline */}
+              <button
+                type="button"
+                data-ocid="home.view_attendpay.button"
+                onClick={() => {
+                  setMode("view");
+                  setScreen("app");
+                  setActiveTab("Attendance");
+                }}
+                className="w-full transition-all active:scale-95"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "14px",
+                  padding: "15px 20px",
+                  borderRadius: "16px",
+                  background: "transparent",
+                  color: "#FFFFFF",
+                  border: "1.5px solid rgba(255,255,255,0.2)",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                <span
                   style={{
-                    background: "#FFFFFF",
-                    color: "#FF7F11",
-                    border: "2px solid #FF7F11",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "12px",
+                    background: "rgba(255,127,17,0.15)",
+                    border: "1px solid rgba(255,127,17,0.25)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Eye size={20} color="#FF7F11" strokeWidth={2.2} />
+                </span>
+                <span
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    flex: 1,
+                    textAlign: "left",
                   }}
                 >
                   <span
-                    className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
-                    style={{ background: "#FFF3E8" }}
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: 700,
+                      lineHeight: 1.3,
+                    }}
                   >
-                    <Eye size={20} color="#FF7F11" />
+                    User Login
                   </span>
-                  <span className="flex flex-col items-start flex-1 text-left">
-                    <span className="font-bold text-base leading-snug">
-                      User Login
-                    </span>
-                    <span
-                      className="text-xs font-normal mt-0.5"
-                      style={{ color: "#94A3B8" }}
-                    >
-                      View attendance data only
-                    </span>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 400,
+                      color: "rgba(255,255,255,0.45)",
+                      marginTop: "2px",
+                    }}
+                  >
+                    View attendance data only
                   </span>
-                </button>
-              </div>
+                </span>
+              </button>
             </div>
 
             {/* Card footer */}
             <div
-              className="px-6 py-4"
               style={{
-                background: "#F8FAFC",
-                borderTop: "1px solid #F1F5F9",
+                padding: "14px 24px",
+                borderTop: "1px solid rgba(255,255,255,0.07)",
+                textAlign: "center",
               }}
             >
-              <p className="text-center text-xs" style={{ color: "#CBD5E1" }}>
-                © {new Date().getFullYear()}.{" "}
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "rgba(255,255,255,0.25)",
+                  margin: 0,
+                }}
+              >
+                &copy; {new Date().getFullYear()}.{" "}
                 <a
                   href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
                   target="_blank"
@@ -760,7 +948,6 @@ export default function App() {
             </DialogHeader>
 
             {adminDialogChecking ? (
-              /* Loading state while checking credentials */
               <div
                 data-ocid="admin.loading_state"
                 style={{
@@ -950,8 +1137,41 @@ export default function App() {
 
       <div
         className="min-h-screen flex flex-col"
-        style={{ background: "#F2F2F2" }}
+        style={{ background: "#0B1120", position: "relative" }}
       >
+        {/* Orange glow blobs - decorative, matches home screen */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            top: "-120px",
+            right: "-120px",
+            width: "500px",
+            height: "500px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(255,127,17,0.12) 0%, transparent 70%)",
+            filter: "blur(60px)",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
+        <div
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            bottom: "-120px",
+            left: "-80px",
+            width: "400px",
+            height: "400px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(255,127,17,0.07) 0%, transparent 70%)",
+            filter: "blur(60px)",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
         {/* 6pm Reminder Banner */}
         {showReminder && (
           <div
@@ -990,7 +1210,12 @@ export default function App() {
         {/* Header */}
         <div
           className="flex items-center justify-between px-3 py-3 shrink-0"
-          style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E5E5" }}
+          style={{
+            background: "rgba(255,255,255,0.055)",
+            borderBottom: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+          }}
         >
           <div className="flex items-center gap-2">
             <button
@@ -998,7 +1223,7 @@ export default function App() {
               data-ocid="nav.home.button"
               onClick={() => setScreen("home")}
               className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
-              style={{ color: "#9E9E9E" }}
+              style={{ color: "rgba(255,255,255,0.5)" }}
             >
               <ChevronLeft size={18} />
               <span className="text-xs">Home</span>
@@ -1009,11 +1234,16 @@ export default function App() {
             <div className="flex items-center gap-1.5">
               <div
                 className="w-2 h-2 rounded-full"
-                style={{ background: mode === "edit" ? "#FF7F11" : "#9E9E9E" }}
+                style={{
+                  background:
+                    mode === "edit" ? "#FF7F11" : "rgba(255,255,255,0.3)",
+                }}
               />
               <span
                 className="text-xs font-medium"
-                style={{ color: mode === "edit" ? "#FF7F11" : "#9E9E9E" }}
+                style={{
+                  color: mode === "edit" ? "#FF7F11" : "rgba(255,255,255,0.4)",
+                }}
               >
                 {mode === "edit" ? "Edit Mode" : "View Mode"}
               </span>
@@ -1027,9 +1257,9 @@ export default function App() {
               disabled={exporting || !actor}
               className="flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95 disabled:opacity-50"
               style={{
-                background: "#FFF3E8",
+                background: "rgba(255,127,17,0.12)",
                 color: "#FF7F11",
-                border: "1px solid #FFD4A8",
+                border: "1px solid rgba(255,127,17,0.3)",
               }}
               title="Export CSV"
             >
@@ -1049,9 +1279,9 @@ export default function App() {
                     data-ocid="header.menu.button"
                     className="flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
                     style={{
-                      background: "#F8FAFC",
-                      color: "#64748B",
-                      border: "1px solid #E2E8F0",
+                      background: "rgba(255,255,255,0.07)",
+                      color: "rgba(255,255,255,0.6)",
+                      border: "1px solid rgba(255,255,255,0.1)",
                     }}
                     title="More options"
                   >
@@ -1136,7 +1366,12 @@ export default function App() {
         {/* Bottom nav */}
         <nav
           className="fixed bottom-0 left-0 right-0 flex z-50"
-          style={{ background: "#FFFFFF", borderTop: "1px solid #E5E5E5" }}
+          style={{
+            background: "rgba(15,23,42,0.92)",
+            borderTop: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+          }}
         >
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
@@ -1148,7 +1383,9 @@ export default function App() {
                 data-ocid={`nav.${tab.id.toLowerCase()}.tab`}
                 onClick={() => setActiveTab(tab.id)}
                 className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-all active:scale-95"
-                style={{ color: isActive ? "#FF7F11" : "#9E9E9E" }}
+                style={{
+                  color: isActive ? "#FF7F11" : "rgba(255,255,255,0.4)",
+                }}
               >
                 <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
                 <span
@@ -1180,7 +1417,7 @@ export default function App() {
           <DialogHeader>
             <DialogTitle>Restore Backup?</DialogTitle>
           </DialogHeader>
-          <p style={{ fontSize: 14, color: "#475569" }}>
+          <p style={{ fontSize: 14, color: "#94A3B8" }}>
             This will add all contracts and labours from the backup file on top
             of your existing data.
             {pendingRestoreData && " Contracts: "}
@@ -1228,7 +1465,7 @@ export default function App() {
           <DialogHeader>
             <DialogTitle>Import Complete</DialogTitle>
           </DialogHeader>
-          <p style={{ fontSize: 14, color: "#475569" }}>{importResult}</p>
+          <p style={{ fontSize: 14, color: "#94A3B8" }}>{importResult}</p>
           <DialogFooter>
             <Button
               data-ocid="import.close_button"
@@ -1263,7 +1500,7 @@ export default function App() {
           </DialogHeader>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
+              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 4px" }}>
                 Current Username
               </p>
               <input
@@ -1276,17 +1513,19 @@ export default function App() {
                 }}
                 placeholder="Current username"
                 style={{
-                  border: "2px solid #E2E8F0",
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.12)",
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 15,
                   outline: "none",
                   width: "100%",
+                  color: "#F1F5F9",
                 }}
               />
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
+              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 4px" }}>
                 Current Password
               </p>
               <input
@@ -1298,17 +1537,19 @@ export default function App() {
                 }}
                 placeholder="Current password"
                 style={{
-                  border: "2px solid #E2E8F0",
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.12)",
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 15,
                   outline: "none",
                   width: "100%",
+                  color: "#F1F5F9",
                 }}
               />
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
+              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 4px" }}>
                 New Username
               </p>
               <input
@@ -1321,17 +1562,19 @@ export default function App() {
                 }}
                 placeholder="New username"
                 style={{
-                  border: "2px solid #E2E8F0",
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.12)",
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 15,
                   outline: "none",
                   width: "100%",
+                  color: "#F1F5F9",
                 }}
               />
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 4px" }}>
+              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 4px" }}>
                 New Password
               </p>
               <input
@@ -1344,12 +1587,14 @@ export default function App() {
                 onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
                 placeholder="New password"
                 style={{
-                  border: "2px solid #E2E8F0",
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.12)",
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 15,
                   outline: "none",
                   width: "100%",
+                  color: "#F1F5F9",
                 }}
               />
             </div>

@@ -77,13 +77,13 @@ export function LaboursTab({ mode }: Props) {
   const inputStyle = {
     background: "#FFFFFF",
     border: "1px solid #E5E5E5",
-    color: "#1F1F1F",
+    color: "#F1F5F9",
     borderRadius: 6,
     padding: "6px 10px",
     width: "100%",
   };
   const labelStyle = {
-    color: "#9E9E9E",
+    color: "#94A3B8",
     fontSize: 12,
     marginBottom: 2,
     display: "block" as const,
@@ -93,21 +93,21 @@ export function LaboursTab({ mode }: Props) {
     textAlign: "left",
     fontWeight: 600,
     fontSize: 12,
-    color: "#9E9E9E",
-    background: "#F2F2F2",
-    borderBottom: "1px solid #E5E5E5",
+    color: "#94A3B8",
+    background: "#111827",
+    borderBottom: "1px solid rgba(255,255,255,0.07)",
   };
   const tdStyle: React.CSSProperties = {
     padding: "8px 12px",
-    borderBottom: "1px solid #E5E5E5",
+    borderBottom: "1px solid rgba(255,255,255,0.07)",
     fontSize: 13,
-    color: "#1F1F1F",
+    color: "#F1F5F9",
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold" style={{ color: "#1F1F1F" }}>
+        <h2 className="text-lg font-bold" style={{ color: "#F1F5F9" }}>
           Labours
         </h2>
         {mode === "edit" && (
@@ -126,7 +126,11 @@ export function LaboursTab({ mode }: Props) {
       {showAdd && mode === "edit" && (
         <div
           className="rounded-xl p-4 mb-4 max-w-sm"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
+          style={{
+            background: "rgba(255,255,255,0.055)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(12px)",
+          }}
         >
           <h3
             className="text-sm font-semibold mb-3"
@@ -164,8 +168,8 @@ export function LaboursTab({ mode }: Props) {
               disabled={adding}
               className="py-2 rounded font-semibold"
               style={{
-                background: adding ? "#CBD5E1" : "#FF7F11",
-                color: adding ? "#94A3B8" : "#fff",
+                background: adding ? "#334155" : "#FF7F11",
+                color: adding ? "#64748B" : "#fff",
                 cursor: adding ? "not-allowed" : "pointer",
               }}
             >
@@ -192,7 +196,7 @@ export function LaboursTab({ mode }: Props) {
               <tr>
                 <td
                   colSpan={mode === "edit" ? 4 : 3}
-                  style={{ ...tdStyle, color: "#9E9E9E", textAlign: "center" }}
+                  style={{ ...tdStyle, color: "#94A3B8", textAlign: "center" }}
                   data-ocid="labours.empty_state"
                 >
                   No labours added yet.
@@ -204,7 +208,7 @@ export function LaboursTab({ mode }: Props) {
                 key={String(l.id)}
                 data-ocid={`labours.item.${i + 1}`}
                 style={{
-                  background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA",
+                  background: i % 2 === 0 ? "#FFFFFF" : "#0D1626",
                   opacity: l.id < 0n ? 0.6 : 1,
                 }}
               >
@@ -216,7 +220,7 @@ export function LaboursTab({ mode }: Props) {
                         style={{
                           background: "#FFFFFF",
                           border: "1px solid #E5E5E5",
-                          color: "#1F1F1F",
+                          color: "#F1F5F9",
                           borderRadius: 4,
                           padding: "3px 6px",
                           width: 140,
@@ -232,7 +236,7 @@ export function LaboursTab({ mode }: Props) {
                         style={{
                           background: "#FFFFFF",
                           border: "1px solid #E5E5E5",
-                          color: "#1F1F1F",
+                          color: "#F1F5F9",
                           borderRadius: 4,
                           padding: "3px 6px",
                           width: 110,
@@ -258,8 +262,8 @@ export function LaboursTab({ mode }: Props) {
                         onClick={() => setEditingId(null)}
                         className="text-xs px-2 py-1 rounded"
                         style={{
-                          background: "#F2F2F2",
-                          color: "#9E9E9E",
+                          background: "#111827",
+                          color: "#94A3B8",
                           border: "1px solid #E5E5E5",
                         }}
                       >
@@ -283,7 +287,7 @@ export function LaboursTab({ mode }: Props) {
                         </span>
                       )}
                     </td>
-                    <td style={{ ...tdStyle, color: "#9E9E9E" }}>
+                    <td style={{ ...tdStyle, color: "#94A3B8" }}>
                       {l.phone || "-"}
                     </td>
                     {mode === "edit" && (
