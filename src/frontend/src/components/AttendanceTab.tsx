@@ -133,41 +133,7 @@ function getSelectStyle(val: string): React.CSSProperties {
   };
 }
 
-function getLargeSelectStyle(val: string): React.CSSProperties {
-  const base: React.CSSProperties = {
-    width: "100%",
-    padding: "16px 18px",
-    fontSize: 20,
-    fontWeight: 700,
-    borderRadius: 14,
-    cursor: "pointer",
-    outline: "none",
-    appearance: "auto",
-    transition: "all 0.2s",
-  };
-  if (val === "Present") {
-    return {
-      ...base,
-      background: "#DCFCE7",
-      border: "2.5px solid #16A34A",
-      color: "#15803D",
-    };
-  }
-  if (val === "Absent") {
-    return {
-      ...base,
-      background: "#FEE2E2",
-      border: "2.5px solid #DC2626",
-      color: "#B91C1C",
-    };
-  }
-  return {
-    ...base,
-    background: "#FFF7ED",
-    border: "2.5px solid #EA580C",
-    color: "#C2410C",
-  };
-}
+// getLargeSelectStyle removed - replaced by Present/Absent buttons in dialog
 
 export function AttendanceTab({
   mode,
@@ -206,7 +172,6 @@ export function AttendanceTab({
   const [markDialogOpen, setMarkDialogOpen] = useState(false);
   const [markDialogIndex, setMarkDialogIndex] = useState(0);
   const [markDialogCol, setMarkDialogCol] = useState("bed");
-  const [markSaving, setMarkSaving] = useState(false);
   const [markDone, setMarkDone] = useState(false);
 
   useEffect(() => {
@@ -515,13 +480,12 @@ export function AttendanceTab({
     }
   };
 
-  const handleMarkAttendanceChange = async (val: string) => {
+  const handleMarkAttendanceChange = (val: string) => {
     if (labours.length === 0) return;
     const labour = labours[markDialogIndex];
-    setMarkSaving(true);
-    await saveAttendanceSingle(labour, markDialogCol, val);
-    setMarkSaving(false);
-    // Auto-advance
+    // Fire-and-forget: save in background, advance immediately
+    saveAttendanceSingle(labour, markDialogCol, val);
+    // Auto-advance instantly without waiting for backend
     if (markDialogIndex < labours.length - 1) {
       setMarkDialogIndex((prev) => prev + 1);
     } else {
@@ -1453,48 +1417,120 @@ export function AttendanceTab({
 
                 {/* Attendance select */}
                 <div style={{ marginBottom: 28 }}>
-                  <label
-                    htmlFor="mark-value-select"
+                  <div
                     style={{
-                      display: "block",
                       fontSize: 11,
                       fontWeight: 700,
                       color: "#64748B",
                       letterSpacing: "0.06em",
                       textTransform: "uppercase",
-                      marginBottom: 10,
+                      marginBottom: 14,
                       textAlign: "center",
                     }}
                   >
                     Mark as — auto-advances on selection
-                  </label>
+                  </div>
+
+                  {/* Large Present / Absent buttons */}
+                  <div style={{ display: "flex", gap: 14, marginBottom: 16 }}>
+                    <button
+                      type="button"
+                      data-ocid="attendance.mark.present_button"
+                      onClick={() => handleMarkAttendanceChange("Present")}
+                      style={{
+                        flex: 1,
+                        padding: "22px 0",
+                        fontSize: 24,
+                        fontWeight: 900,
+                        borderRadius: 16,
+                        border:
+                          currentMarkVal === "Present"
+                            ? "3px solid #16A34A"
+                            : "2.5px solid #DCFCE7",
+                        background:
+                          currentMarkVal === "Present" ? "#16A34A" : "#F0FDF4",
+                        color:
+                          currentMarkVal === "Present" ? "#fff" : "#16A34A",
+                        cursor: "pointer",
+                        boxShadow:
+                          currentMarkVal === "Present"
+                            ? "0 4px 18px rgba(22,163,74,0.35)"
+                            : "none",
+                        transition: "all 0.15s",
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      ✓ Present
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid="attendance.mark.absent_button"
+                      onClick={() => handleMarkAttendanceChange("Absent")}
+                      style={{
+                        flex: 1,
+                        padding: "22px 0",
+                        fontSize: 24,
+                        fontWeight: 900,
+                        borderRadius: 16,
+                        border:
+                          currentMarkVal === "Absent"
+                            ? "3px solid #DC2626"
+                            : "2.5px solid #FEE2E2",
+                        background:
+                          currentMarkVal === "Absent" ? "#DC2626" : "#FFF5F5",
+                        color: currentMarkVal === "Absent" ? "#fff" : "#DC2626",
+                        cursor: "pointer",
+                        boxShadow:
+                          currentMarkVal === "Absent"
+                            ? "0 4px 18px rgba(220,38,38,0.35)"
+                            : "none",
+                        transition: "all 0.15s",
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      ✕ Absent
+                    </button>
+                  </div>
+
+                  {/* Other values dropdown */}
                   <select
                     id="mark-value-select"
                     data-ocid="attendance.mark.value.select"
-                    value={currentMarkVal}
-                    disabled={markSaving}
-                    onChange={(e) => handleMarkAttendanceChange(e.target.value)}
-                    style={getLargeSelectStyle(currentMarkVal)}
+                    value={
+                      ["Present", "Absent"].includes(currentMarkVal)
+                        ? ""
+                        : currentMarkVal
+                    }
+                    onChange={(e) => {
+                      if (e.target.value)
+                        handleMarkAttendanceChange(e.target.value);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      borderRadius: 12,
+                      border: "2px solid #E2E8F0",
+                      background: ["Present", "Absent"].includes(currentMarkVal)
+                        ? "#F8FAFC"
+                        : "#FFF7ED",
+                      color: ["Present", "Absent"].includes(currentMarkVal)
+                        ? "#94A3B8"
+                        : "#EA580C",
+                      cursor: "pointer",
+                      appearance: "auto" as const,
+                    }}
                   >
-                    {ATTENDANCE_VALUES.map((v) => (
+                    <option value="">Other values...</option>
+                    {ATTENDANCE_VALUES.filter(
+                      (v) => v !== "Present" && v !== "Absent",
+                    ).map((v) => (
                       <option key={v} value={v}>
                         {v}
                       </option>
                     ))}
                   </select>
-                  {markSaving && (
-                    <div
-                      data-ocid="attendance.mark.loading_state"
-                      style={{
-                        textAlign: "center",
-                        marginTop: 8,
-                        fontSize: 12,
-                        color: "#94A3B8",
-                      }}
-                    >
-                      Saving…
-                    </div>
-                  )}
                 </div>
 
                 {/* Prev / Next */}
@@ -1502,7 +1538,7 @@ export function AttendanceTab({
                   <button
                     type="button"
                     data-ocid="attendance.mark.pagination_prev"
-                    disabled={markDialogIndex === 0 || markSaving}
+                    disabled={markDialogIndex === 0}
                     onClick={() =>
                       setMarkDialogIndex((prev) => Math.max(0, prev - 1))
                     }
@@ -1524,9 +1560,7 @@ export function AttendanceTab({
                   <button
                     type="button"
                     data-ocid="attendance.mark.pagination_next"
-                    disabled={
-                      markDialogIndex >= labours.length - 1 || markSaving
-                    }
+                    disabled={markDialogIndex >= labours.length - 1}
                     onClick={() =>
                       setMarkDialogIndex((prev) =>
                         Math.min(labours.length - 1, prev + 1),
