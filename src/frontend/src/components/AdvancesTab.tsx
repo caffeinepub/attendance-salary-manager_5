@@ -113,7 +113,7 @@ export function AdvancesTab({ mode }: Props) {
   const inputStyle = {
     background: "#FFFFFF",
     border: "1px solid #E5E5E5",
-    color: "#F1F5F9",
+    color: "#1E293B",
     borderRadius: 6,
     padding: "6px 10px",
     width: "100%",
@@ -159,8 +159,8 @@ export function AdvancesTab({ mode }: Props) {
             handleSelectContract(e.target.value ? BigInt(e.target.value) : null)
           }
           style={{
-            background: "#FFFFFF",
-            border: "1px solid #E5E5E5",
+            background: "#111827",
+            border: "1px solid rgba(255,255,255,0.1)",
             color: "#F1F5F9",
             borderRadius: 6,
             padding: "6px 10px",
@@ -316,11 +316,11 @@ export function AdvancesTab({ mode }: Props) {
                 <tr
                   key={String(adv.id)}
                   data-ocid={`advances.item.${i + 1}`}
-                  style={{ background: i % 2 === 0 ? "#FFFFFF" : "#0D1626" }}
+                  style={{ background: i % 2 === 0 ? "#111827" : "#0D1626" }}
                 >
                   <td style={tdStyle}>{getLabourName(adv.labourId)}</td>
                   {!selectedContractId && (
-                    <td style={{ ...tdStyle, color: "#666" }}>
+                    <td style={{ ...tdStyle, color: "#94A3B8" }}>
                       {getContractName(adv.contractId)}
                     </td>
                   )}
@@ -330,8 +330,8 @@ export function AdvancesTab({ mode }: Props) {
                         <input
                           type="number"
                           style={{
-                            background: "#FFFFFF",
-                            border: "1px solid #E5E5E5",
+                            background: "#1E293B",
+                            border: "1px solid rgba(255,255,255,0.15)",
                             color: "#F1F5F9",
                             borderRadius: 4,
                             padding: "3px 6px",
@@ -349,8 +349,8 @@ export function AdvancesTab({ mode }: Props) {
                       <td style={tdStyle}>
                         <input
                           style={{
-                            background: "#FFFFFF",
-                            border: "1px solid #E5E5E5",
+                            background: "#1E293B",
+                            border: "1px solid rgba(255,255,255,0.15)",
                             color: "#F1F5F9",
                             borderRadius: 4,
                             padding: "3px 6px",
@@ -408,7 +408,7 @@ export function AdvancesTab({ mode }: Props) {
                             }}
                             className="text-xs px-2 py-1 rounded mr-1"
                             style={{
-                              background: "#FFFFFF",
+                              background: "rgba(255,127,17,0.15)",
                               color: "#FF7F11",
                               border: "1px solid #FF7F11",
                             }}

@@ -104,11 +104,12 @@ export default function App() {
   const [mode, setMode] = useState<AppMode>("view");
   const [screen, setScreen] = useState<Screen>("home");
   const [homeVisible, setHomeVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>("Attendance");
+  const [activeTab, setActiveTab] = useState<TabId>("Contracts");
   const [attendanceContractId, setAttendanceContractId] = useState<
     bigint | null
   >(null);
   const [exporting, setExporting] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const { actor } = useActor();
 
@@ -1172,6 +1173,86 @@ export default function App() {
             zIndex: 0,
           }}
         />
+        {/* Confirm Exit Dialog */}
+        {showExitConfirm && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 1000,
+              background: "rgba(0,0,0,0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              style={{
+                background: "#111827",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 16,
+                padding: 24,
+                maxWidth: 280,
+                width: "90%",
+                backdropFilter: "blur(12px)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#F1F5F9",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  marginBottom: 8,
+                }}
+              >
+                Exit to Login?
+              </div>
+              <div style={{ color: "#94A3B8", fontSize: 13, marginBottom: 20 }}>
+                You will be taken back to the login screen.
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExitConfirm(false);
+                    setScreen("home");
+                    setMode("view");
+                  }}
+                  style={{
+                    flex: 1,
+                    background: "#FF7F11",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 0",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: "pointer",
+                  }}
+                >
+                  Yes, Exit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowExitConfirm(false)}
+                  style={{
+                    flex: 1,
+                    background: "rgba(255,255,255,0.08)",
+                    color: "#F1F5F9",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 8,
+                    padding: "10px 0",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* 6pm Reminder Banner */}
         {showReminder && (
           <div
@@ -1221,7 +1302,7 @@ export default function App() {
             <button
               type="button"
               data-ocid="nav.home.button"
-              onClick={() => setScreen("home")}
+              onClick={() => setShowExitConfirm(true)}
               className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
               style={{ color: "rgba(255,255,255,0.5)" }}
             >

@@ -173,7 +173,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
   const inputStyle = {
     background: "#FFFFFF",
     border: "1px solid #E5E5E5",
-    color: "#F1F5F9",
+    color: "#1E293B",
     borderRadius: 6,
     padding: "6px 10px",
     width: "100%",

@@ -652,7 +652,7 @@ export function AttendanceTab({
               <div
                 key={stat.label}
                 style={{
-                  background: "#FFFFFF",
+                  background: "#111827",
                   border: "1px solid rgba(255,255,255,0.1)",
                   borderRadius: 10,
                   padding: "8px 14px",
@@ -961,7 +961,7 @@ export function AttendanceTab({
                           zIndex: 1,
                           minWidth: 140,
                           fontWeight: 700,
-                          color: "#0F172A",
+                          color: "#F1F5F9",
                         }}
                       >
                         {labour.name}
@@ -1375,7 +1375,7 @@ export function AttendanceTab({
                     textAlign: "center",
                     fontSize: 32,
                     fontWeight: 900,
-                    color: "#0F172A",
+                    color: "#F1F5F9",
                     lineHeight: 1.15,
                     marginBottom: 16,
                     letterSpacing: "-0.02em",

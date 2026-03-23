@@ -81,8 +81,8 @@ export function SettledTab({ mode }: Props) {
                 onClick={() => handleSettle(c.id)}
                 className="text-xs px-3 py-2 rounded-lg"
                 style={{
-                  background: "#FFFFFF",
-                  border: "1px solid #E5E5E5",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.2)",
                   color: "#F1F5F9",
                 }}
               >
@@ -116,7 +116,7 @@ export function SettledTab({ mode }: Props) {
               <tr
                 key={String(c.id)}
                 data-ocid={`settled.item.${i + 1}`}
-                style={{ background: i % 2 === 0 ? "#FFFFFF" : "#0D1626" }}
+                style={{ background: i % 2 === 0 ? "#111827" : "#0D1626" }}
               >
                 <td style={tdStyle}>{i + 1}</td>
                 <td

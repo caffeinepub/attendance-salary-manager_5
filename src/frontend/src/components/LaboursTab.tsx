@@ -77,7 +77,7 @@ export function LaboursTab({ mode }: Props) {
   const inputStyle = {
     background: "#FFFFFF",
     border: "1px solid #E5E5E5",
-    color: "#F1F5F9",
+    color: "#1E293B",
     borderRadius: 6,
     padding: "6px 10px",
     width: "100%",
@@ -208,7 +208,7 @@ export function LaboursTab({ mode }: Props) {
                 key={String(l.id)}
                 data-ocid={`labours.item.${i + 1}`}
                 style={{
-                  background: i % 2 === 0 ? "#FFFFFF" : "#0D1626",
+                  background: i % 2 === 0 ? "#111827" : "#0D1626",
                   opacity: l.id < 0n ? 0.6 : 1,
                 }}
               >
@@ -218,8 +218,8 @@ export function LaboursTab({ mode }: Props) {
                     <td style={tdStyle}>
                       <input
                         style={{
-                          background: "#FFFFFF",
-                          border: "1px solid #E5E5E5",
+                          background: "#1E293B",
+                          border: "1px solid rgba(255,255,255,0.15)",
                           color: "#F1F5F9",
                           borderRadius: 4,
                           padding: "3px 6px",
@@ -234,8 +234,8 @@ export function LaboursTab({ mode }: Props) {
                     <td style={tdStyle}>
                       <input
                         style={{
-                          background: "#FFFFFF",
-                          border: "1px solid #E5E5E5",
+                          background: "#1E293B",
+                          border: "1px solid rgba(255,255,255,0.15)",
                           color: "#F1F5F9",
                           borderRadius: 4,
                           padding: "3px 6px",
