@@ -1,28 +1,25 @@
 # Attendance & Salary Manager
 
 ## Current State
-App has dark aesthetic with orange accents. Several components have color mismatches: white backgrounds with near-white (`#F1F5F9`) text (invisible), or dark text on dark backgrounds in dialogs. The home button navigates to login without confirmation. App defaults to Attendance tab on open.
+The backend fully supports labour grouping (`Group` type, `labourGroups` map, `createGroup`, `deleteGroup`, `getAllGroups`, `createLabour`/`updateLabour` with `groupId`). The `Labour` type includes `groupId?: bigint`. However the frontend ignores all group functionality -- LaboursTab always passes `null` for groupId, and PaymentsTab has no group filter.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Confirm exit dialog when tapping Home button from app tabs screen
-- Confirm dialog: "Exit to Login?" with Yes/No buttons
+- **LaboursTab:** Group management section (edit mode only) -- create named groups, delete groups, view group members
+- **LaboursTab:** Each labour row shows its assigned group name (if any) as a badge
+- **LaboursTab:** When editing a labour, show a group dropdown to assign/unassign
+- **LaboursTab:** When creating a new labour, include group assignment dropdown
+- **PaymentsTab:** Group filter dropdown before calculation -- options: "All Labours" + each group name. Selecting a group filters which labours appear in payment calculation and table.
 
 ### Modify
-- **ContractsTab**: Fix `inputStyle` text color from `#F1F5F9` to `#1E293B` (dark text on white bg)
-- **AttendanceTab**: Fix stats cards background from `#FFFFFF` to dark (`#111827`); fix label color to be visible; fix labour name color in mark dialog from `#0F172A` to `#F1F5F9`; fix sticky labour column color (currently `#0F172A` dark text on `#0F1C2E` dark bg — change to `#F1F5F9`)
-- **AdvancesTab**: Remove white backgrounds from table rows (change even rows from `#FFFFFF` to `#111827`); fix `inputStyle` and select text color from `#F1F5F9` to `#1E293B`; fix contract column color `#666` to `#94A3B8`; remove white bg from contract filter select
-- **SettledTab**: Remove white backgrounds from table rows and settle buttons; use dark backgrounds
-- **App**: Default `activeTab` to `"Contracts"` instead of `"Attendance"`; add confirm exit dialog before going back to home
+- `LaboursTab.tsx`: Wire `createLabour`/`updateLabour` to pass selected `groupId` (or null)
+- `PaymentsTab.tsx`: Add group state; when a group is selected, filter labours list before calculating payments
 
 ### Remove
 - Nothing removed
 
 ## Implementation Plan
-1. Fix ContractsTab inputStyle color
-2. Fix AttendanceTab stats cards + mark dialog + sticky labour color
-3. Fix AdvancesTab table rows, inputs, selects
-4. Fix SettledTab table rows and buttons
-5. Change App default tab to Contracts
-6. Add confirm exit dialog in App home button
+1. In `LaboursTab.tsx`: Load groups on mount via `getAllGroups()`. Add group management panel (edit mode): input + "Create Group" button, list of groups with delete button. Add group badge to each labour row. Add group dropdown to add form and inline edit form. Pass groupId to `createLabour`/`updateLabour`.
+2. In `PaymentsTab.tsx`: Load groups on mount. Add a group filter dropdown (before or near the contract selector) -- "All Labours" and each group. When calculating, filter the `labours` array to only include those matching the selected groupId (or all if "All" selected).
+3. No backend changes needed.

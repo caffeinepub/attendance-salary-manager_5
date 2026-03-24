@@ -103,7 +103,7 @@ function parseCsvLine(line: string): string[] {
 export default function App() {
   const [mode, setMode] = useState<AppMode>("view");
   const [screen, setScreen] = useState<Screen>("home");
-  const [homeVisible, setHomeVisible] = useState(false);
+  const [homeVisible, setHomeVisible] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>("Contracts");
   const [attendanceContractId, setAttendanceContractId] = useState<
     bigint | null
@@ -157,10 +157,11 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (screen !== "app") return;
     if (mode === "view" && VIEW_ONLY_HIDDEN_TABS.includes(activeTab)) {
       setActiveTab("Attendance");
     }
-  }, [mode, activeTab]);
+  }, [mode, activeTab, screen]);
 
   // ----------- Export CSV -----------
   const handleExport = useCallback(async () => {
@@ -460,6 +461,7 @@ export default function App() {
           setShowAdminDialog(false);
           setMode("edit");
           setScreen("app");
+          setActiveTab("Contracts");
         } else {
           setAdminError("Credentials already set. Please log in.");
           setAdminDialogMode("enter");
@@ -477,6 +479,7 @@ export default function App() {
           setShowAdminDialog(false);
           setMode("edit");
           setScreen("app");
+          setActiveTab("Contracts");
         } else {
           setAdminError("Incorrect username or password.");
           setAdminPasswordInput("");

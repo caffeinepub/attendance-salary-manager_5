@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Attendance, Contract, Labour } from "../backend.d";
+import type { Attendance, Contract, Group, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,12 +40,16 @@ export function PaymentsTab() {
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [labours, setLabours] = useState<Labour[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<bigint | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [payments, setPayments] = useState<LabourPayment[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [contractDropOpen, setContractDropOpen] = useState(false);
   const contractDropRef = useRef<HTMLDivElement>(null);
+  const [groupDropOpen, setGroupDropOpen] = useState(false);
+  const groupDropRef = useRef<HTMLDivElement>(null);
 
   // Overview dialog state
   const [overviewOpen, setOverviewOpen] = useState(false);
@@ -58,6 +62,7 @@ export function PaymentsTab() {
   const [currentOverviewIndex, setCurrentOverviewIndex] = useState(0);
 
   useClickOutside(contractDropRef, () => setContractDropOpen(false));
+  useClickOutside(groupDropRef, () => setGroupDropOpen(false));
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a is derived from actor
   useEffect(() => {
@@ -68,6 +73,11 @@ export function PaymentsTab() {
     a.getAllLabours().then((ls: Labour[]) => {
       setLabours(ls);
     });
+    a.getAllGroups().then((gs: Group[]) =>
+      setGroups(
+        [...gs].sort((a: Group, b: Group) => a.name.localeCompare(b.name)),
+      ),
+    );
   }, [actor]);
 
   const toggleContract = (id: string) => {
@@ -85,7 +95,14 @@ export function PaymentsTab() {
     try {
       const labourMap = new Map<string, LabourPayment>();
 
-      for (const l of labours) {
+      const filteredLabours =
+        selectedGroupId !== null
+          ? labours.filter(
+              (l) => l.groupId !== undefined && l.groupId === selectedGroupId,
+            )
+          : labours;
+
+      for (const l of filteredLabours) {
         labourMap.set(String(l.id), {
           labourId: l.id,
           labourName: l.name,
@@ -119,7 +136,10 @@ export function PaymentsTab() {
         };
 
         const colSum = (colKey: string): number =>
-          labours.reduce((s, l) => s + attendanceNum(getVal(l.id, colKey)), 0);
+          filteredLabours.reduce(
+            (s, l) => s + attendanceNum(getVal(l.id, colKey)),
+            0,
+          );
 
         const meshTotal = contract.meshColumns.reduce((s, _, i) => {
           return s + colSum(`mesh_${i}`);
@@ -134,7 +154,7 @@ export function PaymentsTab() {
           advanceMap.set(lid, (advanceMap.get(lid) ?? 0) + Number(adv.amount));
         }
 
-        for (const l of labours) {
+        for (const l of filteredLabours) {
           const lid = String(l.id);
 
           const bedSum = colSum("bed");
@@ -569,6 +589,101 @@ export function PaymentsTab() {
                     </label>
                   );
                 })
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Group Filter Dropdown */}
+      <div style={{ marginBottom: 16 }}>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#94A3B8",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            marginBottom: 6,
+          }}
+        >
+          Filter by Group
+        </div>
+        <div ref={groupDropRef} style={{ position: "relative" }}>
+          <button
+            type="button"
+            data-ocid="payments.group.select"
+            onClick={() => setGroupDropOpen((v) => !v)}
+            style={dropTriggerStyle(groupDropOpen)}
+          >
+            <span
+              style={{
+                color: selectedGroupId === null ? "#94A3B8" : "#F97316",
+              }}
+            >
+              {selectedGroupId === null
+                ? "All Labours"
+                : (groups.find((g) => g.id === selectedGroupId)?.name ??
+                  "All Labours")}
+            </span>
+            {chevron(groupDropOpen)}
+          </button>
+          {groupDropOpen && (
+            <div style={dropPanelStyle}>
+              <div
+                style={labelStyle(selectedGroupId === null, "#F97316")}
+                onClick={() => {
+                  setSelectedGroupId(null);
+                  setGroupDropOpen(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setSelectedGroupId(null);
+                    setGroupDropOpen(false);
+                  }
+                }}
+              >
+                <span
+                  style={checkboxStyle(selectedGroupId === null, "#F97316")}
+                >
+                  {selectedGroupId === null ? "✓" : ""}
+                </span>
+                All Labours
+              </div>
+              {groups.map((g) => {
+                const isSelected = selectedGroupId === g.id;
+                return (
+                  <div
+                    key={String(g.id)}
+                    style={labelStyle(isSelected, "#F97316")}
+                    onClick={() => {
+                      setSelectedGroupId(g.id);
+                      setGroupDropOpen(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setSelectedGroupId(g.id);
+                        setGroupDropOpen(false);
+                      }
+                    }}
+                  >
+                    <span style={checkboxStyle(isSelected, "#F97316")}>
+                      {isSelected ? "✓" : ""}
+                    </span>
+                    {g.name}
+                  </div>
+                );
+              })}
+              {groups.length === 0 && (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    fontSize: 13,
+                    color: "#94A3B8",
+                  }}
+                >
+                  No groups created yet
+                </div>
               )}
             </div>
           )}
@@ -1132,7 +1247,7 @@ export function PaymentsTab() {
                     style={{
                       fontSize: 26,
                       fontWeight: 900,
-                      color: "#F1F5F9",
+                      color: "#0F172A",
                       textAlign: "center",
                       lineHeight: 1.2,
                       letterSpacing: "-0.01em",
