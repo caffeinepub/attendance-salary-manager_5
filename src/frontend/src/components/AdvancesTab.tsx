@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { AppMode } from "../App";
 import type { Advance, Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
@@ -72,6 +73,7 @@ export function AdvancesTab({ mode }: Props) {
       BigInt(Math.round(Number.parseFloat(addForm.amount))),
       addForm.note,
     );
+    toast.success("Advance added");
     setAddForm({ labourId: "", amount: "", note: "", contractId: "" });
     setShowAdd(false);
     await loadForContract(cId);
@@ -80,6 +82,7 @@ export function AdvancesTab({ mode }: Props) {
   const handleDelete = async (adv: Advance) => {
     // Optimistic UI update
     setAllAdvances((prev) => prev.filter((a) => a.id !== adv.id));
+    toast.success("Advance deleted");
     // Persist to backend
     try {
       await actor?.deleteAdvance(adv.id);
@@ -87,6 +90,7 @@ export function AdvancesTab({ mode }: Props) {
       console.error("Failed to delete advance", err);
       // Restore on failure
       setAllAdvances((prev) => [...prev, adv]);
+      toast.error("Failed to delete advance");
     }
   };
 
@@ -100,6 +104,7 @@ export function AdvancesTab({ mode }: Props) {
       ),
     );
     setEditingId(null);
+    toast.success("Advance updated");
     // Persist to backend
     try {
       await actor?.updateAdvance(adv.id, newAmount, newNote);
@@ -107,6 +112,7 @@ export function AdvancesTab({ mode }: Props) {
       console.error("Failed to update advance", err);
       // Restore original on failure
       setAllAdvances((prev) => prev.map((a) => (a.id === adv.id ? adv : a)));
+      toast.error("Failed to update advance");
     }
   };
 

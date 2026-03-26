@@ -83,6 +83,7 @@ export interface backendInterface {
     deleteAdvance(id: bigint): Promise<void>;
     deleteContract(id: bigint): Promise<void>;
     deleteGroup(id: bigint): Promise<void>;
+    deleteLabour(id: bigint): Promise<void>;
     getAdvancesByContract(contractId: bigint): Promise<Array<Advance>>;
     getAdvancesByLabour(labourId: bigint): Promise<Array<Advance>>;
     getAllAdvances(): Promise<Array<Advance>>;
@@ -102,4 +103,8 @@ export interface backendInterface {
     updateAdvance(id: bigint, amount: bigint, note: string): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;
     updateLabour(id: bigint, name: string, phone: string | null, groupId: bigint | null): Promise<void>;
+    hasAdminCredentials(): Promise<boolean>;
+    setAdminCredentials(token: string, password: string): Promise<boolean>;
+    verifyAdminCredentials(token: string, password: string): Promise<boolean>;
+    changeAdminCredentials(oldToken: string, oldPassword: string, newToken: string, newPassword: string): Promise<boolean>;
 }

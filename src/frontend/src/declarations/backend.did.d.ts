@@ -56,6 +56,7 @@ export interface Labour {
   'name' : string,
   'groupId' : [] | [bigint],
   'phone' : [] | [string],
+  'isActive' : boolean,
 }
 export interface SalaryBreakdown {
   'meshSalary' : bigint,
@@ -87,6 +88,7 @@ export interface _SERVICE {
   'deleteAdvance' : ActorMethod<[bigint], undefined>,
   'deleteContract' : ActorMethod<[bigint], undefined>,
   'deleteGroup' : ActorMethod<[bigint], undefined>,
+  'deleteLabour' : ActorMethod<[bigint], undefined>,
   'getAdvancesByContract' : ActorMethod<[bigint], Array<Advance>>,
   'getAdvancesByLabour' : ActorMethod<[bigint], Array<Advance>>,
   'getAllAdvances' : ActorMethod<[], Array<Advance>>,
@@ -101,6 +103,7 @@ export interface _SERVICE {
   'removeHoliday' : ActorMethod<[bigint, string], undefined>,
   'saveAttendance' : ActorMethod<[bigint, bigint, ColumnType, string], bigint>,
   'saveAttendanceNote' : ActorMethod<[bigint, bigint, string], bigint>,
+  'setLabourActive' : ActorMethod<[bigint, boolean], undefined>,
   'settleContract' : ActorMethod<[bigint], undefined>,
   'unsettleContract' : ActorMethod<[bigint], undefined>,
   'updateAdvance' : ActorMethod<[bigint, bigint, string], undefined>,

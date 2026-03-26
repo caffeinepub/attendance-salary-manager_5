@@ -1,4 +1,6 @@
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { AppMode } from "../App";
 import type { Contract } from "../backend.d";
 import { useActor } from "../hooks/useActor";
@@ -12,12 +14,19 @@ export function SettledTab({ mode }: Props) {
 
   const [settled, setSettled] = useState<Contract[]>([]);
   const [unsettled, setUnsettled] = useState<Contract[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState<bigint | null>(null);
 
   const load = async () => {
     if (!actor) return;
-    const all = (await actor.getAllContracts()) ?? [];
-    setSettled(all.filter((c) => c.isSettled));
-    setUnsettled(all.filter((c) => !c.isSettled));
+    setLoading(true);
+    try {
+      const all = (await actor.getAllContracts()) ?? [];
+      setSettled(all.filter((c) => c.isSettled));
+      setUnsettled(all.filter((c) => !c.isSettled));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: load captures actor from closure
@@ -25,21 +34,40 @@ export function SettledTab({ mode }: Props) {
     if (actor) load();
   }, [actor]);
 
-  const handleSettle = async (id: bigint) => {
-    await actor?.settleContract(id);
-    await load();
+  const handleSettle = async (c: Contract) => {
+    // Optimistic update
+    setUnsettled((prev) => prev.filter((x) => x.id !== c.id));
+    setSettled((prev) => [{ ...c, isSettled: true }, ...prev]);
+    setPendingId(c.id);
+    try {
+      await actor?.settleContract(c.id);
+      toast.success(`"${c.name}" marked as settled`);
+    } catch (_) {
+      // Revert
+      setSettled((prev) => prev.filter((x) => x.id !== c.id));
+      setUnsettled((prev) => [c, ...prev]);
+      toast.error("Failed to settle contract");
+    } finally {
+      setPendingId(null);
+    }
   };
 
-  const handleUnsettle = async (id: bigint) => {
-    await actor?.unsettleContract(id);
-    await load();
-  };
-
-  const handleDelete = async (id: bigint) => {
-    if (!confirm("Permanently delete this settled contract and all its data?"))
-      return;
-    await actor?.deleteContract(id);
-    await load();
+  const handleUnsettle = async (c: Contract) => {
+    // Optimistic update
+    setSettled((prev) => prev.filter((x) => x.id !== c.id));
+    setUnsettled((prev) => [{ ...c, isSettled: false }, ...prev]);
+    setPendingId(c.id);
+    try {
+      await actor?.unsettleContract(c.id);
+      toast.success(`"${c.name}" moved back to active`);
+    } catch (_) {
+      // Revert
+      setUnsettled((prev) => prev.filter((x) => x.id !== c.id));
+      setSettled((prev) => [c, ...prev]);
+      toast.error("Failed to unsettle contract");
+    } finally {
+      setPendingId(null);
+    }
   };
 
   const thStyle: React.CSSProperties = {
@@ -78,22 +106,39 @@ export function SettledTab({ mode }: Props) {
                 type="button"
                 key={String(c.id)}
                 data-ocid={`settled.mark.button.${unsettled.indexOf(c) + 1}`}
-                onClick={() => handleSettle(c.id)}
-                className="text-xs px-3 py-2 rounded-lg"
+                onClick={() => handleSettle(c)}
+                disabled={pendingId === c.id}
+                className="text-xs px-3 py-2 rounded-lg flex items-center gap-1"
                 style={{
                   background: "rgba(255,255,255,0.08)",
                   border: "1px solid rgba(255,255,255,0.2)",
-                  color: "#F1F5F9",
+                  color: pendingId === c.id ? "#64748B" : "#F1F5F9",
+                  opacity: pendingId === c.id ? 0.6 : 1,
+                  cursor: pendingId === c.id ? "not-allowed" : "pointer",
                 }}
               >
-                ✓ Settle "{c.name}"
+                {pendingId === c.id ? (
+                  <Loader2 size={11} className="animate-spin" />
+                ) : (
+                  "✓"
+                )}{" "}
+                Settle "{c.name}"
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {settled.length === 0 ? (
+      {loading && settled.length === 0 ? (
+        <div
+          data-ocid="settled.loading_state"
+          className="flex items-center gap-2 text-sm"
+          style={{ color: "#94A3B8" }}
+        >
+          <Loader2 size={15} className="animate-spin" />
+          Loading settled contracts…
+        </div>
+      ) : settled.length === 0 ? (
         <div
           data-ocid="settled.empty_state"
           style={{ color: "#94A3B8" }}
@@ -136,27 +181,21 @@ export function SettledTab({ mode }: Props) {
                     <button
                       type="button"
                       data-ocid={`settled.unsettle.button.${i + 1}`}
-                      onClick={() => handleUnsettle(c.id)}
-                      className="text-xs px-2 py-1 rounded mr-2"
+                      onClick={() => handleUnsettle(c)}
+                      disabled={pendingId === c.id}
+                      className="text-xs px-2 py-1 rounded flex items-center gap-1"
                       style={{
                         background: "transparent",
-                        color: "#FF7F11",
+                        color: pendingId === c.id ? "#64748B" : "#FF7F11",
                         border: "1px solid rgba(255,127,17,0.6)",
+                        opacity: pendingId === c.id ? 0.6 : 1,
+                        cursor: pendingId === c.id ? "not-allowed" : "pointer",
                       }}
                     >
+                      {pendingId === c.id ? (
+                        <Loader2 size={11} className="animate-spin" />
+                      ) : null}
                       Unsettle
-                    </button>
-                    <button
-                      type="button"
-                      data-ocid={`settled.delete.button.${i + 1}`}
-                      onClick={() => handleDelete(c.id)}
-                      className="text-xs px-2 py-1 rounded"
-                      style={{
-                        background: "rgba(220,38,38,0.15)",
-                        color: "#DC2626",
-                      }}
-                    >
-                      Delete
                     </button>
                   </td>
                 )}

@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Toaster } from "@/components/ui/sonner";
 import {
   CalendarCheck,
   CheckCircle,
@@ -1305,12 +1306,20 @@ export default function App() {
             <button
               type="button"
               data-ocid="nav.home.button"
-              onClick={() => setShowExitConfirm(true)}
+              onClick={() => {
+                if (activeTab === "Contracts") {
+                  setShowExitConfirm(true);
+                } else {
+                  setActiveTab("Contracts");
+                }
+              }}
               className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
               style={{ color: "rgba(255,255,255,0.5)" }}
             >
               <ChevronLeft size={18} />
-              <span className="text-xs">Home</span>
+              <span className="text-xs">
+                {activeTab === "Contracts" ? "Home" : "Back"}
+              </span>
             </button>
           </div>
 
@@ -1487,6 +1496,7 @@ export default function App() {
         </nav>
       </div>
 
+      <Toaster position="top-center" richColors />
       {/* Restore Confirm Dialog */}
       <Dialog
         open={showRestoreConfirm}

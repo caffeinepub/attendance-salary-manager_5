@@ -136,10 +136,7 @@ export function PaymentsTab() {
         };
 
         const colSum = (colKey: string): number =>
-          filteredLabours.reduce(
-            (s, l) => s + attendanceNum(getVal(l.id, colKey)),
-            0,
-          );
+          labours.reduce((s, l) => s + attendanceNum(getVal(l.id, colKey)), 0);
 
         const meshTotal = contract.meshColumns.reduce((s, _, i) => {
           return s + colSum(`mesh_${i}`);

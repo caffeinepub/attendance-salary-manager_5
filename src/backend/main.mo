@@ -26,6 +26,7 @@ actor {
     name : Text;
     phone : ?Text;
     groupId : ?Nat;
+    isActive : Bool;
   };
 
   type Contract = {
@@ -120,6 +121,7 @@ actor {
   // Persistent Maps
   let labours = Map.empty<Nat, LabourStorage>();
   let labourGroups = Map.empty<Nat, Nat>();
+  let labourActiveMap = Map.empty<Nat, Bool>();
   let groups = Map.empty<Nat, Group>();
   let contracts = Map.empty<Nat, Contract>();
   let attendances = Map.empty<Nat, Attendance>();
@@ -152,6 +154,7 @@ actor {
     labourCounter += 1;
     let labour : LabourStorage = { id; name; phone };
     labours.add(id, labour);
+    labourActiveMap.add(id, true);
     switch (groupId) {
       case (null) {};
       case (?gid) { labourGroups.add(id, gid) };
@@ -171,6 +174,19 @@ actor {
         };
       };
     };
+  };
+
+  public shared ({ caller }) func setLabourActive(id : Nat, active : Bool) : async () {
+    switch (labours.get(id)) {
+      case (null) { Runtime.trap("Labour not found") };
+      case (?_) { labourActiveMap.add(id, active) };
+    };
+  };
+
+  public shared ({ caller }) func deleteLabour(id : Nat) : async () {
+    labours.remove(id);
+    labourGroups.remove(id);
+    labourActiveMap.remove(id);
   };
 
   // Contract CRUD
@@ -428,6 +444,10 @@ actor {
         name = s.name;
         phone = s.phone;
         groupId = labourGroups.get(s.id);
+        isActive = switch (labourActiveMap.get(s.id)) {
+          case (null) { true };
+          case (?v) { v };
+        };
       }
     });
   };

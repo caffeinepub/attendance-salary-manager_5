@@ -1,7 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { AppMode } from "../App";
 import type { Contract } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+
+const LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
+
+function getTodayWorkingContractIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
+    if (!raw) return new Set();
+    const data: Record<string, string> = JSON.parse(raw);
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setHours(23, 0, 0, 0); // 11pm today
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const ids = new Set<string>();
+    for (const [id, ts] of Object.entries(data)) {
+      const t = new Date(ts);
+      if (t >= todayStart && t <= cutoff) {
+        ids.add(id);
+      }
+    }
+    return ids;
+  } catch (_) {
+    return new Set();
+  }
+}
 
 interface Props {
   mode: AppMode;
@@ -19,6 +45,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
   const [selected, setSelected] = useState<Contract | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
+  const todayWorkingIds = useMemo(() => getTodayWorkingContractIds(), []);
   const [adding, setAdding] = useState(false);
 
   const [form, setForm] = useState({
@@ -100,6 +127,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
       // Refresh to get real ID
       const all = await actor.getAllContracts();
       setContracts((all ?? []).filter((c) => !c.isSettled));
+      toast.success(`Contract "${form.name}" added`);
     } finally {
       setAdding(false);
     }
@@ -138,6 +166,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
       papO,
       editContract.meshColumns,
     );
+    toast.success(`Contract "${editForm.name}" updated`);
     setEditContract(null);
     if (selected?.id === editContract.id) {
       const updated = await actor?.getContract(editContract.id);
@@ -645,10 +674,35 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
               }}
               onClick={() => c.id >= 0n && setSelected(c)}
             >
-              <span className="font-medium" style={{ color: "#F1F5F9" }}>
-                {c.name}
-                {c.id < 0n ? " (saving…)" : ""}
-              </span>
+              <div className="flex flex-col gap-0.5 items-start">
+                <span className="font-medium" style={{ color: "#F1F5F9" }}>
+                  {c.name}
+                  {c.id < 0n ? " (saving…)" : ""}
+                </span>
+                {todayWorkingIds.has(String(c.id)) && (
+                  <span
+                    className="flex items-center gap-1 text-xs font-semibold"
+                    style={{
+                      color: "#22C55E",
+                      background: "rgba(34,197,94,0.12)",
+                      border: "1px solid rgba(34,197,94,0.25)",
+                      borderRadius: 8,
+                      padding: "1px 7px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: "#22C55E",
+                        display: "inline-block",
+                      }}
+                    />
+                    Working Today
+                  </span>
+                )}
+              </div>
               <span className="text-sm" style={{ color: "#FF7F11" }}>
                 ₹{fmt(c.contractAmount)}
               </span>

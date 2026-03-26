@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { AppMode } from "../App";
 import type { Group, Labour } from "../backend";
 import { useActor } from "../hooks/useActor";
@@ -22,12 +23,16 @@ export function LaboursTab({ mode }: Props) {
     groupId: "",
   });
   const [adding, setAdding] = useState(false);
+  const [togglingId, setTogglingId] = useState<bigint | null>(null);
 
   // Group management
   const [showGroups, setShowGroups] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [addingGroup, setAddingGroup] = useState(false);
   const [deletingGroupId, setDeletingGroupId] = useState<bigint | null>(null);
+  const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<
+    bigint | null
+  >(null);
 
   const loadAll = async () => {
     if (!actor) return;
@@ -52,7 +57,7 @@ export function LaboursTab({ mode }: Props) {
     if (!addForm.name.trim() || !actor) return;
     const name = addForm.name.trim();
     const phone = addForm.phone.trim() || null;
-    const groupId = addForm.groupId ? BigInt(addForm.groupId) : null;
+    const groupId = addForm.groupId !== "" ? BigInt(addForm.groupId) : null;
 
     const tempId = BigInt(-Date.now());
     const optimistic: Labour = {
@@ -70,6 +75,7 @@ export function LaboursTab({ mode }: Props) {
       await actor.createLabour(name, phone, groupId);
       const ls = await actor.getAllLabours();
       setLabours(ls);
+      toast.success(`Labour "${name}" added`);
     } catch (_) {
       setLabours((prev) => prev.filter((l) => l.id !== tempId));
     } finally {
@@ -80,13 +86,32 @@ export function LaboursTab({ mode }: Props) {
   const handleUpdate = async (id: bigint) => {
     if (!actor) return;
     const phone = editForm.phone.trim() || null;
-    const groupId = editForm.groupId ? BigInt(editForm.groupId) : null;
+    const groupId = editForm.groupId !== "" ? BigInt(editForm.groupId) : null;
     try {
       await actor.updateLabour(id, editForm.name.trim(), phone, groupId);
       setEditingId(null);
+      toast.success("Labour updated");
       await loadAll();
     } catch (_) {
       // ignore
+    }
+  };
+
+  const handleToggleActive = async (
+    id: bigint,
+    currentActive: boolean | undefined,
+  ) => {
+    if (!actor) return;
+    setTogglingId(id);
+    try {
+      const nextActive = !(currentActive !== false);
+      await actor.setLabourActive(id, nextActive);
+      toast.success(nextActive ? "Labour set active" : "Labour set inactive");
+      await loadAll();
+    } catch (_) {
+      // ignore
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -94,8 +119,10 @@ export function LaboursTab({ mode }: Props) {
     if (!newGroupName.trim() || !actor) return;
     setAddingGroup(true);
     try {
-      await actor.createGroup(newGroupName.trim());
+      const gName = newGroupName.trim();
+      await actor.createGroup(gName);
       setNewGroupName("");
+      toast.success(`Group "${gName}" created`);
       const gs = await actor.getAllGroups();
       setGroups([...gs].sort((a, b) => a.name.localeCompare(b.name)));
     } catch (_) {
@@ -107,9 +134,12 @@ export function LaboursTab({ mode }: Props) {
 
   const handleDeleteGroup = async (id: bigint) => {
     if (!actor) return;
+    const gName = groups.find((g) => g.id === id)?.name ?? "Group";
     setDeletingGroupId(id);
+    setConfirmDeleteGroupId(null);
     try {
       await actor.deleteGroup(id);
+      toast.success(`"${gName}" deleted`);
       await loadAll();
     } catch (_) {
       // ignore
@@ -119,9 +149,14 @@ export function LaboursTab({ mode }: Props) {
   };
 
   const getGroupName = (groupId?: bigint) => {
-    if (!groupId) return null;
+    if (groupId === undefined || groupId === null) return null;
     return groups.find((g) => g.id === groupId)?.name ?? null;
   };
+
+  const confirmGroup =
+    confirmDeleteGroupId !== null
+      ? groups.find((g) => g.id === confirmDeleteGroupId)
+      : null;
 
   const inputStyle = {
     background: "#FFFFFF",
@@ -164,6 +199,114 @@ export function LaboursTab({ mode }: Props) {
 
   return (
     <div>
+      {/* Delete Group Confirmation Dialog */}
+      {confirmDeleteGroupId !== null && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            style={{
+              background: "#0F172A",
+              border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: 16,
+              padding: "24px 20px",
+              maxWidth: 320,
+              width: "90%",
+              boxShadow: "0 0 40px rgba(239,68,68,0.15)",
+            }}
+          >
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: "rgba(239,68,68,0.15)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 12px",
+                }}
+              >
+                <Trash2 size={20} color="#EF4444" />
+              </div>
+              <h3
+                style={{
+                  color: "#F1F5F9",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  marginBottom: 6,
+                }}
+              >
+                Delete Group?
+              </h3>
+              <p style={{ color: "#94A3B8", fontSize: 13, lineHeight: 1.5 }}>
+                Are you sure you want to delete{" "}
+                <span style={{ color: "#F1F5F9", fontWeight: 600 }}>
+                  "{confirmGroup?.name}"
+                </span>
+                ? Labours in this group will be unassigned.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteGroupId(null)}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  borderRadius: 10,
+                  background: "rgba(255,255,255,0.07)",
+                  color: "#94A3B8",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteGroup(confirmDeleteGroupId)}
+                disabled={deletingGroupId === confirmDeleteGroupId}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  borderRadius: 10,
+                  background:
+                    deletingGroupId === confirmDeleteGroupId
+                      ? "#7F1D1D"
+                      : "#EF4444",
+                  color: "#fff",
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor:
+                    deletingGroupId === confirmDeleteGroupId
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {deletingGroupId === confirmDeleteGroupId
+                  ? "Deleting…"
+                  : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold" style={{ color: "#F1F5F9" }}>
           Labours
@@ -277,7 +420,7 @@ export function LaboursTab({ mode }: Props) {
                   <button
                     type="button"
                     data-ocid="labours.group.delete.button"
-                    onClick={() => handleDeleteGroup(g.id)}
+                    onClick={() => setConfirmDeleteGroupId(g.id)}
                     disabled={deletingGroupId === g.id}
                     className="p-1.5 rounded-md"
                     style={{
@@ -383,6 +526,7 @@ export function LaboursTab({ mode }: Props) {
               <th style={thStyle}>Name</th>
               <th style={thStyle}>Phone</th>
               <th style={thStyle}>Group</th>
+              <th style={thStyle}>Status</th>
               {mode === "edit" && <th style={thStyle}>Actions</th>}
             </tr>
           </thead>
@@ -404,7 +548,7 @@ export function LaboursTab({ mode }: Props) {
                 data-ocid={`labours.item.${i + 1}`}
                 style={{
                   background: i % 2 === 0 ? "#111827" : "#0D1626",
-                  opacity: l.id < 0n ? 0.6 : 1,
+                  opacity: l.isActive === false ? 0.5 : l.id < 0n ? 0.6 : 1,
                 }}
               >
                 <td style={tdStyle}>{i + 1}</td>
@@ -463,6 +607,9 @@ export function LaboursTab({ mode }: Props) {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td style={tdStyle}>
+                      {/* status placeholder in edit mode */}
                     </td>
                     <td style={tdStyle}>
                       <button
@@ -529,29 +676,100 @@ export function LaboursTab({ mode }: Props) {
                         </span>
                       )}
                     </td>
+                    <td style={tdStyle}>
+                      {l.isActive === false ? (
+                        <span
+                          style={{
+                            background: "rgba(148,163,184,0.15)",
+                            color: "#94A3B8",
+                            border: "1px solid rgba(148,163,184,0.25)",
+                            borderRadius: 12,
+                            padding: "2px 8px",
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Inactive
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            background: "rgba(34,197,94,0.15)",
+                            color: "#22C55E",
+                            border: "1px solid rgba(34,197,94,0.25)",
+                            borderRadius: 12,
+                            padding: "2px 8px",
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Active
+                        </span>
+                      )}
+                    </td>
                     {mode === "edit" && (
                       <td style={tdStyle}>
                         {l.id >= 0n && (
-                          <button
-                            type="button"
-                            data-ocid={`labours.edit.button.${i + 1}`}
-                            onClick={() => {
-                              setEditingId(l.id);
-                              setEditForm({
-                                name: l.name,
-                                phone: l.phone || "",
-                                groupId: l.groupId ? String(l.groupId) : "",
-                              });
-                            }}
-                            className="text-xs px-3 py-1 rounded"
-                            style={{
-                              background: "#FFFFFF",
-                              color: "#FF7F11",
-                              border: "1px solid #FF7F11",
-                            }}
-                          >
-                            Edit
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              data-ocid={`labours.edit.button.${i + 1}`}
+                              onClick={() => {
+                                setEditingId(l.id);
+                                setEditForm({
+                                  name: l.name,
+                                  phone: l.phone || "",
+                                  groupId:
+                                    l.groupId !== undefined
+                                      ? String(l.groupId)
+                                      : "",
+                                });
+                              }}
+                              className="text-xs px-3 py-1 rounded"
+                              style={{
+                                background: "#FFFFFF",
+                                color: "#FF7F11",
+                                border: "1px solid #FF7F11",
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              data-ocid={`labours.toggle.button.${i + 1}`}
+                              onClick={() =>
+                                handleToggleActive(l.id, l.isActive)
+                              }
+                              disabled={togglingId === l.id}
+                              className="text-xs px-2 py-1 rounded"
+                              style={{
+                                background:
+                                  l.isActive === false
+                                    ? "rgba(34,197,94,0.15)"
+                                    : "rgba(148,163,184,0.15)",
+                                color:
+                                  l.isActive === false ? "#22C55E" : "#94A3B8",
+                                border:
+                                  l.isActive === false
+                                    ? "1px solid rgba(34,197,94,0.25)"
+                                    : "1px solid rgba(148,163,184,0.25)",
+                                cursor:
+                                  togglingId === l.id
+                                    ? "not-allowed"
+                                    : "pointer",
+                                opacity: togglingId === l.id ? 0.6 : 1,
+                              }}
+                              title={
+                                l.isActive === false
+                                  ? "Set Active"
+                                  : "Set Inactive"
+                              }
+                            >
+                              {l.isActive === false
+                                ? "Set Active"
+                                : "Set Inactive"}
+                            </button>
+                          </div>
                         )}
                       </td>
                     )}

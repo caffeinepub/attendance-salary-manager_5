@@ -94,6 +94,7 @@ export interface Labour {
     name: string;
     groupId?: bigint;
     phone?: string;
+    isActive?: boolean;
 }
 export interface SalaryBreakdown {
     meshSalary: bigint;
@@ -165,6 +166,7 @@ export interface backendInterface {
     deleteAdvance(id: bigint): Promise<void>;
     deleteContract(id: bigint): Promise<void>;
     deleteGroup(id: bigint): Promise<void>;
+    deleteLabour(id: bigint): Promise<void>;
     getAdvancesByContract(contractId: bigint): Promise<Array<Advance>>;
     getAdvancesByLabour(labourId: bigint): Promise<Array<Advance>>;
     getAllAdvances(): Promise<Array<Advance>>;
@@ -184,6 +186,7 @@ export interface backendInterface {
     updateAdvance(id: bigint, amount: bigint, note: string): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;
     updateLabour(id: bigint, name: string, phone: string | null, groupId: bigint | null): Promise<void>;
+    setLabourActive(id: bigint, active: boolean): Promise<void>;
     hasAdminCredentials(): Promise<boolean>;
     setAdminCredentials(token: string, password: string): Promise<boolean>;
     verifyAdminCredentials(token: string, password: string): Promise<boolean>;
@@ -301,6 +304,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteGroup(arg0);
+            return result;
+        }
+    }
+    async deleteLabour(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteLabour(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteLabour(arg0);
             return result;
         }
     }
@@ -514,6 +531,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async setLabourActive(arg0: bigint, arg1: boolean): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setLabourActive(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setLabourActive(arg0, arg1);
+            return result;
+        }
+    }
     async unsettleContract(arg0: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -628,17 +659,20 @@ function from_candid_record_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint
     name: string;
     groupId: [] | [bigint];
     phone: [] | [string];
+    isActive: boolean;
 }): {
     id: bigint;
     name: string;
     groupId?: bigint;
     phone?: string;
+    isActive?: boolean;
 } {
     return {
         id: value.id,
         name: value.name,
         groupId: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.groupId)),
-        phone: record_opt_to_undefined(from_candid_opt_n8(_uploadFile, _downloadFile, value.phone))
+        phone: record_opt_to_undefined(from_candid_opt_n8(_uploadFile, _downloadFile, value.phone)),
+        isActive: value.isActive
     };
 }
 function from_candid_variant_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {

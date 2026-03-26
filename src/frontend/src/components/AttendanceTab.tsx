@@ -10,9 +10,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { AppMode } from "../App";
 import type { Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+
+const LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
+
+function markAttendanceToday(contractId: bigint) {
+  try {
+    const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
+    const data: Record<string, string> = raw ? JSON.parse(raw) : {};
+    data[String(contractId)] = new Date().toISOString();
+    localStorage.setItem(LAST_ATTENDANCE_KEY, JSON.stringify(data));
+  } catch (_) {}
+}
 
 interface Props {
   mode: AppMode;
@@ -320,6 +332,10 @@ export function AttendanceTab({
       }
       await Promise.all(saves);
       setDirtyKeys(new Set());
+      if (saves.length > 0) {
+        markAttendanceToday(selectedContractId);
+        toast.success("Attendance saved");
+      }
     } finally {
       setSaving(false);
     }
@@ -453,6 +469,7 @@ export function AttendanceTab({
           { __kind__: "bed", bed: null },
           val,
         );
+        markAttendanceToday(selectedContractId);
       } else if (colKey === "paper") {
         await actor.saveAttendance(
           selectedContractId,
