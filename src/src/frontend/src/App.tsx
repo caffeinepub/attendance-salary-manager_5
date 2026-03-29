@@ -950,7 +950,15 @@ export default function App() {
                   margin: 0,
                 }}
               >
-                Made with❤️ by Shiv
+                &copy; {new Date().getFullYear()}.{" "}
+                <a
+                  href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "#FF7F11" }}
+                >
+                  caffeine.ai
+                </a>
               </p>
             </div>
           </div>
@@ -1532,8 +1540,8 @@ export default function App() {
       </div>
 
       <Toaster
-        position="top-center"
-        offset={8}
+        position="bottom-center"
+        offset={mode === "view" ? 8 : 64}
         toastOptions={{
           style: {
             background: "rgba(15,23,42,0.5)",
