@@ -49,19 +49,13 @@ type Screen = "home" | "app";
 
 const TABS = [
   { id: "Contracts", label: "Contracts", short: "Contracts", icon: FileText },
-  {
-    id: "Attendance",
-    label: "Attendance",
-    short: "Attend",
-    icon: CalendarCheck,
-  },
   { id: "Advances", label: "Advances", short: "Advances", icon: TrendingDown },
   { id: "Payments", label: "Payments", short: "Pay", icon: CreditCard },
   { id: "Labours", label: "Labours", short: "Labour", icon: Users },
   { id: "Settled", label: "Settled", short: "Settled", icon: CheckCircle },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
+type TabId = (typeof TABS)[number]["id"] | "Attendance";
 
 const VIEW_ONLY_HIDDEN_TABS: TabId[] = [
   "Contracts",
@@ -72,6 +66,7 @@ const VIEW_ONLY_HIDDEN_TABS: TabId[] = [
 ];
 
 const REMINDER_KEY = "attendpay_reminder_date";
+const REMEMBER_DEVICE_KEY = "attendpay_remember_device";
 
 function getTodayStr(): string {
   const d = new Date();
@@ -139,10 +134,25 @@ export default function App() {
   const [attendanceContractId, setAttendanceContractId] = useState<
     bigint | null
   >(null);
+  const [viewModeSelectedContract, setViewModeSelectedContract] =
+    useState(false);
+  const [triggerClearViewContract, setTriggerClearViewContract] = useState(0);
   const [exporting, setExporting] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const { actor } = useActor();
+  const [appReady, setAppReady] = useState(false);
+  const [appReadyDom, setAppReadyDom] = useState(false);
+
+  // App loading screen
+  useEffect(() => {
+    if (actor && !appReady) {
+      const t = setTimeout(() => {
+        setAppReady(true);
+        setTimeout(() => setAppReadyDom(true), 600);
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [actor, appReady]);
 
   // Home screen fade-in
   useEffect(() => {
@@ -164,6 +174,7 @@ export default function App() {
   const [adminPasswordConfirm, setAdminPasswordConfirm] = useState("");
   const [adminError, setAdminError] = useState("");
   const [adminLoading, setAdminLoading] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [changeOldToken, setChangeOldToken] = useState("");
   const [changeOldPassword, setChangeOldPassword] = useState("");
   const [changeNewToken, setChangeNewToken] = useState("");
@@ -174,6 +185,7 @@ export default function App() {
   const [restoring, setRestoring] = useState(false);
   const [importing, setImporting] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [pendingRestoreData, setPendingRestoreData] = useState<Record<
     string,
     unknown
@@ -447,10 +459,19 @@ export default function App() {
   // ----------- Admin credential logic -----------
   const handleWelcomeTap = async () => {
     if (!actor) return;
+    // Check if device is remembered
+    const remembered = localStorage.getItem(REMEMBER_DEVICE_KEY) === "true";
+    if (remembered) {
+      setMode("edit");
+      setScreen("app");
+      setActiveTab("Contracts");
+      return;
+    }
     setAdminTokenInput("");
     setAdminPasswordInput("");
     setAdminPasswordConfirm("");
     setAdminError("");
+    setRememberDevice(false);
     // Open dialog immediately with a loading state
     setAdminDialogChecking(true);
     setAdminDialogMode("enter"); // default; will be updated after check
@@ -507,6 +528,9 @@ export default function App() {
           adminPasswordInput,
         );
         if (ok) {
+          if (rememberDevice) {
+            localStorage.setItem(REMEMBER_DEVICE_KEY, "true");
+          }
           setShowAdminDialog(false);
           setMode("edit");
           setScreen("app");
@@ -1112,6 +1136,27 @@ export default function App() {
                     {adminError}
                   </p>
                 )}
+                {adminDialogMode === "enter" && (
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      color: "#64748B",
+                      userSelect: "none",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={rememberDevice}
+                      onChange={(e) => setRememberDevice(e.target.checked)}
+                      style={{ accentColor: "#F97316", width: 15, height: 15 }}
+                    />
+                    Remember this device
+                  </label>
+                )}
               </div>
             )}
 
@@ -1149,6 +1194,106 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      {/* App Loading Screen */}
+      {!appReadyDom && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "#0B1120",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: appReady ? 0 : 1,
+            transition: "opacity 0.5s ease",
+            pointerEvents: appReady ? "none" : "auto",
+          }}
+        >
+          {/* Orange glow blob */}
+          <div
+            style={{
+              position: "absolute",
+              top: "-80px",
+              right: "-80px",
+              width: 360,
+              height: 360,
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(255,127,17,0.22) 0%, transparent 70%)",
+              filter: "blur(40px)",
+              pointerEvents: "none",
+            }}
+          />
+          {/* App icon with pulse */}
+          <div style={{ position: "relative", marginBottom: 28 }}>
+            <div
+              style={{
+                position: "absolute",
+                inset: "-14px",
+                borderRadius: "40px",
+                background:
+                  "radial-gradient(circle, rgba(255,127,17,0.5) 0%, transparent 70%)",
+                filter: "blur(18px)",
+                animation: "pulse-glow 2s ease-in-out infinite",
+              }}
+            />
+            <div
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 30,
+                background: "linear-gradient(135deg, #FF7F11 0%, #EA580C 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow:
+                  "0 0 0 1px rgba(255,127,17,0.4), 0 12px 40px rgba(255,127,17,0.5)",
+                position: "relative",
+              }}
+            >
+              <CalendarCheck size={48} color="#FFFFFF" strokeWidth={2.2} />
+            </div>
+          </div>
+          <h1
+            style={{
+              fontSize: 24,
+              fontWeight: 800,
+              color: "#FFFFFF",
+              margin: 0,
+              letterSpacing: "-0.02em",
+              textAlign: "center",
+            }}
+          >
+            Attendance &amp; Salary
+          </h1>
+          <p
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#FF7F11",
+              margin: "4px 0 0",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}
+          >
+            Manager
+          </p>
+          <div style={{ marginTop: 36 }}>
+            <Loader2
+              size={28}
+              className="animate-spin"
+              style={{ color: "#FF7F11" }}
+            />
+          </div>
+          <style>
+            {
+              "@keyframes pulse-glow { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }"
+            }
+          </style>
+        </div>
+      )}
       {/* Hidden file inputs */}
       <input
         ref={restoreInputRef}
@@ -1202,86 +1347,7 @@ export default function App() {
             zIndex: 0,
           }}
         />
-        {/* Confirm Exit Dialog */}
-        {showExitConfirm && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 1000,
-              background: "rgba(0,0,0,0.7)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              style={{
-                background: "#111827",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 16,
-                padding: 24,
-                maxWidth: 280,
-                width: "90%",
-                backdropFilter: "blur(12px)",
-              }}
-            >
-              <div
-                style={{
-                  color: "#F1F5F9",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  marginBottom: 8,
-                }}
-              >
-                Exit to Login?
-              </div>
-              <div style={{ color: "#94A3B8", fontSize: 13, marginBottom: 20 }}>
-                You will be taken back to the login screen.
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowExitConfirm(false);
-                    setScreen("home");
-                    setMode("view");
-                  }}
-                  style={{
-                    flex: 1,
-                    background: "#FF7F11",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "10px 0",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    cursor: "pointer",
-                  }}
-                >
-                  Yes, Exit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowExitConfirm(false)}
-                  style={{
-                    flex: 1,
-                    background: "rgba(255,255,255,0.08)",
-                    color: "#F1F5F9",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    borderRadius: 8,
-                    padding: "10px 0",
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+
         {/* 6pm Reminder Banner */}
         {showReminder && (
           <div
@@ -1325,75 +1391,90 @@ export default function App() {
             borderBottom: "1px solid rgba(255,255,255,0.1)",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
+            position: "relative",
           }}
         >
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              data-ocid="nav.home.button"
-              onClick={() => {
-                if (mode === "view") {
-                  setScreen("home");
-                } else if (activeTab === "Contracts") {
-                  setShowExitConfirm(true);
-                } else {
-                  setActiveTab("Contracts");
-                }
+          {/* Maaya - centered in header */}
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+              pointerEvents: "none",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 22,
+                fontWeight: 900,
+                background: "linear-gradient(90deg, #FF7F11, #FBBF24, #FF7F11)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                letterSpacing: "0.04em",
               }}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
-              style={{ color: "rgba(255,255,255,0.5)" }}
             >
-              {mode === "view" ? <Home size={18} /> : <ChevronLeft size={18} />}
-              <span className="text-xs">
-                {mode === "view"
-                  ? "Home"
-                  : activeTab === "Contracts"
-                    ? "Home"
-                    : "Back"}
-              </span>
-            </button>
+              Maaya
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{
-                  background:
-                    mode === "edit" ? "#FF7F11" : "rgba(255,255,255,0.3)",
-                }}
-              />
-              <span
-                className="text-xs font-medium"
-                style={{
-                  color: mode === "edit" ? "#FF7F11" : "rgba(255,255,255,0.4)",
-                }}
-              >
-                {mode === "edit" ? "Edit Mode" : "View Mode"}
-              </span>
-            </div>
-
-            {/* Export CSV */}
-            <button
-              type="button"
-              data-ocid="header.export_csv.button"
-              onClick={handleExport}
-              disabled={exporting || !actor}
-              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95 disabled:opacity-50"
-              style={{
-                background: "rgba(255,127,17,0.12)",
-                color: "#FF7F11",
-                border: "1px solid rgba(255,127,17,0.3)",
-              }}
-              title="Export CSV"
-            >
-              {exporting ? (
-                <Loader2 size={15} className="animate-spin" />
+            {mode === "edit" ? (
+              activeTab !== "Contracts" ? (
+                <button
+                  type="button"
+                  data-ocid="nav.back.button"
+                  onClick={() => setActiveTab("Contracts")}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  <ChevronLeft size={18} />
+                  <span className="text-xs">Back</span>
+                </button>
               ) : (
-                <Download size={15} />
-              )}
-            </button>
+                <button
+                  type="button"
+                  data-ocid="nav.home.button"
+                  onClick={() => setShowExitConfirm(true)}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  <Home size={18} />
+                  <span className="text-xs">Home</span>
+                </button>
+              )
+            ) : viewModeSelectedContract ? (
+              <button
+                type="button"
+                data-ocid="nav.back.button"
+                onClick={() => {
+                  setTriggerClearViewContract((prev) => prev + 1);
+                  setViewModeSelectedContract(false);
+                }}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
+                <ChevronLeft size={18} />
+                <span className="text-xs">Back</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                data-ocid="nav.home.button"
+                onClick={() => {
+                  setScreen("home");
+                  setMode("view");
+                }}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
+                <Home size={18} />
+                <span className="text-xs">Home</span>
+              </button>
+            )}
+          </div>
 
+          <div className="flex items-center gap-2">
             {/* Edit mode menu */}
             {mode === "edit" && (
               <DropdownMenu>
@@ -1463,6 +1544,18 @@ export default function App() {
                     <Lock size={14} />
                     Change Admin Password
                   </DropdownMenuItem>
+                  {localStorage.getItem(REMEMBER_DEVICE_KEY) === "true" && (
+                    <DropdownMenuItem
+                      data-ocid="header.forget_device.button"
+                      onClick={() => {
+                        localStorage.removeItem(REMEMBER_DEVICE_KEY);
+                      }}
+                      style={{ gap: 8, cursor: "pointer", color: "#EF4444" }}
+                    >
+                      <X size={14} />
+                      Forget This Device
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -1474,13 +1567,27 @@ export default function App() {
           className={`flex-1 overflow-auto p-3 ${mode === "edit" ? "pb-24" : "pb-4"}`}
         >
           {activeTab === "Contracts" && (
-            <ContractsTab mode={mode} onViewAttendance={handleViewAttendance} />
+            <ContractsTab
+              mode={mode}
+              onViewAttendance={handleViewAttendance}
+              onGoHome={() => {
+                if (mode === "edit") setShowExitConfirm(true);
+                else {
+                  setScreen("home");
+                  setMode("view");
+                }
+              }}
+            />
           )}
           {activeTab === "Attendance" && (
             <AttendanceTab
               mode={mode}
               initialContractId={attendanceContractId}
               onContractIdConsumed={() => setAttendanceContractId(null)}
+              onViewModeContractSelected={(selected) =>
+                setViewModeSelectedContract(selected)
+              }
+              triggerClearViewContract={triggerClearViewContract}
             />
           )}
           {activeTab === "Advances" && <AdvancesTab mode={mode} />}
@@ -1544,6 +1651,67 @@ export default function App() {
           },
         }}
       />
+
+      {/* Exit Confirm Dialog */}
+      <Dialog
+        open={showExitConfirm}
+        onOpenChange={(open) => {
+          if (!open) setShowExitConfirm(false);
+        }}
+      >
+        <DialogContent
+          data-ocid="exit.confirm.dialog"
+          style={{ maxWidth: 360, borderRadius: 16 }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: "#F1F5F9" }}>
+              Exit to Home?
+            </DialogTitle>
+          </DialogHeader>
+          <p style={{ color: "#94A3B8", fontSize: 14, margin: "8px 0 16px" }}>
+            Are you sure you want to leave and go back to the login screen?
+          </p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              data-ocid="exit.cancel_button"
+              onClick={() => setShowExitConfirm(false)}
+              style={{
+                background: "#1E293B",
+                color: "#94A3B8",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+                padding: "8px 18px",
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              data-ocid="exit.confirm_button"
+              onClick={() => {
+                setShowExitConfirm(false);
+                setScreen("home");
+                setMode("view");
+              }}
+              style={{
+                background: "#FF7F11",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "8px 18px",
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 700,
+              }}
+            >
+              Exit
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Restore Confirm Dialog */}
       <Dialog
         open={showRestoreConfirm}

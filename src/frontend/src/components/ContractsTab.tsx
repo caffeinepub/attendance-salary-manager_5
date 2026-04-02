@@ -6,47 +6,53 @@ import { useActor } from "../hooks/useActor";
 
 const LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
 
-function getTodayWorkingContractIds(): Set<string> {
+function getTodayWorkingData(): Map<string, number> {
+  const result = new Map<string, number>();
   try {
     const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
-    if (!raw) return new Set();
-    const data: Record<string, string> = JSON.parse(raw);
+    if (!raw) return result;
+    const data = JSON.parse(raw) as Record<
+      string,
+      { ts: string; count: number } | string
+    >;
     const now = new Date();
     const cutoff = new Date(now);
-    cutoff.setHours(23, 0, 0, 0); // 11pm today
+    cutoff.setHours(23, 0, 0, 0);
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
-    const ids = new Set<string>();
-    for (const [id, ts] of Object.entries(data)) {
-      const t = new Date(ts);
-      if (t >= todayStart && t <= cutoff) {
-        ids.add(id);
-      }
+    for (const [id, val] of Object.entries(data)) {
+      const entry = typeof val === "string" ? { ts: val, count: 0 } : val;
+      const t = new Date(entry.ts);
+      if (t >= todayStart && t <= cutoff) result.set(id, entry.count);
     }
-    return ids;
-  } catch (_) {
-    return new Set();
-  }
+  } catch (_) {}
+  return result;
 }
 
 interface Props {
   mode: AppMode;
   onViewAttendance?: (contractId: bigint) => void;
+  onGoHome?: () => void;
 }
 
 function fmt(n: bigint) {
   return Number(n).toLocaleString();
 }
 
-export function ContractsTab({ mode, onViewAttendance }: Props) {
+export function ContractsTab({
+  mode,
+  onViewAttendance,
+  onGoHome: _onGoHome,
+}: Props) {
   const { actor } = useActor();
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [selected, setSelected] = useState<Contract | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const todayWorkingIds = useMemo(() => getTodayWorkingContractIds(), []);
+  const todayWorkingData = useMemo(() => getTodayWorkingData(), []);
   const [adding, setAdding] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -147,6 +153,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
 
   const handleUpdate = async () => {
     if (!editContract) return;
+    setUpdating(true);
     const m = Number.parseFloat(editForm.multiplier) || 0;
     const ca = Number.parseFloat(editForm.amount) || 0;
     const me = Number.parseFloat(editForm.machineExp) || 0;
@@ -173,10 +180,12 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
       setSelected(updated ?? null);
     }
     await load();
+    setUpdating(false);
   };
 
   const handleSaveAmounts = async () => {
     if (!selected) return;
+    setUpdating(true);
     const bedO = editBed
       ? BigInt(Math.round(Number.parseFloat(editBed)))
       : null;
@@ -197,6 +206,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
     setSelected(updated ?? null);
     setEditingAmounts(false);
     await load();
+    setUpdating(false);
   };
 
   const inputStyle = {
@@ -339,10 +349,15 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
                     type="button"
                     data-ocid="contract.saveamounts.button"
                     onClick={handleSaveAmounts}
+                    disabled={updating}
                     className="text-xs px-3 py-1 rounded"
-                    style={{ background: "#FF7F11", color: "#fff" }}
+                    style={{
+                      background: updating ? "#334155" : "#FF7F11",
+                      color: updating ? "#64748B" : "#fff",
+                      cursor: updating ? "not-allowed" : "pointer",
+                    }}
                   >
-                    Save
+                    {updating ? "Saving…" : "Save"}
                   </button>
                   <button
                     type="button"
@@ -513,10 +528,15 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
               type="button"
               data-ocid="contract.update.submit.button"
               onClick={handleUpdate}
+              disabled={updating}
               className="py-2 rounded font-semibold"
-              style={{ background: "#FF7F11", color: "#fff" }}
+              style={{
+                background: updating ? "#334155" : "#FF7F11",
+                color: updating ? "#64748B" : "#fff",
+                cursor: updating ? "not-allowed" : "pointer",
+              }}
             >
-              Update Contract
+              {updating ? "Updating…" : "Update Contract"}
             </button>
           </div>
         </div>
@@ -527,6 +547,7 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2" />
         <h2 className="text-lg font-bold" style={{ color: "#F1F5F9" }}>
           Contracts
         </h2>
@@ -679,29 +700,36 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
                   {c.name}
                   {c.id < 0n ? " (saving…)" : ""}
                 </span>
-                {todayWorkingIds.has(String(c.id)) && (
-                  <span
-                    className="flex items-center gap-1 text-xs font-semibold"
-                    style={{
-                      color: "#22C55E",
-                      background: "rgba(34,197,94,0.12)",
-                      border: "1px solid rgba(34,197,94,0.25)",
-                      borderRadius: 8,
-                      padding: "1px 7px",
-                    }}
-                  >
+                {(() => {
+                  const wd = todayWorkingData.get(String(c.id));
+                  const count =
+                    typeof wd === "object"
+                      ? (wd as { count: number }).count
+                      : (wd as number | undefined);
+                  return count && count > 0 ? (
                     <span
+                      className="flex items-center gap-1 text-xs font-semibold"
                       style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: "#22C55E",
-                        display: "inline-block",
+                        color: "#22C55E",
+                        background: "rgba(34,197,94,0.12)",
+                        border: "1px solid rgba(34,197,94,0.25)",
+                        borderRadius: 8,
+                        padding: "1px 7px",
                       }}
-                    />
-                    Working Today
-                  </span>
-                )}
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: "#22C55E",
+                          display: "inline-block",
+                        }}
+                      />
+                      Working Today · {count} labours
+                    </span>
+                  ) : null;
+                })()}
               </div>
               <span className="text-sm" style={{ color: "#FF7F11" }}>
                 ₹{fmt(c.contractAmount)}

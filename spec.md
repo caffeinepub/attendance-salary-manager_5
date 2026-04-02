@@ -1,33 +1,58 @@
 # Attendance & Salary Manager
 
 ## Current State
-App has 6 tabs (Contracts, Attendance, Advances, Payments, Labours, Settled). Labour group delete confirmation dialog already exists. SettledTab fetches all contracts on render (causes flash of empty state). Settle/Unsettle calls `await load()` after each action (slow). Header always shows "Home" button with exit confirm dialog. Attendance records have no timestamp fields.
+- Header: left side has a Back button (visible only in edit mode on non-Contracts tabs). Right side has mode indicator (Edit/View Mode dot+label), Export CSV (Download icon) button, and edit mode dropdown menu.
+- Home button exists in the ContractsTab component itself (inside the tab content).
+- View mode: no back button. After selecting a contract in AttendanceTab, the contract name is shown in small header text.
+- Header shows "Edit Mode" / "View Mode" text indicator with dot.
+- AdvancesTab has no saving status indicator.
+- Download/Export CSV button is always visible in header.
+- Working today badge shows count from workingCount calculation that checks ALL columns (any non-Absent, non-empty value).
+- Working today badge shows even if count is 0.
+- No "Maaya" branding text in header.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Toast notifications (using Sonner) for all data changes: contract add/edit, labour add/edit/toggle, group add/delete, advance add/edit/delete, settle/unsettle, attendance mark
-- "Today working" indicator badge on contract list items in Contracts tab — a contract is "working today" if attendance was last saved for it today before 11pm; stored in localStorage key `attendpay_last_attendance` as `{contractId: isoTimestamp}`
-- Toaster component to index/App
+- Large gradient "Maaya" text centered in the header (bold, gradient orange-to-amber colors).
+- Home button in the header left side (for both edit and view mode, replacing the current back/home buttons in the ContractsTab and showing in header at appropriate times).
+- Back button in view mode (in header, when a contract is selected in AttendanceTab view mode).
+- Contract name displayed in large text at top of attendance view when a specific contract is selected in view mode.
+- Saving status indicator in AdvancesTab when saving an advance.
 
 ### Modify
-- **SettledTab**: Show loading spinner immediately; optimistic updates for settle/unsettle (update state before backend call instead of calling `load()` after). Pass settled/unsettled contracts from App.tsx via props to avoid redundant fetch and eliminate empty flash.
-- **ContractsTab**: Show "Working Today" green dot/badge on contracts that have today attendance (read from localStorage). Accept `todayWorkingContractIds` prop.
-- **App.tsx header button**: On Contracts tab → "Home" with exit confirm (existing). On any other tab → show "Back" label, clicking it goes to Contracts tab directly without confirm dialog.
-- **AttendanceTab**: After saving attendance, write to localStorage `attendpay_last_attendance` with `{contractId: timestamp}`. Emit toast on attendance save.
-- **LaboursTab**: Emit toast on add labour, update labour, toggle active, add group, delete group.
-- **AdvancesTab**: Emit toast on add/edit/delete advance.
-- **SettledTab**: Emit toast on settle/unsettle.
+- Remove "Edit Mode" / "View Mode" text label and dot indicator from header.
+- Remove Download (Export CSV) button from header (keep it in the edit mode dropdown menu or remove entirely from header — the button should not be visible in the header).
+- Working today badge: hide if labourCount === 0; show only when count > 0.
+- Working today labour count: calculate from the SINGLE column that had the LAST attendance change (not all columns). Specifically, count non-Absent, non-empty values in only that one column.
+- Home button position: move from inside ContractsTab to the header. In edit mode: show on all tabs (navigates to Contracts tab, or shows exit confirm from Contracts tab). In view mode: show always (navigates home/login).
+- Back button in view mode in header when a contract is selected in AttendanceTab.
 
 ### Remove
-- `await load()` calls after settle/unsettle in SettledTab (replaced with optimistic updates)
+- "Edit Mode" / "View Mode" mode indicator from header.
+- Download/Export CSV button from header.
+- Home button from inside ContractsTab content area.
 
 ## Implementation Plan
-1. Add `<Toaster />` to App.tsx and import `toast` from sonner wherever needed
-2. Modify App.tsx header button: if activeTab === 'Contracts' show Home+exitConfirm, else show Back+setActiveTab('Contracts')
-3. Modify SettledTab: accept contracts as props, do optimistic updates, add toast calls
-4. Modify ContractsTab: accept `todayWorkingContractIds: Set<string>` prop, show badge
-5. Modify App.tsx: pass contracts state to SettledTab; load contracts once in App state
-6. Modify AttendanceTab: write localStorage on attendance save, add toast
-7. Modify LaboursTab: add toast calls
-8. Modify AdvancesTab: add toast calls
+1. **App.tsx header**: 
+   - Remove the mode indicator (dot + text).
+   - Remove the Export CSV/Download button from header (keep the export functionality accessible from the dropdown menu).
+   - Add "Maaya" large gradient text centered in the header using absolute positioning.
+   - Move Home button logic to the header left side: in edit mode show Back/Home based on tab; in view mode, show Home button always plus a Back button when attendanceContractId is set.
+   - Pass a callback to AttendanceTab for when user wants to go back (clear selectedContractId in view mode).
+
+2. **AttendanceTab.tsx**:
+   - Accept an `onBack` prop.
+   - When in view mode with a selected contract, show the contract name in large text at the top.
+   - Call `onBack` from the header back button (already handled in App.tsx header, but AttendanceTab needs to expose a way to clear selection OR App.tsx passes a prop to trigger deselection).
+   - Fix working count: store the last-changed column key in `markAttendanceToday`, and count non-Absent values only in that specific column.
+
+3. **ContractsTab.tsx**:
+   - Remove the Home button from inside the tab content.
+
+4. **AdvancesTab.tsx**:
+   - Add a `savingAdvance` state and show a saving indicator (spinner + "Saving..." text) when an advance is being created/edited/deleted.
+
+5. **Working today badge** (ContractsTab.tsx + getTodayWorkingData in AttendanceTab.tsx):
+   - Store the last changed column key alongside the count.
+   - Don't show badge if count is 0.

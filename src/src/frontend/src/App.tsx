@@ -73,6 +73,7 @@ const VIEW_ONLY_HIDDEN_TABS: TabId[] = [
 
 const REMINDER_KEY = "attendpay_reminder_date";
 
+const REMEMBER_ADMIN_KEY = "attendpay_remember_admin";
 function getTodayStr(): string {
   const d = new Date();
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
@@ -164,6 +165,7 @@ export default function App() {
   const [adminPasswordConfirm, setAdminPasswordConfirm] = useState("");
   const [adminError, setAdminError] = useState("");
   const [adminLoading, setAdminLoading] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [changeOldToken, setChangeOldToken] = useState("");
   const [changeOldPassword, setChangeOldPassword] = useState("");
   const [changeNewToken, setChangeNewToken] = useState("");
@@ -447,10 +449,19 @@ export default function App() {
   // ----------- Admin credential logic -----------
   const handleWelcomeTap = async () => {
     if (!actor) return;
+    // Check if device is remembered - auto-login without credentials
+    const rememberedToken = localStorage.getItem(REMEMBER_ADMIN_KEY);
+    if (rememberedToken) {
+      setMode("edit");
+      setScreen("app");
+      setActiveTab("Contracts");
+      return;
+    }
     setAdminTokenInput("");
     setAdminPasswordInput("");
     setAdminPasswordConfirm("");
     setAdminError("");
+    setRememberDevice(false);
     // Open dialog immediately with a loading state
     setAdminDialogChecking(true);
     setAdminDialogMode("enter"); // default; will be updated after check
@@ -464,6 +475,10 @@ export default function App() {
     } finally {
       setAdminDialogChecking(false);
     }
+  };
+
+  const handleForgetDevice = () => {
+    localStorage.removeItem(REMEMBER_ADMIN_KEY);
   };
 
   const handleAdminSubmit = async () => {
@@ -507,6 +522,11 @@ export default function App() {
           adminPasswordInput,
         );
         if (ok) {
+          if (rememberDevice) {
+            const token =
+              Math.random().toString(36).substring(2) + Date.now().toString(36);
+            localStorage.setItem(REMEMBER_ADMIN_KEY, token);
+          }
           setShowAdminDialog(false);
           setMode("edit");
           setScreen("app");
@@ -1112,6 +1132,32 @@ export default function App() {
                     />
                   </div>
                 )}
+                {adminDialogMode === "enter" && (
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      color: "#64748B",
+                      marginTop: 4,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={rememberDevice}
+                      onChange={(e) => setRememberDevice(e.target.checked)}
+                      style={{
+                        accentColor: "#F97316",
+                        width: 16,
+                        height: 16,
+                        cursor: "pointer",
+                      }}
+                    />
+                    Remember this device
+                  </label>
+                )}
                 {adminError && (
                   <p
                     data-ocid="admin.error_state"
@@ -1471,6 +1517,16 @@ export default function App() {
                     <Lock size={14} />
                     Change Admin Password
                   </DropdownMenuItem>
+                  {localStorage.getItem(REMEMBER_ADMIN_KEY) && (
+                    <DropdownMenuItem
+                      data-ocid="header.forget_device.button"
+                      onClick={handleForgetDevice}
+                      style={{ gap: 8, cursor: "pointer", color: "#EF4444" }}
+                    >
+                      <ShieldCheck size={14} />
+                      Forget This Device
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

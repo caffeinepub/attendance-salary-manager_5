@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { AppMode } from "../App";
@@ -18,6 +19,7 @@ export function AdvancesTab({ mode }: Props) {
   );
   const [allAdvances, setAllAdvances] = useState<Advance[]>([]);
   const [loading, setLoading] = useState(false);
+  const [savingAdvance, setSavingAdvance] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({
     labourId: "",
@@ -67,22 +69,28 @@ export function AdvancesTab({ mode }: Props) {
       selectedContractId ??
       (addForm.contractId ? BigInt(addForm.contractId) : null);
     if (!cId || !addForm.labourId || !addForm.amount) return;
-    await actor?.createAdvance(
-      cId,
-      BigInt(addForm.labourId),
-      BigInt(Math.round(Number.parseFloat(addForm.amount))),
-      addForm.note,
-    );
-    toast.success("Advance added");
-    setAddForm({ labourId: "", amount: "", note: "", contractId: "" });
-    setShowAdd(false);
-    await loadForContract(cId);
+    setSavingAdvance(true);
+    try {
+      await actor?.createAdvance(
+        cId,
+        BigInt(addForm.labourId),
+        BigInt(Math.round(Number.parseFloat(addForm.amount))),
+        addForm.note,
+      );
+      toast.success("Advance added");
+      setAddForm({ labourId: "", amount: "", note: "", contractId: "" });
+      setShowAdd(false);
+      await loadForContract(cId);
+    } finally {
+      setSavingAdvance(false);
+    }
   };
 
   const handleDelete = async (adv: Advance) => {
     // Optimistic UI update
     setAllAdvances((prev) => prev.filter((a) => a.id !== adv.id));
     toast.success("Advance deleted");
+    setSavingAdvance(true);
     // Persist to backend
     try {
       await actor?.deleteAdvance(adv.id);
@@ -91,6 +99,8 @@ export function AdvancesTab({ mode }: Props) {
       // Restore on failure
       setAllAdvances((prev) => [...prev, adv]);
       toast.error("Failed to delete advance");
+    } finally {
+      setSavingAdvance(false);
     }
   };
 
@@ -105,6 +115,7 @@ export function AdvancesTab({ mode }: Props) {
     );
     setEditingId(null);
     toast.success("Advance updated");
+    setSavingAdvance(true);
     // Persist to backend
     try {
       await actor?.updateAdvance(adv.id, newAmount, newNote);
@@ -113,6 +124,8 @@ export function AdvancesTab({ mode }: Props) {
       // Restore original on failure
       setAllAdvances((prev) => prev.map((a) => (a.id === adv.id ? adv : a)));
       toast.error("Failed to update advance");
+    } finally {
+      setSavingAdvance(false);
     }
   };
 
@@ -192,6 +205,28 @@ export function AdvancesTab({ mode }: Props) {
           </button>
         )}
       </div>
+
+      {savingAdvance && (
+        <div
+          data-ocid="advances.saving_state"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            background: "rgba(255,127,17,0.1)",
+            border: "1px solid rgba(255,127,17,0.25)",
+            borderRadius: 8,
+            marginBottom: 12,
+            color: "#FF7F11",
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          <Loader2 size={14} className="animate-spin" />
+          Saving advance...
+        </div>
+      )}
 
       {showAdd && mode === "edit" && (
         <div

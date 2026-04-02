@@ -48,8 +48,6 @@ export function PaymentsTab() {
 
   const [contractDropOpen, setContractDropOpen] = useState(false);
   const contractDropRef = useRef<HTMLDivElement>(null);
-  const [groupDropOpen, setGroupDropOpen] = useState(false);
-  const groupDropRef = useRef<HTMLDivElement>(null);
 
   // Overview dialog state
   const [overviewOpen, setOverviewOpen] = useState(false);
@@ -62,7 +60,6 @@ export function PaymentsTab() {
   const [currentOverviewIndex, setCurrentOverviewIndex] = useState(0);
 
   useClickOutside(contractDropRef, () => setContractDropOpen(false));
-  useClickOutside(groupDropRef, () => setGroupDropOpen(false));
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a is derived from actor
   useEffect(() => {
@@ -79,6 +76,14 @@ export function PaymentsTab() {
       ),
     );
   }, [actor]);
+
+  // Auto-calculate when group filter changes if contracts are selected
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
+  useEffect(() => {
+    if (selectedIds.size > 0) {
+      calculate();
+    }
+  }, [selectedGroupId]);
 
   const toggleContract = (id: string) => {
     setSelectedIds((prev) => {
@@ -592,7 +597,7 @@ export function PaymentsTab() {
         </div>
       </div>
 
-      {/* Group Filter Dropdown */}
+      {/* Group Filter — Inline Chips */}
       <div style={{ marginBottom: 16 }}>
         <div
           style={{
@@ -601,88 +606,81 @@ export function PaymentsTab() {
             color: "#94A3B8",
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            marginBottom: 6,
+            marginBottom: 8,
           }}
         >
           Filter by Group
         </div>
-        <div ref={groupDropRef} style={{ position: "relative" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {/* All Labours chip */}
           <button
             type="button"
-            data-ocid="payments.group.select"
-            onClick={() => setGroupDropOpen((v) => !v)}
-            style={dropTriggerStyle(groupDropOpen)}
+            data-ocid="payments.group.all.toggle"
+            onClick={() => setSelectedGroupId(null)}
+            style={{
+              borderRadius: 999,
+              padding: "6px 14px",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              border:
+                selectedGroupId === null
+                  ? "1.5px solid #FF7F11"
+                  : "1.5px solid rgba(255,255,255,0.12)",
+              background:
+                selectedGroupId === null
+                  ? "rgba(255,127,17,0.18)"
+                  : "rgba(255,255,255,0.05)",
+              color: selectedGroupId === null ? "#FF7F11" : "#94A3B8",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              transition: "all 0.15s",
+            }}
           >
-            <span
-              style={{
-                color: selectedGroupId === null ? "#94A3B8" : "#F97316",
-              }}
-            >
-              {selectedGroupId === null
-                ? "All Labours"
-                : (groups.find((g) => g.id === selectedGroupId)?.name ??
-                  "All Labours")}
-            </span>
-            {chevron(groupDropOpen)}
+            {selectedGroupId === null && (
+              <span style={{ fontSize: 11 }}>✓</span>
+            )}
+            All Labours
           </button>
-          {groupDropOpen && (
-            <div style={dropPanelStyle}>
-              <div
-                style={labelStyle(selectedGroupId === null, "#F97316")}
-                onClick={() => {
-                  setSelectedGroupId(null);
-                  setGroupDropOpen(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    setSelectedGroupId(null);
-                    setGroupDropOpen(false);
-                  }
+          {groups.map((g) => {
+            const isSelected = selectedGroupId === g.id;
+            return (
+              <button
+                type="button"
+                key={String(g.id)}
+                data-ocid="payments.group.toggle"
+                onClick={() => setSelectedGroupId(g.id)}
+                style={{
+                  borderRadius: 999,
+                  padding: "6px 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  border: isSelected
+                    ? "1.5px solid #FF7F11"
+                    : "1.5px solid rgba(255,255,255,0.12)",
+                  background: isSelected
+                    ? "rgba(255,127,17,0.18)"
+                    : "rgba(255,255,255,0.05)",
+                  color: isSelected ? "#FF7F11" : "#94A3B8",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  transition: "all 0.15s",
                 }}
               >
-                <span
-                  style={checkboxStyle(selectedGroupId === null, "#F97316")}
-                >
-                  {selectedGroupId === null ? "✓" : ""}
-                </span>
-                All Labours
-              </div>
-              {groups.map((g) => {
-                const isSelected = selectedGroupId === g.id;
-                return (
-                  <div
-                    key={String(g.id)}
-                    style={labelStyle(isSelected, "#F97316")}
-                    onClick={() => {
-                      setSelectedGroupId(g.id);
-                      setGroupDropOpen(false);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        setSelectedGroupId(g.id);
-                        setGroupDropOpen(false);
-                      }
-                    }}
-                  >
-                    <span style={checkboxStyle(isSelected, "#F97316")}>
-                      {isSelected ? "✓" : ""}
-                    </span>
-                    {g.name}
-                  </div>
-                );
-              })}
-              {groups.length === 0 && (
-                <div
-                  style={{
-                    padding: "12px 14px",
-                    fontSize: 13,
-                    color: "#94A3B8",
-                  }}
-                >
-                  No groups created yet
-                </div>
-              )}
-            </div>
+                {isSelected && <span style={{ fontSize: 11 }}>✓</span>}
+                {g.name}
+              </button>
+            );
+          })}
+          {groups.length === 0 && (
+            <span
+              style={{ fontSize: 12, color: "#475569", fontStyle: "italic" }}
+            >
+              No groups yet
+            </span>
           )}
         </div>
       </div>

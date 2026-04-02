@@ -17,19 +17,55 @@ import { useActor } from "../hooks/useActor";
 
 const LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
 
-function markAttendanceToday(contractId: bigint) {
+function markAttendanceToday(
+  contractId: bigint,
+  presentCount = 0,
+  colKey?: string,
+) {
   try {
     const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
-    const data: Record<string, string> = raw ? JSON.parse(raw) : {};
-    data[String(contractId)] = new Date().toISOString();
+    const data: Record<
+      string,
+      { ts: string; count: number; colKey?: string } | string
+    > = raw ? JSON.parse(raw) : {};
+    data[String(contractId)] = {
+      ts: new Date().toISOString(),
+      count: presentCount,
+      ...(colKey ? { colKey } : {}),
+    };
     localStorage.setItem(LAST_ATTENDANCE_KEY, JSON.stringify(data));
   } catch (_) {}
+}
+
+function getTodayWorkingData(): Map<string, { ts: string; count: number }> {
+  const result = new Map<string, { ts: string; count: number }>();
+  try {
+    const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
+    if (!raw) return result;
+    const data = JSON.parse(raw) as Record<
+      string,
+      { ts: string; count: number } | string
+    >;
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setHours(23, 0, 0, 0);
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    for (const [id, val] of Object.entries(data)) {
+      const entry = typeof val === "string" ? { ts: val, count: 0 } : val;
+      const t = new Date(entry.ts);
+      if (t >= todayStart && t <= cutoff) result.set(id, entry);
+    }
+  } catch (_) {}
+  return result;
 }
 
 interface Props {
   mode: AppMode;
   initialContractId?: bigint | null;
   onContractIdConsumed?: () => void;
+  onViewModeContractSelected?: (selected: boolean) => void;
+  triggerClearViewContract?: number;
 }
 
 const ATTENDANCE_VALUES = [
@@ -151,6 +187,8 @@ export function AttendanceTab({
   mode,
   initialContractId,
   onContractIdConsumed,
+  onViewModeContractSelected,
+  triggerClearViewContract,
 }: Props) {
   const { actor } = useActor();
 
@@ -454,6 +492,14 @@ export function AttendanceTab({
     setMarkDialogOpen(true);
   };
 
+  // Clear view mode selection when triggered from parent
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only reacts to triggerClearViewContract
+  useEffect(() => {
+    if (triggerClearViewContract && triggerClearViewContract > 0) {
+      setSelectedContractId(null);
+      onViewModeContractSelected?.(false);
+    }
+  }, [triggerClearViewContract]);
   const saveAttendanceSingle = async (
     labour: Labour,
     colKey: string,
@@ -469,7 +515,6 @@ export function AttendanceTab({
           { __kind__: "bed", bed: null },
           val,
         );
-        markAttendanceToday(selectedContractId);
       } else if (colKey === "paper") {
         await actor.saveAttendance(
           selectedContractId,
@@ -486,6 +531,12 @@ export function AttendanceTab({
           val,
         );
       }
+      // Count non-absent values only in the changed column
+      const workingCount = labours.filter((l) => {
+        const v = l.id === labour.id ? val : getVal(l.id, colKey);
+        return v !== "Absent" && v !== "";
+      }).length;
+      markAttendanceToday(selectedContractId, workingCount, colKey);
       // remove from dirty after save
       setDirtyKeys((prev) => {
         const s = new Set(prev);
@@ -555,80 +606,253 @@ export function AttendanceTab({
         <h2
           style={{ fontSize: 20, fontWeight: 800, color: "#F1F5F9", margin: 0 }}
         >
-          Attendance List
+          {mode === "view" && !selectedContractId
+            ? "Select Contract"
+            : "Attendance List"}
         </h2>
         <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, marginTop: 2 }}>
           Track daily attendance and salary calculations
         </p>
       </div>
 
-      <div className="mb-4">
-        <label
-          htmlFor="attendance-contract-select"
-          style={{
-            display: "block",
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#94A3B8",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            marginBottom: 6,
-          }}
-        >
-          Select Contract
-        </label>
-        <select
-          id="attendance-contract-select"
-          data-ocid="attendance.contract.select"
-          value={selectedContractId ? String(selectedContractId) : ""}
-          onChange={(e) =>
-            setSelectedContractId(
-              e.target.value ? BigInt(e.target.value) : null,
-            )
-          }
-          style={{
-            background: "rgba(255,255,255,0.07)",
-            border: "1.5px solid rgba(255,255,255,0.15)",
-            color: "#F1F5F9",
-            borderRadius: 999,
-            padding: "8px 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            minWidth: 220,
-            outline: "none",
-            cursor: "pointer",
-            appearance: "auto",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "#FF7F11";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "rgba(255,255,255,0.15)";
-          }}
-        >
-          <option value="">-- Select Contract --</option>
-          {contracts.map((c) => (
-            <option key={String(c.id)} value={String(c.id)}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {mode === "view" && !selectedContractId ? (
+        /* View mode: contract card list */
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <h3
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "#94A3B8",
+                margin: 0,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              Select Contract
+            </h3>
+          </div>
+          {contracts.length === 0 && (
+            <div
+              data-ocid="attendance.empty_state"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px dashed rgba(255,255,255,0.15)",
+                borderRadius: 12,
+                padding: "32px 20px",
+                textAlign: "center",
+                color: "#94A3B8",
+                fontSize: 14,
+              }}
+            >
+              No active contracts
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {contracts.map((c) => {
+              const todayData = getTodayWorkingData();
+              const wd = todayData.get(String(c.id));
+              return (
+                <button
+                  type="button"
+                  key={String(c.id)}
+                  data-ocid="attendance.contract.card.button"
+                  onClick={() => {
+                    setSelectedContractId(c.id);
+                    onViewModeContractSelected?.(true);
+                  }}
+                  style={{
+                    background: "rgba(255,255,255,0.055)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    width: "100%",
+                    transition: "border-color 0.15s",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: "#F1F5F9",
+                      }}
+                    >
+                      {c.name}
+                    </span>
+                    {wd && wd.count > 0 && (
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#22C55E",
+                          background: "rgba(34,197,94,0.12)",
+                          border: "1px solid rgba(34,197,94,0.25)",
+                          borderRadius: 8,
+                          padding: "2px 8px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: "#22C55E",
+                            display: "inline-block",
+                          }}
+                        />
+                        Working Today · {wd.count} labours
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : mode === "view" && selectedContractId ? (
+        /* View mode with contract selected: contract name large + table */
+        <div>
+          {contract && (
+            <div style={{ marginBottom: 16, textAlign: "center" }}>
+              <h1
+                style={{
+                  fontSize: 28,
+                  fontWeight: 900,
+                  background: "linear-gradient(90deg, #FF7F11, #FBBF24)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  margin: 0,
+                  lineHeight: 1.2,
+                }}
+              >
+                {contract.name}
+              </h1>
+              <p
+                style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0 0" }}
+              >
+                Attendance
+              </p>
+            </div>
+          )}
+        </div>
+      ) : !selectedContractId ? (
+        /* Edit mode: dropdown + empty state */
+        <div className="mb-4">
+          <label
+            htmlFor="attendance-contract-select"
+            style={{
+              display: "block",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#94A3B8",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            Select Contract
+          </label>
+          <select
+            id="attendance-contract-select"
+            data-ocid="attendance.contract.select"
+            value={selectedContractId ? String(selectedContractId) : ""}
+            onChange={(e) =>
+              setSelectedContractId(
+                e.target.value ? BigInt(e.target.value) : null,
+              )
+            }
+            style={{
+              background: "rgba(255,255,255,0.07)",
+              border: "1.5px solid rgba(255,255,255,0.15)",
+              color: "#F1F5F9",
+              borderRadius: 999,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              minWidth: 220,
+              outline: "none",
+              cursor: "pointer",
+              appearance: "auto",
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#FF7F11";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "rgba(255,255,255,0.15)";
+            }}
+          >
+            <option value="">-- Select Contract --</option>
+            {contracts.map((c) => (
+              <option key={String(c.id)} value={String(c.id)}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <div
+            data-ocid="attendance.empty_state"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px dashed rgba(255,255,255,0.15)",
+              borderRadius: 12,
+              padding: "32px 20px",
+              textAlign: "center",
+              color: "#94A3B8",
+              fontSize: 14,
+              marginTop: 12,
+            }}
+          >
+            Select a contract above to view and manage attendance
+          </div>
+        </div>
+      ) : null}
 
-      {!selectedContractId && (
-        <div
-          data-ocid="attendance.empty_state"
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px dashed rgba(255,255,255,0.15)",
-            borderRadius: 12,
-            padding: "32px 20px",
-            textAlign: "center",
-            color: "#94A3B8",
-            fontSize: 14,
-          }}
-        >
-          Select a contract above to view and manage attendance
+      {/* Edit mode: show dropdown above table when contract selected */}
+      {mode === "edit" && selectedContractId && (
+        <div className="mb-4">
+          <select
+            id="attendance-contract-select"
+            data-ocid="attendance.contract.select"
+            value={selectedContractId ? String(selectedContractId) : ""}
+            onChange={(e) =>
+              setSelectedContractId(
+                e.target.value ? BigInt(e.target.value) : null,
+              )
+            }
+            style={{
+              background: "rgba(255,255,255,0.07)",
+              border: "1.5px solid rgba(255,255,255,0.15)",
+              color: "#F1F5F9",
+              borderRadius: 999,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              minWidth: 220,
+              outline: "none",
+              cursor: "pointer",
+              appearance: "auto",
+            }}
+          >
+            <option value="">-- Select Contract --</option>
+            {contracts.map((c) => (
+              <option key={String(c.id)} value={String(c.id)}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
