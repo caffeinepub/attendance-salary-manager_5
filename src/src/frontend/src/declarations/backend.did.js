@@ -168,6 +168,8 @@ export const idlService = IDL.Service({
   'setAdminCredentials' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'verifyAdminCredentials' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'changeAdminCredentials' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text], [IDL.Bool], []),
+  'recordWorkingToday' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Text], [], []),
+  'getWorkingTodayMap' : IDL.Func([], [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Record({'ts': IDL.Text, 'count': IDL.Nat})))], ['query']),
 });
 
 export const idlFactory = ({ IDL }) => idlService;

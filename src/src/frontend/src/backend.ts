@@ -191,6 +191,8 @@ export interface backendInterface {
     setAdminCredentials(token: string, password: string): Promise<boolean>;
     verifyAdminCredentials(token: string, password: string): Promise<boolean>;
     changeAdminCredentials(oldToken: string, oldPassword: string, newToken: string, newPassword: string): Promise<boolean>;
+    recordWorkingToday(contractId: bigint, count: bigint, ts: string): Promise<void>;
+    getWorkingTodayMap(): Promise<Array<[bigint, { ts: string; count: bigint }]>>;
 }
 import type { Attendance as _Attendance, ColumnType as _ColumnType, Labour as _Labour } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -616,6 +618,13 @@ export class Backend implements backendInterface {
     async changeAdminCredentials(arg0: string, arg1: string, arg2: string, arg3: string): Promise<boolean> {
         const result = await this.actor.changeAdminCredentials(arg0, arg1, arg2, arg3);
         return result;
+    }
+    async recordWorkingToday(arg0: bigint, arg1: bigint, arg2: string): Promise<void> {
+        await this.actor.recordWorkingToday(arg0, arg1, arg2);
+    }
+    async getWorkingTodayMap(): Promise<Array<[bigint, { ts: string; count: bigint }]>> {
+        const result = await this.actor.getWorkingTodayMap();
+        return result as Array<[bigint, { ts: string; count: bigint }]>;
     }
 }
 function from_candid_Attendance_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Attendance): Attendance {

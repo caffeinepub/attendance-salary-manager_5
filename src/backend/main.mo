@@ -128,6 +128,9 @@ actor {
   let advances = Map.empty<Nat, Advance>();
   let attendanceNotes = Map.empty<Nat, AttendanceNote>();
   let holidays = Map.empty<Nat, Holiday>();
+  // Working Today: contractId -> { ts: Text; count: Nat }
+  type WorkingTodayEntry = { ts : Text; count : Nat };
+  let workingTodayMap = Map.empty<Nat, WorkingTodayEntry>();
 
   // Group CRUD
   public shared ({ caller }) func createGroup(name : Text) : async Nat {
@@ -652,5 +655,14 @@ actor {
       };
       case _ { false };
     };
+  };
+
+  // Working Today tracking
+  public shared func recordWorkingToday(contractId : Nat, count : Nat, ts : Text) : async () {
+    workingTodayMap.add(contractId, { ts; count });
+  };
+
+  public query func getWorkingTodayMap() : async [(Nat, WorkingTodayEntry)] {
+    workingTodayMap.entries().toArray();
   };
 };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { AppMode } from "../App";
 import type { Contract } from "../backend.d";
@@ -6,8 +6,8 @@ import { useActor } from "../hooks/useActor";
 
 const LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
 
-function getTodayWorkingData(): Map<string, number> {
-  const result = new Map<string, number>();
+function getTodayWorkingData(): Map<string, { ts: string; count: number }> {
+  const result = new Map<string, { ts: string; count: number }>();
   try {
     const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
     if (!raw) return result;
@@ -23,7 +23,7 @@ function getTodayWorkingData(): Map<string, number> {
     for (const [id, val] of Object.entries(data)) {
       const entry = typeof val === "string" ? { ts: val, count: 0 } : val;
       const t = new Date(entry.ts);
-      if (t >= todayStart && t <= cutoff) result.set(id, entry.count);
+      if (t >= todayStart && t <= cutoff) result.set(id, entry);
     }
   } catch (_) {}
   return result;
@@ -50,7 +50,12 @@ export function ContractsTab({
   const [selected, setSelected] = useState<Contract | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const todayWorkingData = useMemo(() => getTodayWorkingData(), []);
+  const [todayWorkingData, setTodayWorkingData] = useState<
+    Map<string, { ts: string; count: number }>
+  >(() => getTodayWorkingData());
+  const [backendWorkingData, setBackendWorkingData] = useState<
+    Map<string, { ts: string; count: number }>
+  >(new Map());
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
 
@@ -77,8 +82,30 @@ export function ContractsTab({
     if (!actor) return;
     setLoading(true);
     try {
-      const all = await actor.getAllContracts();
+      const [all] = await Promise.all([actor.getAllContracts()]);
       setContracts((all ?? []).filter((c) => !c.isSettled));
+      // Load working today from backend for cross-device badge
+      try {
+        const map = await actor.getWorkingTodayMap();
+        const now = new Date();
+        const cutoff = new Date(now);
+        cutoff.setHours(23, 0, 0, 0);
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        const bwd = new Map<string, { ts: string; count: number }>();
+        for (const [id, val] of map) {
+          const t = new Date(val.ts);
+          if (t >= todayStart && t <= cutoff) {
+            bwd.set(String(id), { ts: val.ts, count: Number(val.count) });
+          }
+        }
+        setBackendWorkingData(bwd);
+        // Refresh localStorage data too
+        setTodayWorkingData(getTodayWorkingData());
+      } catch (_) {
+        // Fall back to localStorage only
+        setTodayWorkingData(getTodayWorkingData());
+      }
     } finally {
       setLoading(false);
     }
@@ -701,11 +728,19 @@ export function ContractsTab({
                   {c.id < 0n ? " (saving…)" : ""}
                 </span>
                 {(() => {
-                  const wd = todayWorkingData.get(String(c.id));
-                  const count =
-                    typeof wd === "object"
-                      ? (wd as { count: number }).count
-                      : (wd as number | undefined);
+                  const localWd = todayWorkingData.get(String(c.id));
+                  const backendWd = backendWorkingData.get(String(c.id));
+                  // Use whichever has the more recent timestamp
+                  let mergedWd: { ts: string; count: number } | undefined;
+                  if (localWd && backendWd) {
+                    mergedWd =
+                      new Date(localWd.ts) >= new Date(backendWd.ts)
+                        ? localWd
+                        : backendWd;
+                  } else {
+                    mergedWd = localWd ?? backendWd;
+                  }
+                  const count = mergedWd?.count;
                   return count && count > 0 ? (
                     <span
                       className="flex items-center gap-1 text-xs font-semibold"

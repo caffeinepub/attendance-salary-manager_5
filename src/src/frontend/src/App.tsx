@@ -143,6 +143,11 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [todayWorkingContractName, setTodayWorkingContractName] = useState<
+    string | null
+  >(null);
+  const [todayWorkingLabourCount, setTodayWorkingLabourCount] =
+    useState<number>(0);
   const { actor } = useActor();
 
   // Home screen fade-in
@@ -153,6 +158,60 @@ export default function App() {
     }
     setHomeVisible(false);
   }, [screen]);
+
+  // Fetch today's working contract for login screen display
+  useEffect(() => {
+    if (!actor) return;
+    (async () => {
+      try {
+        const entries = await actor.getWorkingTodayMap();
+        const now = new Date();
+        const cutoff = new Date(now);
+        cutoff.setHours(23, 0, 0, 0);
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        let latestId: bigint | null = null;
+        let latestTs = 0;
+        let latestCount = 0;
+        for (const [id, entry] of entries) {
+          const t = new Date(entry.ts);
+          if (t >= todayStart && t <= cutoff && t.getTime() > latestTs) {
+            latestTs = t.getTime();
+            latestId = id;
+            latestCount = Number(entry.count);
+          }
+        }
+        if (latestId !== null && latestCount > 0) {
+          const contracts = await actor.getAllContracts();
+          const c = contracts.find((c2) => c2.id === latestId);
+          if (c) {
+            setTodayWorkingContractName(c.name);
+            setTodayWorkingLabourCount(latestCount);
+          }
+        } else {
+          // Fallback: check localStorage
+          const raw = localStorage.getItem("attendpay_last_attendance");
+          if (raw) {
+            const data: Record<string, string> = JSON.parse(raw);
+            let lId: string | null = null;
+            let lT = 0;
+            for (const [id, ts] of Object.entries(data)) {
+              const t = new Date(ts);
+              if (t >= todayStart && t <= cutoff && t.getTime() > lT) {
+                lT = t.getTime();
+                lId = id;
+              }
+            }
+            if (lId) {
+              const contracts = await actor.getAllContracts();
+              const c = contracts.find((c2) => String(c2.id) === lId);
+              if (c) setTodayWorkingContractName(c.name);
+            }
+          }
+        }
+      } catch (_) {}
+    })();
+  }, [actor]);
 
   // Admin credential state
   const [showAdminDialog, setShowAdminDialog] = useState(false);
@@ -955,6 +1014,72 @@ export default function App() {
               </button>
             </div>
 
+            {/* Today Working Banner */}
+            {todayWorkingContractName && (
+              <div
+                style={{
+                  padding: "12px 20px",
+                  borderTop: "1px solid rgba(34,197,94,0.2)",
+                  background: "rgba(34,197,94,0.07)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: "#22C55E",
+                    flexShrink: 0,
+                    boxShadow: "0 0 6px rgba(34,197,94,0.8)",
+                    animation: "pulse 2s infinite",
+                  }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "rgba(34,197,94,0.7)",
+                      fontWeight: 600,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      display: "block",
+                    }}
+                  >
+                    Working Today
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: "#F1F5F9",
+                      display: "block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {todayWorkingContractName}
+                    {todayWorkingLabourCount > 0 && (
+                      <span
+                        style={{
+                          color: "rgba(255,255,255,0.45)",
+                          fontWeight: 400,
+                          fontSize: 12,
+                          marginLeft: 6,
+                        }}
+                      >
+                        · {todayWorkingLabourCount} labour
+                        {todayWorkingLabourCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Card footer */}
             <div
               style={{
@@ -970,15 +1095,7 @@ export default function App() {
                   margin: 0,
                 }}
               >
-                &copy; {new Date().getFullYear()}.{" "}
-                <a
-                  href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: "#FF7F11" }}
-                >
-                  caffeine.ai
-                </a>
+                Made with❤️ by Shiv
               </p>
             </div>
           </div>

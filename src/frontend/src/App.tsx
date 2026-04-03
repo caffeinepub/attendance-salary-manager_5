@@ -185,7 +185,6 @@ export default function App() {
   const [restoring, setRestoring] = useState(false);
   const [importing, setImporting] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [pendingRestoreData, setPendingRestoreData] = useState<Record<
     string,
     unknown
@@ -1435,7 +1434,10 @@ export default function App() {
                 <button
                   type="button"
                   data-ocid="nav.home.button"
-                  onClick={() => setShowExitConfirm(true)}
+                  onClick={() => {
+                    setScreen("home");
+                    setMode("view");
+                  }}
                   className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
                   style={{ color: "rgba(255,255,255,0.5)" }}
                 >
@@ -1571,11 +1573,8 @@ export default function App() {
               mode={mode}
               onViewAttendance={handleViewAttendance}
               onGoHome={() => {
-                if (mode === "edit") setShowExitConfirm(true);
-                else {
-                  setScreen("home");
-                  setMode("view");
-                }
+                setScreen("home");
+                setMode("view");
               }}
             />
           )}
@@ -1652,66 +1651,6 @@ export default function App() {
         }}
       />
 
-      {/* Exit Confirm Dialog */}
-      <Dialog
-        open={showExitConfirm}
-        onOpenChange={(open) => {
-          if (!open) setShowExitConfirm(false);
-        }}
-      >
-        <DialogContent
-          data-ocid="exit.confirm.dialog"
-          style={{ maxWidth: 360, borderRadius: 16 }}
-        >
-          <DialogHeader>
-            <DialogTitle style={{ color: "#F1F5F9" }}>
-              Exit to Home?
-            </DialogTitle>
-          </DialogHeader>
-          <p style={{ color: "#94A3B8", fontSize: 14, margin: "8px 0 16px" }}>
-            Are you sure you want to leave and go back to the login screen?
-          </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              data-ocid="exit.cancel_button"
-              onClick={() => setShowExitConfirm(false)}
-              style={{
-                background: "#1E293B",
-                color: "#94A3B8",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 8,
-                padding: "8px 18px",
-                cursor: "pointer",
-                fontSize: 14,
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              data-ocid="exit.confirm_button"
-              onClick={() => {
-                setShowExitConfirm(false);
-                setScreen("home");
-                setMode("view");
-              }}
-              style={{
-                background: "#FF7F11",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 18px",
-                cursor: "pointer",
-                fontSize: 14,
-                fontWeight: 700,
-              }}
-            >
-              Exit
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
       {/* Restore Confirm Dialog */}
       <Dialog
         open={showRestoreConfirm}

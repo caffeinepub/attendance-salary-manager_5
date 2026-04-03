@@ -107,4 +107,6 @@ export interface backendInterface {
     setAdminCredentials(token: string, password: string): Promise<boolean>;
     verifyAdminCredentials(token: string, password: string): Promise<boolean>;
     changeAdminCredentials(oldToken: string, oldPassword: string, newToken: string, newPassword: string): Promise<boolean>;
+    recordWorkingToday(contractId: bigint, count: bigint, ts: string): Promise<void>;
+    getWorkingTodayMap(): Promise<Array<[bigint, { ts: string; count: bigint }]>>;
 }

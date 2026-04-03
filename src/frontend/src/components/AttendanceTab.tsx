@@ -372,6 +372,16 @@ export function AttendanceTab({
       setDirtyKeys(new Set());
       if (saves.length > 0) {
         markAttendanceToday(selectedContractId);
+        // Sync to backend for cross-device badge (fire-and-forget)
+        if (actor) {
+          actor
+            .recordWorkingToday(
+              selectedContractId,
+              BigInt(0),
+              new Date().toISOString(),
+            )
+            .catch(() => {});
+        }
         toast.success("Attendance saved");
       }
     } finally {
@@ -537,6 +547,16 @@ export function AttendanceTab({
         return v !== "Absent" && v !== "";
       }).length;
       markAttendanceToday(selectedContractId, workingCount, colKey);
+      // Sync to backend for cross-device badge (fire-and-forget)
+      if (actor) {
+        actor
+          .recordWorkingToday(
+            selectedContractId,
+            BigInt(workingCount),
+            new Date().toISOString(),
+          )
+          .catch(() => {});
+      }
       // remove from dirty after save
       setDirtyKeys((prev) => {
         const s = new Set(prev);

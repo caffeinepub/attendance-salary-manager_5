@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { AppMode } from "../App";
 import type { Contract } from "../backend.d";
@@ -6,26 +6,38 @@ import { useActor } from "../hooks/useActor";
 
 const LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
 
-function getTodayWorkingContractIds(): Set<string> {
+function getLocalTodayWorkingIds(): Set<string> {
   try {
     const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
     if (!raw) return new Set();
     const data: Record<string, string> = JSON.parse(raw);
     const now = new Date();
     const cutoff = new Date(now);
-    cutoff.setHours(23, 0, 0, 0); // 11pm today
+    cutoff.setHours(23, 0, 0, 0);
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
     const ids = new Set<string>();
     for (const [id, ts] of Object.entries(data)) {
       const t = new Date(ts);
-      if (t >= todayStart && t <= cutoff) {
-        ids.add(id);
-      }
+      if (t >= todayStart && t <= cutoff) ids.add(id);
     }
     return ids;
   } catch (_) {
     return new Set();
+  }
+}
+
+function isTodayTs(ts: string): boolean {
+  try {
+    const t = new Date(ts);
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setHours(23, 0, 0, 0);
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    return t >= todayStart && t <= cutoff;
+  } catch (_) {
+    return false;
   }
 }
 
@@ -45,7 +57,14 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
   const [selected, setSelected] = useState<Contract | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const todayWorkingIds = useMemo(() => getTodayWorkingContractIds(), []);
+  // Working today: merged from localStorage (fast) + backend (cross-device)
+  const [todayWorkingIds, setTodayWorkingIds] = useState<Set<string>>(() =>
+    getLocalTodayWorkingIds(),
+  );
+  // Map contractId -> labour count working today
+  const [workingTodayCounts, setWorkingTodayCounts] = useState<
+    Map<string, number>
+  >(new Map());
   const [adding, setAdding] = useState(false);
 
   const [form, setForm] = useState({
@@ -67,6 +86,23 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
     paperOverride: "",
   });
 
+  const loadWorkingToday = useCallback(async () => {
+    if (!actor) return;
+    try {
+      const entries = await actor.getWorkingTodayMap();
+      const ids = new Set<string>(getLocalTodayWorkingIds());
+      const counts = new Map<string, number>();
+      for (const [id, entry] of entries) {
+        if (isTodayTs(entry.ts)) {
+          ids.add(String(id));
+          counts.set(String(id), Number(entry.count));
+        }
+      }
+      setTodayWorkingIds(ids);
+      setWorkingTodayCounts(counts);
+    } catch (_) {}
+  }, [actor]);
+
   const load = async () => {
     if (!actor) return;
     setLoading(true);
@@ -80,8 +116,11 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: load captures actor from closure
   useEffect(() => {
-    if (actor) load();
-  }, [actor]);
+    if (actor) {
+      load();
+      loadWorkingToday();
+    }
+  }, [actor, loadWorkingToday]);
 
   const calcBed = (m: number) => Math.round(11000 * m);
   const calcPaper = (m: number) => Math.round(7000 * m);
@@ -661,53 +700,65 @@ export function ContractsTab({ mode, onViewAttendance }: Props) {
               No contracts yet.
             </div>
           )}
-          {contracts.map((c, i) => (
-            <button
-              type="button"
-              key={String(c.id)}
-              data-ocid={`contract.item.${i + 1}`}
-              className="flex items-center justify-between w-full px-4 py-3 rounded-lg cursor-pointer transition-all text-left"
-              style={{
-                background: "rgba(255,255,255,0.055)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                opacity: c.id < 0n ? 0.6 : 1,
-              }}
-              onClick={() => c.id >= 0n && setSelected(c)}
-            >
-              <div className="flex flex-col gap-0.5 items-start">
-                <span className="font-medium" style={{ color: "#F1F5F9" }}>
-                  {c.name}
-                  {c.id < 0n ? " (saving…)" : ""}
-                </span>
-                {todayWorkingIds.has(String(c.id)) && (
-                  <span
-                    className="flex items-center gap-1 text-xs font-semibold"
-                    style={{
-                      color: "#22C55E",
-                      background: "rgba(34,197,94,0.12)",
-                      border: "1px solid rgba(34,197,94,0.25)",
-                      borderRadius: 8,
-                      padding: "1px 7px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: "#22C55E",
-                        display: "inline-block",
-                      }}
-                    />
-                    Working Today
+          {[...contracts]
+            .sort((a, b) => {
+              const aW = todayWorkingIds.has(String(a.id)) ? 1 : 0;
+              const bW = todayWorkingIds.has(String(b.id)) ? 1 : 0;
+              return bW - aW;
+            })
+            .map((c, i) => (
+              <button
+                type="button"
+                key={String(c.id)}
+                data-ocid={`contract.item.${i + 1}`}
+                className="flex items-center justify-between w-full px-4 py-3 rounded-lg cursor-pointer transition-all text-left"
+                style={{
+                  background: "rgba(255,255,255,0.055)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  opacity: c.id < 0n ? 0.6 : 1,
+                }}
+                onClick={() => c.id >= 0n && setSelected(c)}
+              >
+                <div className="flex flex-col gap-0.5 items-start">
+                  <span className="font-medium" style={{ color: "#F1F5F9" }}>
+                    {c.name}
+                    {c.id < 0n ? " (saving…)" : ""}
                   </span>
-                )}
-              </div>
-              <span className="text-sm" style={{ color: "#FF7F11" }}>
-                ₹{fmt(c.contractAmount)}
-              </span>
-            </button>
-          ))}
+                  {todayWorkingIds.has(String(c.id)) &&
+                    (() => {
+                      const wCount = workingTodayCounts.get(String(c.id)) ?? 0;
+                      if (wCount === 0) return null;
+                      return (
+                        <span
+                          className="flex items-center gap-1 text-xs font-semibold"
+                          style={{
+                            color: "#22C55E",
+                            background: "rgba(34,197,94,0.12)",
+                            border: "1px solid rgba(34,197,94,0.25)",
+                            borderRadius: 8,
+                            padding: "1px 7px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: "#22C55E",
+                              display: "inline-block",
+                            }}
+                          />
+                          Working Today · {wCount} labour
+                          {wCount !== 1 ? "s" : ""}
+                        </span>
+                      );
+                    })()}
+                </div>
+                <span className="text-sm" style={{ color: "#FF7F11" }}>
+                  ₹{fmt(c.contractAmount)}
+                </span>
+              </button>
+            ))}
         </div>
       )}
     </div>

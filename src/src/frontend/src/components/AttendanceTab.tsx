@@ -26,6 +26,31 @@ function markAttendanceToday(contractId: bigint) {
   } catch (_) {}
 }
 
+function recordWorkingTodayBackend(
+  actor: import("../backend").backendInterface | null,
+  contractId: bigint,
+  count: number,
+) {
+  if (!actor) return;
+  const ts = new Date().toISOString();
+  markAttendanceToday(contractId);
+  // Fire-and-forget: don't block UI
+  actor.recordWorkingToday(contractId, BigInt(count), ts).catch(() => {});
+}
+
+function countWorkingInCol(
+  labourIds: bigint[],
+  attendance: Map<string, string>,
+  colKey: string,
+): number {
+  let c = 0;
+  for (const id of labourIds) {
+    const v = attendance.get(`${id}_${colKey}`) ?? "Absent";
+    if (v !== "Absent") c++;
+  }
+  return c;
+}
+
 interface Props {
   mode: AppMode;
   initialContractId?: bigint | null;
@@ -333,7 +358,18 @@ export function AttendanceTab({
       await Promise.all(saves);
       setDirtyKeys(new Set());
       if (saves.length > 0) {
-        markAttendanceToday(selectedContractId);
+        // Compute working count from last changed column
+        const changedCols = Array.from(keysToSave).map((k) =>
+          k.split("_").slice(1).join("_"),
+        );
+        const uniqueCols = Array.from(new Set(changedCols));
+        const lastCol = uniqueCols[uniqueCols.length - 1] ?? "bed";
+        const workingCount = countWorkingInCol(
+          labours.map((l) => l.id),
+          attendance,
+          lastCol,
+        );
+        recordWorkingTodayBackend(actor, selectedContractId, workingCount);
         toast.success("Attendance saved");
       }
     } finally {
@@ -469,7 +505,6 @@ export function AttendanceTab({
           { __kind__: "bed", bed: null },
           val,
         );
-        markAttendanceToday(selectedContractId);
       } else if (colKey === "paper") {
         await actor.saveAttendance(
           selectedContractId,
@@ -485,6 +520,18 @@ export function AttendanceTab({
           { __kind__: "mesh", mesh: BigInt(meshIdx) },
           val,
         );
+      }
+      // Update working today in backend (fire-and-forget)
+      {
+        // Use updated attendance map with the new value
+        const updatedAtt = new Map(attendance);
+        updatedAtt.set(`${labour.id}_${colKey}`, val);
+        const wCount = countWorkingInCol(
+          labours.map((l) => l.id),
+          updatedAtt,
+          colKey,
+        );
+        recordWorkingTodayBackend(actor, selectedContractId, wCount);
       }
       // remove from dirty after save
       setDirtyKeys((prev) => {
