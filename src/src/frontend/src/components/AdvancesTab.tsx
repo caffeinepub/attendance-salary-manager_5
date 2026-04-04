@@ -79,21 +79,6 @@ export function AdvancesTab({ mode }: Props) {
     await loadForContract(cId);
   };
 
-  const handleDelete = async (adv: Advance) => {
-    // Optimistic UI update
-    setAllAdvances((prev) => prev.filter((a) => a.id !== adv.id));
-    toast.success("Advance deleted");
-    // Persist to backend
-    try {
-      await actor?.deleteAdvance(adv.id);
-    } catch (err) {
-      console.error("Failed to delete advance", err);
-      // Restore on failure
-      setAllAdvances((prev) => [...prev, adv]);
-      toast.error("Failed to delete advance");
-    }
-  };
-
   const handleEditSave = async (adv: Advance) => {
     const newAmount = BigInt(Math.round(Number.parseFloat(editForm.amount)));
     const newNote = editForm.note;
@@ -420,18 +405,6 @@ export function AdvancesTab({ mode }: Props) {
                             }}
                           >
                             Edit
-                          </button>
-                          <button
-                            type="button"
-                            data-ocid={`advances.delete.button.${i + 1}`}
-                            onClick={() => handleDelete(adv)}
-                            className="text-xs px-2 py-1 rounded"
-                            style={{
-                              background: "rgba(220,38,38,0.15)",
-                              color: "#DC2626",
-                            }}
-                          >
-                            Delete
                           </button>
                         </td>
                       )}

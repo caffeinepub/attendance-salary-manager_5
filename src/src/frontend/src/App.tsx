@@ -160,58 +160,68 @@ export default function App() {
   }, [screen]);
 
   // Fetch today's working contract for login screen display
-  useEffect(() => {
+  const fetchWorkingContract = useCallback(async () => {
     if (!actor) return;
-    (async () => {
-      try {
-        const entries = await actor.getWorkingTodayMap();
-        const now = new Date();
-        const cutoff = new Date(now);
-        cutoff.setHours(23, 0, 0, 0);
-        const todayStart = new Date(now);
-        todayStart.setHours(0, 0, 0, 0);
-        let latestId: bigint | null = null;
-        let latestTs = 0;
-        let latestCount = 0;
-        for (const [id, entry] of entries) {
-          const t = new Date(entry.ts);
-          if (t >= todayStart && t <= cutoff && t.getTime() > latestTs) {
-            latestTs = t.getTime();
-            latestId = id;
-            latestCount = Number(entry.count);
+    try {
+      const entries = await actor.getWorkingTodayMap();
+      const now = new Date();
+      const cutoff = new Date(now);
+      cutoff.setHours(23, 0, 0, 0);
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+      let latestId: bigint | null = null;
+      let latestTs = 0;
+      let latestCount = 0;
+      for (const [id, entry] of entries) {
+        const t = new Date(entry.ts);
+        if (t >= todayStart && t <= cutoff && t.getTime() > latestTs) {
+          latestTs = t.getTime();
+          latestId = id;
+          latestCount = Number(entry.count);
+        }
+      }
+      if (latestId !== null) {
+        const allContracts = await actor.getAllContracts();
+        const c = allContracts.find((c2) => String(c2.id) === String(latestId));
+        if (c) {
+          setTodayWorkingContractName(c.name);
+          setTodayWorkingLabourCount(latestCount);
+          return;
+        }
+      }
+      // Fallback: check localStorage
+      const raw = localStorage.getItem("attendpay_last_attendance");
+      if (raw) {
+        const data: Record<string, string> = JSON.parse(raw);
+        let lId: string | null = null;
+        let lT = 0;
+        for (const [id, ts] of Object.entries(data)) {
+          const t = new Date(ts);
+          if (t >= todayStart && t <= cutoff && t.getTime() > lT) {
+            lT = t.getTime();
+            lId = id;
           }
         }
-        if (latestId !== null && latestCount > 0) {
-          const contracts = await actor.getAllContracts();
-          const c = contracts.find((c2) => c2.id === latestId);
+        if (lId) {
+          const allContracts = await actor.getAllContracts();
+          const c = allContracts.find((c2) => String(c2.id) === lId);
           if (c) {
             setTodayWorkingContractName(c.name);
-            setTodayWorkingLabourCount(latestCount);
-          }
-        } else {
-          // Fallback: check localStorage
-          const raw = localStorage.getItem("attendpay_last_attendance");
-          if (raw) {
-            const data: Record<string, string> = JSON.parse(raw);
-            let lId: string | null = null;
-            let lT = 0;
-            for (const [id, ts] of Object.entries(data)) {
-              const t = new Date(ts);
-              if (t >= todayStart && t <= cutoff && t.getTime() > lT) {
-                lT = t.getTime();
-                lId = id;
-              }
-            }
-            if (lId) {
-              const contracts = await actor.getAllContracts();
-              const c = contracts.find((c2) => String(c2.id) === lId);
-              if (c) setTodayWorkingContractName(c.name);
-            }
+            return;
           }
         }
-      } catch (_) {}
-    })();
+      }
+      setTodayWorkingContractName(null);
+      setTodayWorkingLabourCount(0);
+    } catch (_) {}
   }, [actor]);
+
+  useEffect(() => {
+    if (!actor || screen !== "home") return;
+    fetchWorkingContract();
+    const interval = setInterval(fetchWorkingContract, 10000);
+    return () => clearInterval(interval);
+  }, [actor, screen, fetchWorkingContract]);
 
   // Admin credential state
   const [showAdminDialog, setShowAdminDialog] = useState(false);

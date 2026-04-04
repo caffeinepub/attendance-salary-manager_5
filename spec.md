@@ -1,26 +1,24 @@
 # Attendance & Salary Manager
 
 ## Current State
-Working Today badge uses localStorage only -- cross-device sync is broken. Backend has recordWorkingToday/getWorkingTodayMap but they are not wired in frontend. Login screen has no today-working contract info. Contract list does not sort working-today first.
+- Login screen shows today's working contract via a useEffect that runs once when `actor` is available
+- Contracts list in ContractsTab sorts working contract first via `todayWorkingIds`
+- AdvancesTab has Edit + Delete buttons for each advance row
 
 ## Requested Changes (Diff)
 
 ### Add
-- recordWorkingToday and getWorkingTodayMap to IDL bindings and backend.d.ts
-- Call actor.recordWorkingToday from AttendanceTab on every attendance save
-- Login screen: show today-working contract name + badge at bottom, fetched from backend
-- Sort working-today contract first in contract list
+- Polling interval on login screen to re-fetch working contract every 10 seconds while on home screen
 
 ### Modify
-- ContractsTab: fetch working today status from backend (merge with localStorage fallback)
-- AttendanceTab: call recordWorkingToday after each attendance save with correct labour count
-- App.tsx home screen: fetch and display today working contract name
+- **Login screen (App.tsx)**: Fix working contract display — run fetch when screen='home' AND actor is ready; also poll every 10s; handle count > 0 requirement more robustly by showing contract even if count is 0 (count=0 badge is hidden in ContractsTab anyway, but the name should still show on login)
+- **ContractsTab**: Ensure `loadWorkingToday` re-runs reliably when contracts load, and the working contract ID matching uses String comparison to avoid bigint equality edge cases
+- **AdvancesTab**: Remove the Delete button entirely — only keep Edit/Save/Cancel
 
 ### Remove
-- Nothing
+- Delete button and `handleDelete` function from AdvancesTab
 
 ## Implementation Plan
-1. Update backend.did.js, backend.did.d.ts, backend.d.ts with WorkingTodayEntry type and two new methods
-2. AttendanceTab: call actor.recordWorkingToday in background after each save
-3. ContractsTab: fetch getWorkingTodayMap on load, sort working-today contract first
-4. App.tsx: fetch today working contract on home screen mount, show at bottom of login card
+1. In `App.tsx`: change the working contract fetch to depend on both `actor` and `screen`; add a `setInterval` polling every 10s when on home screen; remove `latestCount > 0` guard so contract name always shows if there's a valid today entry
+2. In `AdvancesTab.tsx`: remove the Delete button from the actions cell and remove the `handleDelete` function
+3. In `ContractsTab.tsx`: verify working today ID matching works with both bigint and string comparisons
