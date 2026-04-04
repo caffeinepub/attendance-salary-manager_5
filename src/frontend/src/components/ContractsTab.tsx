@@ -709,68 +709,89 @@ export function ContractsTab({
               No contracts yet.
             </div>
           )}
-          {contracts.map((c, i) => (
-            <button
-              type="button"
-              key={String(c.id)}
-              data-ocid={`contract.item.${i + 1}`}
-              className="flex items-center justify-between w-full px-4 py-3 rounded-lg cursor-pointer transition-all text-left"
-              style={{
-                background: "rgba(255,255,255,0.055)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                opacity: c.id < 0n ? 0.6 : 1,
-              }}
-              onClick={() => c.id >= 0n && setSelected(c)}
-            >
-              <div className="flex flex-col gap-0.5 items-start">
-                <span className="font-medium" style={{ color: "#F1F5F9" }}>
-                  {c.name}
-                  {c.id < 0n ? " (saving…)" : ""}
-                </span>
-                {(() => {
-                  const localWd = todayWorkingData.get(String(c.id));
-                  const backendWd = backendWorkingData.get(String(c.id));
-                  // Use whichever has the more recent timestamp
-                  let mergedWd: { ts: string; count: number } | undefined;
-                  if (localWd && backendWd) {
-                    mergedWd =
-                      new Date(localWd.ts) >= new Date(backendWd.ts)
-                        ? localWd
-                        : backendWd;
-                  } else {
-                    mergedWd = localWd ?? backendWd;
-                  }
-                  const count = mergedWd?.count;
-                  return count && count > 0 ? (
-                    <span
-                      className="flex items-center gap-1 text-xs font-semibold"
-                      style={{
-                        color: "#22C55E",
-                        background: "rgba(34,197,94,0.12)",
-                        border: "1px solid rgba(34,197,94,0.25)",
-                        borderRadius: 8,
-                        padding: "1px 7px",
-                      }}
-                    >
+          {[...contracts]
+            .sort((a, b) => {
+              // Put working today contract first
+              const getTs = (c2: typeof a) => {
+                const localWd = todayWorkingData.get(String(c2.id));
+                const backendWd = backendWorkingData.get(String(c2.id));
+                let mergedWd: { ts: string; count: number } | undefined;
+                if (localWd && backendWd) {
+                  mergedWd =
+                    new Date(localWd.ts) >= new Date(backendWd.ts)
+                      ? localWd
+                      : backendWd;
+                } else {
+                  mergedWd = localWd ?? backendWd;
+                }
+                return mergedWd && mergedWd.count > 0
+                  ? new Date(mergedWd.ts).getTime()
+                  : 0;
+              };
+              return getTs(b) - getTs(a);
+            })
+            .map((c, i) => (
+              <button
+                type="button"
+                key={String(c.id)}
+                data-ocid={`contract.item.${i + 1}`}
+                className="flex items-center justify-between w-full px-4 py-3 rounded-lg cursor-pointer transition-all text-left"
+                style={{
+                  background: "rgba(255,255,255,0.055)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  opacity: c.id < 0n ? 0.6 : 1,
+                }}
+                onClick={() => c.id >= 0n && setSelected(c)}
+              >
+                <div className="flex flex-col gap-0.5 items-start">
+                  <span className="font-medium" style={{ color: "#F1F5F9" }}>
+                    {c.name}
+                    {c.id < 0n ? " (saving…)" : ""}
+                  </span>
+                  {(() => {
+                    const localWd = todayWorkingData.get(String(c.id));
+                    const backendWd = backendWorkingData.get(String(c.id));
+                    // Use whichever has the more recent timestamp
+                    let mergedWd: { ts: string; count: number } | undefined;
+                    if (localWd && backendWd) {
+                      mergedWd =
+                        new Date(localWd.ts) >= new Date(backendWd.ts)
+                          ? localWd
+                          : backendWd;
+                    } else {
+                      mergedWd = localWd ?? backendWd;
+                    }
+                    const count = mergedWd?.count;
+                    return count && count > 0 ? (
                       <span
+                        className="flex items-center gap-1 text-xs font-semibold"
                         style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          background: "#22C55E",
-                          display: "inline-block",
+                          color: "#22C55E",
+                          background: "rgba(34,197,94,0.12)",
+                          border: "1px solid rgba(34,197,94,0.25)",
+                          borderRadius: 8,
+                          padding: "1px 7px",
                         }}
-                      />
-                      Working Today · {count} labours
-                    </span>
-                  ) : null;
-                })()}
-              </div>
-              <span className="text-sm" style={{ color: "#FF7F11" }}>
-                ₹{fmt(c.contractAmount)}
-              </span>
-            </button>
-          ))}
+                      >
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: "#22C55E",
+                            display: "inline-block",
+                          }}
+                        />
+                        Working Today · {count} labours
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+                <span className="text-sm" style={{ color: "#FF7F11" }}>
+                  ₹{fmt(c.contractAmount)}
+                </span>
+              </button>
+            ))}
         </div>
       )}
     </div>

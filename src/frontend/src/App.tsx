@@ -142,6 +142,11 @@ export default function App() {
   const { actor } = useActor();
   const [appReady, setAppReady] = useState(false);
   const [appReadyDom, setAppReadyDom] = useState(false);
+  const [loginWorkingContract, setLoginWorkingContract] = useState<{
+    id: bigint;
+    name: string;
+    count: number;
+  } | null>(null);
 
   // App loading screen
   useEffect(() => {
@@ -602,6 +607,52 @@ export default function App() {
     };
   }, [screen]);
 
+  // Fetch working today from backend while on login screen
+  useEffect(() => {
+    if (screen !== "home" || !actor) return;
+    const fetchWorkingToday = async () => {
+      try {
+        const [allContracts, workingMap] = await Promise.all([
+          actor.getAllContracts(),
+          actor.getWorkingTodayMap(),
+        ]);
+        const now = new Date();
+        const cutoff = new Date(now);
+        cutoff.setHours(23, 0, 0, 0);
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        let bestId: bigint | null = null;
+        let bestTs = 0;
+        let bestCount = 0;
+        for (const [id, val] of workingMap) {
+          const t = new Date(val.ts);
+          if (t >= todayStart && t <= cutoff && t.getTime() > bestTs) {
+            bestTs = t.getTime();
+            bestId = id;
+            bestCount = Number(val.count);
+          }
+        }
+        if (bestId !== null && bestCount > 0) {
+          const contract = allContracts.find((c) => c.id === bestId);
+          if (contract) {
+            setLoginWorkingContract({
+              id: bestId,
+              name: contract.name,
+              count: bestCount,
+            });
+            return;
+          }
+        }
+        setLoginWorkingContract(null);
+      } catch (_) {
+        setLoginWorkingContract(null);
+      }
+    };
+    fetchWorkingToday();
+    const interval = setInterval(fetchWorkingToday, 10_000);
+    return () => clearInterval(interval);
+  }, [screen, actor]);
+
   const dismissReminder = () => setShowReminder(false);
   const handleReminderExport = async () => {
     dismissReminder();
@@ -890,7 +941,9 @@ export default function App() {
                 type="button"
                 data-ocid="home.view_attendpay.button"
                 onClick={() => {
-                  const todayContractId = getTodayWorkingContractId();
+                  const backendId = loginWorkingContract?.id ?? null;
+                  const todayContractId =
+                    backendId ?? getTodayWorkingContractId();
                   if (todayContractId !== null)
                     setAttendanceContractId(todayContractId);
                   setMode("view");
@@ -957,6 +1010,48 @@ export default function App() {
                 </span>
               </button>
             </div>
+
+            {/* Working Today Badge */}
+            {loginWorkingContract && (
+              <div
+                style={{
+                  padding: "10px 24px",
+                  borderTop: "1px solid rgba(255,255,255,0.07)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    background: "rgba(34,197,94,0.12)",
+                    border: "1px solid rgba(34,197,94,0.3)",
+                    borderRadius: "20px",
+                    padding: "5px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#22C55E",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      background: "#22C55E",
+                      display: "inline-block",
+                      animation: "pulse-dot 1.5s ease-in-out infinite",
+                    }}
+                  />
+                  {loginWorkingContract.name} · {loginWorkingContract.count}{" "}
+                  working
+                </span>
+              </div>
+            )}
 
             {/* Card footer */}
             <div
@@ -1288,7 +1383,7 @@ export default function App() {
           </div>
           <style>
             {
-              "@keyframes pulse-glow { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }"
+              "@keyframes pulse-glow { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } } @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }"
             }
           </style>
         </div>
