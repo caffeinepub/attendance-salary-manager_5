@@ -5,6 +5,15 @@ import type { AppMode } from "../App";
 import type { Group, Labour } from "../backend";
 import { useActor } from "../hooks/useActor";
 
+const GRAD = "linear-gradient(135deg, #6366f1, #8b5cf6)";
+const PAGE_BG = "#f1f3f8";
+const CARD_BG = "rgba(255,255,255,0.88)";
+const CARD_BORDER = "1px solid rgba(120,80,255,0.14)";
+const CARD_SHADOW =
+  "0 2px 16px rgba(99,102,241,0.08), 0 1px 4px rgba(0,0,0,0.04)";
+const TEXT_PRIMARY = "#1e1b4b";
+const TEXT_SECONDARY = "#6b7280";
+
 interface Props {
   mode: AppMode;
 }
@@ -107,7 +116,6 @@ export function LaboursTab({ mode }: Props) {
   ) => {
     if (!actor) return;
     const nextActive = !(currentActive !== false);
-    // Optimistic update
     setLabours((prev) =>
       prev.map((l) => (l.id === id ? { ...l, isActive: nextActive } : l)),
     );
@@ -116,7 +124,6 @@ export function LaboursTab({ mode }: Props) {
       await actor.setLabourActive(id, nextActive);
       toast.success(nextActive ? "Labour set active" : "Labour set inactive");
     } catch (_) {
-      // Revert on error
       setLabours((prev) =>
         prev.map((l) => (l.id === id ? { ...l, isActive: currentActive } : l)),
       );
@@ -171,41 +178,39 @@ export function LaboursTab({ mode }: Props) {
 
   const inputStyle = {
     background: "#FFFFFF",
-    border: "1px solid #E5E5E5",
-    color: "#1E293B",
-    borderRadius: 6,
-    padding: "6px 10px",
-    width: "100%",
-  };
-  const selectDarkStyle: React.CSSProperties = {
-    background: "#1E293B",
-    border: "1px solid rgba(255,255,255,0.15)",
-    color: "#F1F5F9",
-    borderRadius: 6,
-    padding: "6px 10px",
+    border: "1.5px solid rgba(99,102,241,0.2)",
+    color: TEXT_PRIMARY,
+    borderRadius: 8,
+    padding: "7px 11px",
     width: "100%",
     fontSize: 13,
+    outline: "none",
   };
   const labelStyle = {
-    color: "#94A3B8",
+    color: TEXT_SECONDARY,
     fontSize: 12,
-    marginBottom: 2,
+    marginBottom: 3,
     display: "block" as const,
+    fontWeight: 600,
   };
   const thStyle: React.CSSProperties = {
     padding: "10px 12px",
     textAlign: "left",
-    fontWeight: 600,
-    fontSize: 12,
-    color: "#94A3B8",
-    background: "#111827",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
+    fontWeight: 700,
+    fontSize: 11,
+    color: TEXT_SECONDARY,
+    background: "rgba(99,102,241,0.06)",
+    borderBottom: "1px solid rgba(99,102,241,0.1)",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    whiteSpace: "nowrap",
   };
   const tdStyle: React.CSSProperties = {
-    padding: "8px 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
+    padding: "9px 12px",
+    borderBottom: "1px solid rgba(99,102,241,0.07)",
     fontSize: 13,
-    color: "#F1F5F9",
+    color: TEXT_PRIMARY,
+    verticalAlign: "middle",
   };
 
   if (loading) {
@@ -220,7 +225,7 @@ export function LaboursTab({ mode }: Props) {
       >
         <Loader2
           size={32}
-          style={{ color: "#FF7F11", animation: "spin 1s linear infinite" }}
+          style={{ color: "#6366f1" }}
           className="animate-spin"
         />
       </div>
@@ -228,7 +233,7 @@ export function LaboursTab({ mode }: Props) {
   }
 
   return (
-    <div>
+    <div style={{ background: PAGE_BG, minHeight: "100%" }}>
       {/* Delete Group Confirmation Dialog */}
       {confirmDeleteGroupId !== null && (
         <div
@@ -239,19 +244,19 @@ export function LaboursTab({ mode }: Props) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)",
+            background: "rgba(30,27,75,0.35)",
+            backdropFilter: "blur(6px)",
           }}
         >
           <div
             style={{
-              background: "#0F172A",
-              border: "1px solid rgba(239,68,68,0.3)",
-              borderRadius: 16,
+              background: "rgba(255,255,255,0.95)",
+              border: "1px solid rgba(220,38,38,0.2)",
+              borderRadius: 20,
               padding: "24px 20px",
               maxWidth: 320,
               width: "90%",
-              boxShadow: "0 0 40px rgba(239,68,68,0.15)",
+              boxShadow: "0 24px 64px rgba(30,27,75,0.18)",
             }}
           >
             <div style={{ textAlign: "center", marginBottom: 16 }}>
@@ -260,19 +265,19 @@ export function LaboursTab({ mode }: Props) {
                   width: 48,
                   height: 48,
                   borderRadius: "50%",
-                  background: "rgba(239,68,68,0.15)",
-                  border: "1px solid rgba(239,68,68,0.3)",
+                  background: "rgba(220,38,38,0.1)",
+                  border: "1px solid rgba(220,38,38,0.2)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   margin: "0 auto 12px",
                 }}
               >
-                <Trash2 size={20} color="#EF4444" />
+                <Trash2 size={20} color="#dc2626" />
               </div>
               <h3
                 style={{
-                  color: "#F1F5F9",
+                  color: TEXT_PRIMARY,
                   fontWeight: 700,
                   fontSize: 16,
                   marginBottom: 6,
@@ -280,9 +285,11 @@ export function LaboursTab({ mode }: Props) {
               >
                 Delete Group?
               </h3>
-              <p style={{ color: "#94A3B8", fontSize: 13, lineHeight: 1.5 }}>
+              <p
+                style={{ color: TEXT_SECONDARY, fontSize: 13, lineHeight: 1.5 }}
+              >
                 Are you sure you want to delete{" "}
-                <span style={{ color: "#F1F5F9", fontWeight: 600 }}>
+                <span style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>
                   "{confirmGroup?.name}"
                 </span>
                 ? Labours in this group will be unassigned.
@@ -296,9 +303,9 @@ export function LaboursTab({ mode }: Props) {
                   flex: 1,
                   padding: "10px",
                   borderRadius: 10,
-                  background: "rgba(255,255,255,0.07)",
-                  color: "#94A3B8",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "#f3f4f6",
+                  color: TEXT_SECONDARY,
+                  border: "1px solid #e5e7eb",
                   fontWeight: 600,
                   fontSize: 14,
                   cursor: "pointer",
@@ -316,8 +323,8 @@ export function LaboursTab({ mode }: Props) {
                   borderRadius: 10,
                   background:
                     deletingGroupId === confirmDeleteGroupId
-                      ? "#7F1D1D"
-                      : "#EF4444",
+                      ? "#fca5a5"
+                      : "#dc2626",
                   color: "#fff",
                   border: "none",
                   fontWeight: 700,
@@ -338,7 +345,7 @@ export function LaboursTab({ mode }: Props) {
       )}
 
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold" style={{ color: "#F1F5F9" }}>
+        <h2 className="text-lg font-bold" style={{ color: TEXT_PRIMARY }}>
           Labours
         </h2>
         {mode === "edit" && (
@@ -347,11 +354,11 @@ export function LaboursTab({ mode }: Props) {
               type="button"
               data-ocid="labours.groups.toggle"
               onClick={() => setShowGroups((v) => !v)}
-              className="text-sm px-3 py-2 rounded-lg font-semibold flex items-center gap-1"
+              className="text-sm px-3 py-2 rounded-xl font-semibold flex items-center gap-1 transition-all active:scale-95"
               style={{
-                background: "rgba(255,127,17,0.15)",
-                color: "#FF7F11",
-                border: "1px solid rgba(255,127,17,0.35)",
+                background: "rgba(99,102,241,0.1)",
+                color: "#6366f1",
+                border: "1px solid rgba(99,102,241,0.2)",
               }}
             >
               Groups
@@ -361,8 +368,13 @@ export function LaboursTab({ mode }: Props) {
               type="button"
               data-ocid="labours.add.button"
               onClick={() => setShowAdd((v) => !v)}
-              className="text-sm px-4 py-2 rounded-lg font-semibold"
-              style={{ background: "#FF7F11", color: "#fff" }}
+              className="text-sm px-4 py-2 rounded-xl font-semibold transition-all active:scale-95"
+              style={{
+                background: GRAD,
+                color: "#fff",
+                border: "none",
+                boxShadow: "0 4px 12px rgba(99,102,241,0.3)",
+              }}
             >
               + Add Labour
             </button>
@@ -373,29 +385,25 @@ export function LaboursTab({ mode }: Props) {
       {/* Group Management Section */}
       {showGroups && mode === "edit" && (
         <div
-          className="rounded-xl p-4 mb-4"
+          className="rounded-2xl p-4 mb-4"
           style={{
-            background: "rgba(255,255,255,0.055)",
-            border: "1px solid rgba(255,127,17,0.25)",
+            background: CARD_BG,
+            border: CARD_BORDER,
             backdropFilter: "blur(12px)",
+            boxShadow: CARD_SHADOW,
           }}
         >
           <h3
             className="text-sm font-semibold mb-3"
-            style={{ color: "#FF7F11" }}
+            style={{ color: "#6366f1" }}
           >
             Manage Groups
           </h3>
-          {/* Add Group */}
           <div className="flex gap-2 mb-3">
             <input
               data-ocid="labours.group.name.input"
               placeholder="New group name…"
-              style={{
-                ...inputStyle,
-                flex: 1,
-                width: "auto",
-              }}
+              style={{ ...inputStyle, flex: 1, width: "auto" }}
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddGroup()}
@@ -405,11 +413,13 @@ export function LaboursTab({ mode }: Props) {
               data-ocid="labours.group.add.button"
               onClick={handleAddGroup}
               disabled={addingGroup || !newGroupName.trim()}
-              className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+              className="px-3 py-1.5 rounded-xl text-sm font-semibold"
               style={{
                 background:
-                  addingGroup || !newGroupName.trim() ? "#334155" : "#FF7F11",
-                color: addingGroup || !newGroupName.trim() ? "#64748B" : "#fff",
+                  addingGroup || !newGroupName.trim() ? "#e5e7eb" : GRAD,
+                color:
+                  addingGroup || !newGroupName.trim() ? TEXT_SECONDARY : "#fff",
+                border: "none",
                 cursor:
                   addingGroup || !newGroupName.trim()
                     ? "not-allowed"
@@ -421,11 +431,10 @@ export function LaboursTab({ mode }: Props) {
             </button>
           </div>
 
-          {/* Groups List */}
           {groups.length === 0 ? (
             <p
               className="text-xs text-center py-2"
-              style={{ color: "#64748B" }}
+              style={{ color: TEXT_SECONDARY }}
               data-ocid="labours.groups.empty_state"
             >
               No groups yet. Create one above.
@@ -435,15 +444,15 @@ export function LaboursTab({ mode }: Props) {
               {groups.map((g) => (
                 <div
                   key={String(g.id)}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl"
                   style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(99,102,241,0.05)",
+                    border: "1px solid rgba(99,102,241,0.1)",
                   }}
                 >
                   <span
                     className="text-sm font-medium"
-                    style={{ color: "#F1F5F9" }}
+                    style={{ color: TEXT_PRIMARY }}
                   >
                     {g.name}
                   </span>
@@ -452,11 +461,12 @@ export function LaboursTab({ mode }: Props) {
                     data-ocid="labours.group.delete.button"
                     onClick={() => setConfirmDeleteGroupId(g.id)}
                     disabled={deletingGroupId === g.id}
-                    className="p-1.5 rounded-md"
+                    className="p-1.5 rounded-lg"
                     style={{
-                      background: "rgba(239,68,68,0.15)",
-                      color: deletingGroupId === g.id ? "#94A3B8" : "#EF4444",
-                      border: "1px solid rgba(239,68,68,0.25)",
+                      background: "rgba(220,38,38,0.1)",
+                      color:
+                        deletingGroupId === g.id ? TEXT_SECONDARY : "#dc2626",
+                      border: "1px solid rgba(220,38,38,0.18)",
                       cursor:
                         deletingGroupId === g.id ? "not-allowed" : "pointer",
                     }}
@@ -474,16 +484,17 @@ export function LaboursTab({ mode }: Props) {
       {/* Add Labour Form */}
       {showAdd && mode === "edit" && (
         <div
-          className="rounded-xl p-4 mb-4 max-w-sm"
+          className="rounded-2xl p-4 mb-4 max-w-sm"
           style={{
-            background: "rgba(255,255,255,0.055)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: CARD_BG,
+            border: CARD_BORDER,
             backdropFilter: "blur(12px)",
+            boxShadow: CARD_SHADOW,
           }}
         >
           <h3
             className="text-sm font-semibold mb-3"
-            style={{ color: "#FF7F11" }}
+            style={{ color: "#6366f1" }}
           >
             New Labour
           </h3>
@@ -533,11 +544,13 @@ export function LaboursTab({ mode }: Props) {
               data-ocid="labours.add.submit.button"
               onClick={handleAdd}
               disabled={adding}
-              className="py-2 rounded font-semibold"
+              className="py-2.5 rounded-xl font-semibold text-sm"
               style={{
-                background: adding ? "#334155" : "#FF7F11",
-                color: adding ? "#64748B" : "#fff",
+                background: adding ? "#e5e7eb" : GRAD,
+                color: adding ? TEXT_SECONDARY : "#fff",
+                border: "none",
                 cursor: adding ? "not-allowed" : "pointer",
+                boxShadow: adding ? "none" : "0 4px 12px rgba(99,102,241,0.3)",
               }}
             >
               {adding ? "Saving…" : "Save Labour"}
@@ -546,7 +559,16 @@ export function LaboursTab({ mode }: Props) {
         </div>
       )}
 
-      <div style={{ overflowX: "auto" }}>
+      <div
+        style={{
+          overflowX: "auto",
+          background: CARD_BG,
+          border: CARD_BORDER,
+          borderRadius: 16,
+          boxShadow: CARD_SHADOW,
+          backdropFilter: "blur(10px)",
+        }}
+      >
         <table
           style={{ borderCollapse: "collapse", width: "100%", minWidth: 300 }}
         >
@@ -564,8 +586,12 @@ export function LaboursTab({ mode }: Props) {
             {labours.length === 0 && (
               <tr>
                 <td
-                  colSpan={mode === "edit" ? 5 : 4}
-                  style={{ ...tdStyle, color: "#94A3B8", textAlign: "center" }}
+                  colSpan={mode === "edit" ? 6 : 5}
+                  style={{
+                    ...tdStyle,
+                    color: TEXT_SECONDARY,
+                    textAlign: "center",
+                  }}
                   data-ocid="labours.empty_state"
                 >
                   No labours added yet.
@@ -577,8 +603,11 @@ export function LaboursTab({ mode }: Props) {
                 key={String(l.id)}
                 data-ocid={`labours.item.${i + 1}`}
                 style={{
-                  background: i % 2 === 0 ? "#111827" : "#0D1626",
-                  opacity: l.isActive === false ? 0.5 : l.id < 0n ? 0.6 : 1,
+                  background:
+                    i % 2 === 0
+                      ? "rgba(255,255,255,0.9)"
+                      : "rgba(245,247,255,0.8)",
+                  opacity: l.isActive === false ? 0.55 : l.id < 0n ? 0.6 : 1,
                 }}
               >
                 <td style={tdStyle}>{i + 1}</td>
@@ -587,12 +616,9 @@ export function LaboursTab({ mode }: Props) {
                     <td style={tdStyle}>
                       <input
                         style={{
-                          background: "#1E293B",
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          color: "#F1F5F9",
-                          borderRadius: 4,
-                          padding: "3px 6px",
+                          ...inputStyle,
                           width: 140,
+                          padding: "4px 8px",
                         }}
                         value={editForm.name}
                         onChange={(e) =>
@@ -603,25 +629,23 @@ export function LaboursTab({ mode }: Props) {
                     <td style={tdStyle}>
                       <input
                         style={{
-                          background: "#1E293B",
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          color: "#F1F5F9",
-                          borderRadius: 4,
-                          padding: "3px 6px",
+                          ...inputStyle,
                           width: 110,
+                          padding: "4px 8px",
                         }}
                         value={editForm.phone}
                         onChange={(e) =>
-                          setEditForm((f) => ({
-                            ...f,
-                            phone: e.target.value,
-                          }))
+                          setEditForm((f) => ({ ...f, phone: e.target.value }))
                         }
                       />
                     </td>
                     <td style={tdStyle}>
                       <select
-                        style={{ ...selectDarkStyle, width: 120 }}
+                        style={{
+                          ...inputStyle,
+                          width: 120,
+                          padding: "4px 8px",
+                        }}
                         value={editForm.groupId}
                         onChange={(e) =>
                           setEditForm((f) => ({
@@ -638,27 +662,29 @@ export function LaboursTab({ mode }: Props) {
                         ))}
                       </select>
                     </td>
-                    <td style={tdStyle}>
-                      {/* status placeholder in edit mode */}
-                    </td>
+                    <td style={tdStyle} />
                     <td style={tdStyle}>
                       <button
                         type="button"
                         data-ocid={`labours.save.button.${i + 1}`}
                         onClick={() => handleUpdate(l.id)}
-                        className="text-xs px-2 py-1 rounded mr-1"
-                        style={{ background: "#FF7F11", color: "#fff" }}
+                        className="text-xs px-2.5 py-1.5 rounded-lg mr-1 font-semibold"
+                        style={{
+                          background: GRAD,
+                          color: "#fff",
+                          border: "none",
+                        }}
                       >
                         Save
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
-                        className="text-xs px-2 py-1 rounded"
+                        className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
                         style={{
-                          background: "#111827",
-                          color: "#94A3B8",
-                          border: "1px solid #E5E5E5",
+                          background: "#f3f4f6",
+                          color: TEXT_SECONDARY,
+                          border: "1px solid #e5e7eb",
                         }}
                       >
                         Cancel
@@ -672,7 +698,7 @@ export function LaboursTab({ mode }: Props) {
                       {l.id < 0n && (
                         <span
                           style={{
-                            color: "#94A3B8",
+                            color: TEXT_SECONDARY,
                             fontSize: 11,
                             marginLeft: 6,
                           }}
@@ -681,16 +707,16 @@ export function LaboursTab({ mode }: Props) {
                         </span>
                       )}
                     </td>
-                    <td style={{ ...tdStyle, color: "#94A3B8" }}>
+                    <td style={{ ...tdStyle, color: TEXT_SECONDARY }}>
                       {l.phone || "-"}
                     </td>
                     <td style={tdStyle}>
                       {getGroupName(l.groupId) ? (
                         <span
                           style={{
-                            background: "rgba(255,127,17,0.18)",
-                            color: "#FF7F11",
-                            border: "1px solid rgba(255,127,17,0.35)",
+                            background: "rgba(99,102,241,0.1)",
+                            color: "#6366f1",
+                            border: "1px solid rgba(99,102,241,0.2)",
                             borderRadius: 12,
                             padding: "2px 8px",
                             fontSize: 11,
@@ -701,7 +727,7 @@ export function LaboursTab({ mode }: Props) {
                           {getGroupName(l.groupId)}
                         </span>
                       ) : (
-                        <span style={{ color: "#475569", fontSize: 12 }}>
+                        <span style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
                           —
                         </span>
                       )}
@@ -710,9 +736,9 @@ export function LaboursTab({ mode }: Props) {
                       {l.isActive === false ? (
                         <span
                           style={{
-                            background: "rgba(148,163,184,0.15)",
-                            color: "#94A3B8",
-                            border: "1px solid rgba(148,163,184,0.25)",
+                            background: "rgba(107,114,128,0.1)",
+                            color: TEXT_SECONDARY,
+                            border: "1px solid rgba(107,114,128,0.2)",
                             borderRadius: 12,
                             padding: "2px 8px",
                             fontSize: 11,
@@ -724,9 +750,9 @@ export function LaboursTab({ mode }: Props) {
                       ) : (
                         <span
                           style={{
-                            background: "rgba(34,197,94,0.15)",
-                            color: "#22C55E",
-                            border: "1px solid rgba(34,197,94,0.25)",
+                            background: "rgba(22,163,74,0.1)",
+                            color: "#16a34a",
+                            border: "1px solid rgba(22,163,74,0.2)",
                             borderRadius: 12,
                             padding: "2px 8px",
                             fontSize: 11,
@@ -740,7 +766,7 @@ export function LaboursTab({ mode }: Props) {
                     {mode === "edit" && (
                       <td style={tdStyle}>
                         {l.id >= 0n && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-wrap">
                             <button
                               type="button"
                               data-ocid={`labours.edit.button.${i + 1}`}
@@ -755,11 +781,11 @@ export function LaboursTab({ mode }: Props) {
                                       : "",
                                 });
                               }}
-                              className="text-xs px-3 py-1 rounded"
+                              className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
                               style={{
-                                background: "#FFFFFF",
-                                color: "#FF7F11",
-                                border: "1px solid #FF7F11",
+                                background: "rgba(99,102,241,0.1)",
+                                color: "#6366f1",
+                                border: "1px solid rgba(99,102,241,0.2)",
                               }}
                             >
                               Edit
@@ -771,23 +797,26 @@ export function LaboursTab({ mode }: Props) {
                                 handleToggleActive(l.id, l.isActive)
                               }
                               disabled={togglingId === l.id}
-                              className="text-xs px-2 py-1 rounded"
+                              className="text-xs px-2 py-1.5 rounded-lg font-semibold"
                               style={{
                                 background:
                                   l.isActive === false
-                                    ? "rgba(34,197,94,0.15)"
-                                    : "rgba(148,163,184,0.15)",
+                                    ? "rgba(22,163,74,0.1)"
+                                    : "rgba(107,114,128,0.1)",
                                 color:
-                                  l.isActive === false ? "#22C55E" : "#94A3B8",
+                                  l.isActive === false
+                                    ? "#16a34a"
+                                    : TEXT_SECONDARY,
                                 border:
                                   l.isActive === false
-                                    ? "1px solid rgba(34,197,94,0.25)"
-                                    : "1px solid rgba(148,163,184,0.25)",
+                                    ? "1px solid rgba(22,163,74,0.2)"
+                                    : "1px solid rgba(107,114,128,0.2)",
                                 cursor:
                                   togglingId === l.id
                                     ? "not-allowed"
                                     : "pointer",
                                 opacity: togglingId === l.id ? 0.6 : 1,
+                                whiteSpace: "nowrap",
                               }}
                               title={
                                 l.isActive === false

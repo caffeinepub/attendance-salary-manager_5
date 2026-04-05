@@ -76,9 +76,10 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        xs: "0 1px 2px 0 rgba(0,0,0,0.05)",
-        "orange-glow": "0 0 40px 12px rgba(255,127,17,0.35), 0 0 80px 24px rgba(255,127,17,0.15)",
-        "btn-orange": "0 4px 24px rgba(255,127,17,0.5), 0 1px 6px rgba(0,0,0,0.25)",
+        xs: "0 1px 2px 0 rgba(0,0,0,0.04)",
+        "violet-glow": "0 0 32px 8px rgba(139,92,246,0.2), 0 0 64px 20px rgba(99,102,241,0.1)",
+        "btn-violet": "0 4px 20px rgba(99,102,241,0.4), 0 1px 4px rgba(0,0,0,0.1)",
+        "glass": "0 2px 16px rgba(99,102,241,0.08), 0 1px 4px rgba(0,0,0,0.04)",
       },
       keyframes: {
         "accordion-down": {

@@ -16,6 +16,14 @@ import type { Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
 const LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
+const GRAD = "linear-gradient(135deg, #6366f1, #8b5cf6)";
+const PAGE_BG = "#f1f3f8";
+const CARD_BG = "rgba(255,255,255,0.88)";
+const CARD_BORDER = "1px solid rgba(120,80,255,0.14)";
+const CARD_SHADOW =
+  "0 2px 16px rgba(99,102,241,0.08), 0 1px 4px rgba(0,0,0,0.04)";
+const TEXT_PRIMARY = "#1e1b4b";
+const TEXT_SECONDARY = "#6b7280";
 
 function markAttendanceToday(
   contractId: bigint,
@@ -35,29 +43,6 @@ function markAttendanceToday(
     };
     localStorage.setItem(LAST_ATTENDANCE_KEY, JSON.stringify(data));
   } catch (_) {}
-}
-
-function getTodayWorkingData(): Map<string, { ts: string; count: number }> {
-  const result = new Map<string, { ts: string; count: number }>();
-  try {
-    const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
-    if (!raw) return result;
-    const data = JSON.parse(raw) as Record<
-      string,
-      { ts: string; count: number } | string
-    >;
-    const now = new Date();
-    const cutoff = new Date(now);
-    cutoff.setHours(23, 0, 0, 0);
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    for (const [id, val] of Object.entries(data)) {
-      const entry = typeof val === "string" ? { ts: val, count: 0 } : val;
-      const t = new Date(entry.ts);
-      if (t >= todayStart && t <= cutoff) result.set(id, entry);
-    }
-  } catch (_) {}
-  return result;
 }
 
 interface Props {
@@ -92,16 +77,16 @@ function BadgeCell({ val }: { val: string }) {
   let label: string;
 
   if (val === "Present") {
-    bg = "#DCFCE7";
-    color = "#16A34A";
+    bg = "#dcfce7";
+    color = "#16a34a";
     label = "Present";
   } else if (val === "Absent") {
-    bg = "#FEE2E2";
-    color = "#DC2626";
+    bg = "#fee2e2";
+    color = "#dc2626";
     label = "Absent";
   } else {
-    bg = "#FFF7ED";
-    color = "#EA580C";
+    bg = "#fef3c7";
+    color = "#d97706";
     label = val;
   }
 
@@ -116,7 +101,7 @@ function BadgeCell({ val }: { val: string }) {
         borderRadius: 999,
         padding: "2px 9px",
         letterSpacing: "0.03em",
-        border: `1px solid ${color}22`,
+        border: `1px solid ${color}33`,
       }}
     >
       {label}
@@ -129,14 +114,14 @@ function HolidayBadge() {
     <span
       style={{
         display: "inline-block",
-        background: "#F1F5F9",
-        color: "#64748B",
+        background: "#f3f4f6",
+        color: TEXT_SECONDARY,
         fontWeight: 700,
         fontSize: 11,
         borderRadius: 999,
         padding: "2px 9px",
         letterSpacing: "0.03em",
-        border: "1px solid #CBD5E1",
+        border: "1px solid #e5e7eb",
       }}
     >
       Holiday
@@ -147,41 +132,42 @@ function HolidayBadge() {
 function getSelectStyle(val: string): React.CSSProperties {
   if (val === "Present") {
     return {
-      background: "#DCFCE7",
-      border: "1.5px solid #16A34A",
-      color: "#15803D",
+      background: "#dcfce7",
+      border: "1.5px solid #16a34a",
+      color: "#15803d",
       borderRadius: 8,
       padding: "4px 8px",
       fontSize: 12,
       cursor: "pointer",
       fontWeight: 700,
+      outline: "none",
     };
   }
   if (val === "Absent") {
     return {
-      background: "#FEE2E2",
-      border: "1.5px solid #DC2626",
-      color: "#B91C1C",
+      background: "#fee2e2",
+      border: "1.5px solid #dc2626",
+      color: "#b91c1c",
       borderRadius: 8,
       padding: "4px 8px",
       fontSize: 12,
       cursor: "pointer",
       fontWeight: 700,
+      outline: "none",
     };
   }
   return {
-    background: "#FFF7ED",
-    border: "1.5px solid #EA580C",
-    color: "#C2410C",
+    background: "#fef3c7",
+    border: "1.5px solid #d97706",
+    color: "#b45309",
     borderRadius: 8,
     padding: "4px 8px",
     fontSize: 12,
     cursor: "pointer",
     fontWeight: 700,
+    outline: "none",
   };
 }
-
-// getLargeSelectStyle removed - replaced by Present/Absent buttons in dialog
 
 export function AttendanceTab({
   mode,
@@ -372,7 +358,6 @@ export function AttendanceTab({
       setDirtyKeys(new Set());
       if (saves.length > 0) {
         markAttendanceToday(selectedContractId);
-        // Sync to backend for cross-device badge (fire-and-forget)
         if (actor) {
           actor
             .recordWorkingToday(
@@ -487,7 +472,6 @@ export function AttendanceTab({
     );
   };
 
-  // Mark Attendance Dialog helpers
   const allColKeys = ["bed", "paper", ...meshCols.map((_, i) => `mesh_${i}`)];
   const allColLabels: Record<string, string> = {
     bed: "Bed",
@@ -502,7 +486,6 @@ export function AttendanceTab({
     setMarkDialogOpen(true);
   };
 
-  // Clear view mode selection when triggered from parent
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only reacts to triggerClearViewContract
   useEffect(() => {
     if (triggerClearViewContract && triggerClearViewContract > 0) {
@@ -510,6 +493,7 @@ export function AttendanceTab({
       onViewModeContractSelected?.(false);
     }
   }, [triggerClearViewContract]);
+
   const saveAttendanceSingle = async (
     labour: Labour,
     colKey: string,
@@ -541,13 +525,11 @@ export function AttendanceTab({
           val,
         );
       }
-      // Count non-absent values only in the changed column
       const workingCount = labours.filter((l) => {
         const v = l.id === labour.id ? val : getVal(l.id, colKey);
         return v !== "Absent" && v !== "";
       }).length;
       markAttendanceToday(selectedContractId, workingCount, colKey);
-      // Sync to backend for cross-device badge (fire-and-forget)
       if (actor) {
         actor
           .recordWorkingToday(
@@ -557,23 +539,18 @@ export function AttendanceTab({
           )
           .catch(() => {});
       }
-      // remove from dirty after save
       setDirtyKeys((prev) => {
         const s = new Set(prev);
         s.delete(`${labour.id}_${colKey}`);
         return s;
       });
-    } catch (_e) {
-      // keep dirty if save failed
-    }
+    } catch (_e) {}
   };
 
   const handleMarkAttendanceChange = (val: string) => {
     if (labours.length === 0) return;
     const labour = labours[markDialogIndex];
-    // Fire-and-forget: save in background, advance immediately
     saveAttendanceSingle(labour, markDialogCol, val);
-    // Auto-advance instantly without waiting for backend
     if (markDialogIndex < labours.length - 1) {
       setMarkDialogIndex((prev) => prev + 1);
     } else {
@@ -585,65 +562,73 @@ export function AttendanceTab({
   const currentMarkVal = currentMarkLabour
     ? getVal(currentMarkLabour.id, markDialogCol)
     : "Present";
-
   const totalNet = labours.reduce((s, l) => s + labourNetSalary(l.id), 0);
   const presentCount = labours.filter(
     (l) => getVal(l.id, "bed") === "Present",
   ).length;
 
-  const TH_DARK: React.CSSProperties = {
+  const TH: React.CSSProperties = {
     padding: "11px 14px",
     textAlign: "left",
     fontWeight: 700,
-    fontSize: 12,
-    color: "#FFFFFF",
-    background: "#1E293B",
+    fontSize: 11,
+    color: TEXT_SECONDARY,
+    background: "rgba(99,102,241,0.06)",
     whiteSpace: "nowrap",
-    borderBottom: "none",
-    letterSpacing: "0.04em",
+    borderBottom: "1px solid rgba(99,102,241,0.1)",
+    letterSpacing: "0.05em",
     textTransform: "uppercase",
   };
   const TD: React.CSSProperties = {
     padding: "8px 14px",
     fontSize: 13,
-    color: "#F1F5F9",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
+    color: TEXT_PRIMARY,
+    borderBottom: "1px solid rgba(99,102,241,0.07)",
     verticalAlign: "middle",
   };
-  const STICKY_BG_LIGHT = "#0F1C2E";
-
-  // Suppress unused variable warning for toggleHoliday - it's still used for data consistency
+  const STICKY_BG = "rgba(246,247,252,0.96)";
 
   return (
-    <div>
+    <div style={{ background: PAGE_BG, minHeight: "100%" }}>
       <div
         style={{
-          borderLeft: "4px solid #F97316",
+          borderLeft: "4px solid #6366f1",
           paddingLeft: 12,
           marginBottom: 16,
         }}
       >
         <h2
-          style={{ fontSize: 20, fontWeight: 800, color: "#F1F5F9", margin: 0 }}
+          style={{
+            fontSize: 20,
+            fontWeight: 800,
+            color: TEXT_PRIMARY,
+            margin: 0,
+          }}
         >
           {mode === "view" && !selectedContractId
             ? "Select Contract"
             : "Attendance List"}
         </h2>
-        <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, marginTop: 2 }}>
+        <p
+          style={{
+            fontSize: 12,
+            color: TEXT_SECONDARY,
+            margin: 0,
+            marginTop: 2,
+          }}
+        >
           Track daily attendance and salary calculations
         </p>
       </div>
 
       {mode === "view" && !selectedContractId ? (
-        /* View mode: contract card list */
         <div>
           <div style={{ marginBottom: 16 }}>
             <h3
               style={{
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: 700,
-                color: "#94A3B8",
+                color: TEXT_SECONDARY,
                 margin: 0,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
@@ -656,12 +641,12 @@ export function AttendanceTab({
             <div
               data-ocid="attendance.empty_state"
               style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px dashed rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.8)",
+                border: "1px dashed rgba(99,102,241,0.2)",
                 borderRadius: 12,
                 padding: "32px 20px",
                 textAlign: "center",
-                color: "#94A3B8",
+                color: TEXT_SECONDARY,
                 fontSize: 14,
               }}
             >
@@ -669,81 +654,38 @@ export function AttendanceTab({
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {contracts.map((c) => {
-              const todayData = getTodayWorkingData();
-              const wd = todayData.get(String(c.id));
-              return (
-                <button
-                  type="button"
-                  key={String(c.id)}
-                  data-ocid="attendance.contract.card.button"
-                  onClick={() => {
-                    setSelectedContractId(c.id);
-                    onViewModeContractSelected?.(true);
-                  }}
-                  style={{
-                    background: "rgba(255,255,255,0.055)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 12,
-                    padding: "14px 16px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    width: "100%",
-                    transition: "border-color 0.15s",
-                  }}
+            {contracts.map((c) => (
+              <button
+                type="button"
+                key={String(c.id)}
+                data-ocid="attendance.contract.card.button"
+                onClick={() => {
+                  setSelectedContractId(c.id);
+                  onViewModeContractSelected?.(true);
+                }}
+                style={{
+                  background: CARD_BG,
+                  border: CARD_BORDER,
+                  borderRadius: 14,
+                  backdropFilter: "blur(10px)",
+                  boxShadow: CARD_SHADOW,
+                  padding: "14px 16px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  width: "100%",
+                  transition: "all 0.15s",
+                }}
+              >
+                <span
+                  style={{ fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 700,
-                        color: "#F1F5F9",
-                      }}
-                    >
-                      {c.name}
-                    </span>
-                    {wd && wd.count > 0 && (
-                      <span
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "#22C55E",
-                          background: "rgba(34,197,94,0.12)",
-                          border: "1px solid rgba(34,197,94,0.25)",
-                          borderRadius: 8,
-                          padding: "2px 8px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            background: "#22C55E",
-                            display: "inline-block",
-                          }}
-                        />
-                        Working Today · {wd.count} labours
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+                  {c.name}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       ) : mode === "view" && selectedContractId ? (
-        /* View mode with contract selected: contract name large + table */
         <div>
           {contract && (
             <div style={{ marginBottom: 16, textAlign: "center" }}>
@@ -751,7 +693,7 @@ export function AttendanceTab({
                 style={{
                   fontSize: 28,
                   fontWeight: 900,
-                  background: "linear-gradient(90deg, #FF7F11, #FBBF24)",
+                  background: GRAD,
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
@@ -762,7 +704,11 @@ export function AttendanceTab({
                 {contract.name}
               </h1>
               <p
-                style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0 0" }}
+                style={{
+                  fontSize: 12,
+                  color: TEXT_SECONDARY,
+                  margin: "4px 0 0 0",
+                }}
               >
                 Attendance
               </p>
@@ -770,7 +716,6 @@ export function AttendanceTab({
           )}
         </div>
       ) : !selectedContractId ? (
-        /* Edit mode: dropdown + empty state */
         <div className="mb-4">
           <label
             htmlFor="attendance-contract-select"
@@ -778,7 +723,7 @@ export function AttendanceTab({
               display: "block",
               fontSize: 11,
               fontWeight: 700,
-              color: "#94A3B8",
+              color: TEXT_SECONDARY,
               letterSpacing: "0.06em",
               textTransform: "uppercase",
               marginBottom: 6,
@@ -796,9 +741,9 @@ export function AttendanceTab({
               )
             }
             style={{
-              background: "rgba(255,255,255,0.07)",
-              border: "1.5px solid rgba(255,255,255,0.15)",
-              color: "#F1F5F9",
+              background: "#ffffff",
+              border: "1.5px solid rgba(99,102,241,0.2)",
+              color: TEXT_PRIMARY,
               borderRadius: 999,
               padding: "8px 16px",
               fontSize: 13,
@@ -807,12 +752,6 @@ export function AttendanceTab({
               outline: "none",
               cursor: "pointer",
               appearance: "auto",
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "#FF7F11";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "rgba(255,255,255,0.15)";
             }}
           >
             <option value="">-- Select Contract --</option>
@@ -825,12 +764,12 @@ export function AttendanceTab({
           <div
             data-ocid="attendance.empty_state"
             style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px dashed rgba(255,255,255,0.15)",
+              background: "rgba(255,255,255,0.8)",
+              border: "1px dashed rgba(99,102,241,0.2)",
               borderRadius: 12,
               padding: "32px 20px",
               textAlign: "center",
-              color: "#94A3B8",
+              color: TEXT_SECONDARY,
               fontSize: 14,
               marginTop: 12,
             }}
@@ -840,7 +779,6 @@ export function AttendanceTab({
         </div>
       ) : null}
 
-      {/* Edit mode: show dropdown above table when contract selected */}
       {mode === "edit" && selectedContractId && (
         <div className="mb-4">
           <select
@@ -853,9 +791,9 @@ export function AttendanceTab({
               )
             }
             style={{
-              background: "rgba(255,255,255,0.07)",
-              border: "1.5px solid rgba(255,255,255,0.15)",
-              color: "#F1F5F9",
+              background: "#ffffff",
+              border: "1.5px solid rgba(99,102,241,0.2)",
+              color: TEXT_PRIMARY,
               borderRadius: 999,
               padding: "8px 16px",
               fontSize: 13,
@@ -888,24 +826,24 @@ export function AttendanceTab({
             }}
           >
             {[
-              { label: "Labours", value: labours.length, color: "#F97316" },
-              { label: "Present Today", value: presentCount, color: "#60A5FA" },
+              { label: "Labours", value: labours.length, color: "#6366f1" },
+              { label: "Present Today", value: presentCount, color: "#3b82f6" },
               {
                 label: "Bed Pool",
                 value: `₹${Number(contract.bedAmount).toLocaleString()}`,
-                color: "#7C3AED",
+                color: "#7c3aed",
               },
               {
                 label: "Paper Pool",
                 value: `₹${Number(contract.paperAmount).toLocaleString()}`,
-                color: "#0EA5E9",
+                color: "#0ea5e9",
               },
               ...(mode !== "view"
                 ? [
                     {
                       label: "Total Net",
                       value: `₹${totalNet.toFixed(0)}`,
-                      color: "#F97316",
+                      color: "#059669",
                     },
                   ]
                 : []),
@@ -913,18 +851,19 @@ export function AttendanceTab({
               <div
                 key={stat.label}
                 style={{
-                  background: "#111827",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: CARD_BG,
+                  border: CARD_BORDER,
                   borderRadius: 10,
                   padding: "8px 14px",
-                  minWidth: 100,
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                  minWidth: 90,
+                  boxShadow: CARD_SHADOW,
+                  backdropFilter: "blur(8px)",
                 }}
               >
                 <div
                   style={{
                     fontSize: 10,
-                    color: "#94A3B8",
+                    color: TEXT_SECONDARY,
                     fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
@@ -934,7 +873,7 @@ export function AttendanceTab({
                 </div>
                 <div
                   style={{
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: 800,
                     color: stat.color,
                     marginTop: 2,
@@ -946,144 +885,99 @@ export function AttendanceTab({
             ))}
           </div>
 
-          {/* Action buttons */}
-          <div
-            className="flex items-center gap-2 mb-3"
-            style={{ flexWrap: "wrap" }}
-          >
-            {mode === "edit" && (
-              <>
-                <button
-                  type="button"
-                  data-ocid="attendance.addmesh.button"
-                  onClick={addMeshCol}
-                  style={{
-                    background: "linear-gradient(135deg, #F97316, #EA580C)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 999,
-                    padding: "7px 16px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    boxShadow: "0 2px 8px rgba(249,115,22,0.35)",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  + Add Mesh Column
-                </button>
-                <button
-                  type="button"
-                  data-ocid="attendance.mark.open_modal_button"
-                  onClick={openMarkDialog}
-                  style={{
-                    background: "linear-gradient(135deg, #1E293B, #0F172A)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 999,
-                    padding: "7px 16px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    boxShadow: "0 2px 8px rgba(15,23,42,0.30)",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  ✓ Mark Attendance
-                </button>
-              </>
-            )}
-          </div>
+          {/* Mark Attendance + Add Mesh (edit mode) */}
+          {mode === "edit" && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                marginBottom: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                type="button"
+                data-ocid="attendance.mark.open_modal_button"
+                onClick={openMarkDialog}
+                className="text-sm px-4 py-2 rounded-xl font-semibold transition-all active:scale-95"
+                style={{
+                  background: GRAD,
+                  color: "#fff",
+                  border: "none",
+                  boxShadow: "0 4px 12px rgba(99,102,241,0.3)",
+                }}
+              >
+                ✓ Mark Attendance
+              </button>
+              <button
+                type="button"
+                data-ocid="attendance.add_mesh.button"
+                onClick={addMeshCol}
+                className="text-sm px-3 py-2 rounded-xl font-semibold transition-all active:scale-95"
+                style={{
+                  background: "rgba(99,102,241,0.1)",
+                  color: "#6366f1",
+                  border: "1px solid rgba(99,102,241,0.2)",
+                }}
+              >
+                + Add Column
+              </button>
+            </div>
+          )}
 
-          {/* Table */}
+          {/* Attendance table */}
           <div
             style={{
               overflowX: "auto",
-              borderRadius: 14,
-              boxShadow:
-                "0 4px 24px rgba(255,127,17,0.08), 0 0 60px rgba(255,127,17,0.04)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              background: CARD_BG,
+              border: CARD_BORDER,
+              borderRadius: 16,
+              boxShadow: CARD_SHADOW,
+              backdropFilter: "blur(10px)",
             }}
           >
-            <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
+            <table
+              style={{
+                borderCollapse: "collapse",
+                minWidth: "max-content",
+                width: "100%",
+              }}
+            >
               <thead>
                 <tr>
                   <th
                     style={{
-                      ...TH_DARK,
+                      ...TH,
                       position: "sticky",
                       left: 0,
-                      zIndex: 3,
+                      background: "rgba(248,249,255,0.98)",
+                      zIndex: 2,
+                      borderRadius: "16px 0 0 0",
                       width: 40,
-                      borderRadius: "14px 0 0 0",
                     }}
                   >
                     #
                   </th>
                   <th
                     style={{
-                      ...TH_DARK,
+                      ...TH,
                       position: "sticky",
                       left: 40,
-                      zIndex: 3,
+                      background: "rgba(248,249,255,0.98)",
+                      zIndex: 2,
                       minWidth: 140,
                     }}
                   >
                     Labour
                   </th>
+                  <th style={TH}>Bed</th>
+                  <th style={TH}>Paper</th>
 
-                  {/* Bed column */}
-                  <th style={TH_DARK}>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 5 }}
-                    >
-                      <span>Bed</span>
-                      {holidays.has("bed") && (
-                        <span
-                          style={{
-                            background: "#F97316",
-                            color: "#fff",
-                            fontSize: 9,
-                            borderRadius: 4,
-                            padding: "1px 5px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          HOLIDAY
-                        </span>
-                      )}
-                    </div>
-                  </th>
-
-                  {/* Paper column */}
-                  <th style={TH_DARK}>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 5 }}
-                    >
-                      <span>Paper</span>
-                      {holidays.has("paper") && (
-                        <span
-                          style={{
-                            background: "#F97316",
-                            color: "#fff",
-                            fontSize: 9,
-                            borderRadius: 4,
-                            padding: "1px 5px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          HOLIDAY
-                        </span>
-                      )}
-                    </div>
-                  </th>
-
-                  {/* Mesh columns */}
                   {meshCols.map((col, i) => {
                     const colKey = `mesh_${i}`;
                     const isHoliday = holidays.has(colKey);
                     return (
-                      <th key={col + String(i)} style={TH_DARK}>
+                      <th key={col + String(i)} style={TH}>
                         <div
                           style={{
                             display: "flex",
@@ -1095,13 +989,14 @@ export function AttendanceTab({
                             <input
                               ref={renameRef}
                               style={{
-                                background: "#334155",
-                                border: "1px solid #F97316",
-                                color: "#fff",
+                                background: "#fff",
+                                border: "1.5px solid #6366f1",
+                                color: TEXT_PRIMARY,
                                 borderRadius: 6,
                                 padding: "2px 6px",
                                 width: 80,
                                 fontSize: 12,
+                                outline: "none",
                               }}
                               value={renameVal}
                               onChange={(e) => setRenameVal(e.target.value)}
@@ -1116,7 +1011,7 @@ export function AttendanceTab({
                           {isHoliday && (
                             <span
                               style={{
-                                background: "#F97316",
+                                background: "#7c3aed",
                                 color: "#fff",
                                 fontSize: 9,
                                 borderRadius: 4,
@@ -1137,7 +1032,7 @@ export function AttendanceTab({
                                   background: "none",
                                   border: "none",
                                   cursor: "pointer",
-                                  color: "#FCD34D",
+                                  color: "#6366f1",
                                   fontSize: 12,
                                   padding: 0,
                                 }}
@@ -1153,7 +1048,7 @@ export function AttendanceTab({
                                   background: "none",
                                   border: "none",
                                   cursor: "pointer",
-                                  color: "#FCA5A5",
+                                  color: "#dc2626",
                                   fontSize: 12,
                                   padding: 0,
                                 }}
@@ -1168,25 +1063,18 @@ export function AttendanceTab({
                     );
                   })}
 
-                  <th style={TH_DARK}>Total</th>
-                  {mode !== "view" && (
-                    <th
-                      style={{
-                        ...TH_DARK,
-                        borderRadius: "0 14px 0 0",
-                        color: "#FED7AA",
-                      }}
-                    >
-                      Net Salary
-                    </th>
-                  )}
-                  {mode !== "view" && <th style={{ ...TH_DARK }}>Note</th>}
+                  <th style={TH}>Total</th>
+                  {mode !== "view" && <th style={TH}>Net Salary</th>}
+                  {mode !== "view" && <th style={TH}>Note</th>}
                 </tr>
               </thead>
               <tbody>
                 {labours.map((labour, idx) => {
                   const net = labourNetSalary(labour.id);
-                  const rowBg = idx % 2 === 0 ? "#111827" : "#0D1626";
+                  const rowBg =
+                    idx % 2 === 0
+                      ? "rgba(255,255,255,0.95)"
+                      : "rgba(245,247,255,0.85)";
                   const hasNote = !!notes.get(String(labour.id));
                   return (
                     <tr
@@ -1202,10 +1090,10 @@ export function AttendanceTab({
                           ...TD,
                           position: "sticky",
                           left: 0,
-                          background: STICKY_BG_LIGHT,
+                          background: STICKY_BG,
                           zIndex: 1,
                           fontWeight: 700,
-                          color: "#64748B",
+                          color: TEXT_SECONDARY,
                           fontSize: 12,
                           width: 40,
                           textAlign: "center",
@@ -1218,11 +1106,11 @@ export function AttendanceTab({
                           ...TD,
                           position: "sticky",
                           left: 40,
-                          background: STICKY_BG_LIGHT,
+                          background: STICKY_BG,
                           zIndex: 1,
                           minWidth: 140,
                           fontWeight: 700,
-                          color: "#F1F5F9",
+                          color: TEXT_PRIMARY,
                         }}
                       >
                         {labour.name}
@@ -1268,7 +1156,7 @@ export function AttendanceTab({
                         style={{
                           ...TD,
                           fontWeight: 700,
-                          color: "#7DD3FC",
+                          color: "#3b82f6",
                           fontSize: 13,
                         }}
                       >
@@ -1289,7 +1177,7 @@ export function AttendanceTab({
                           style={{
                             ...TD,
                             fontWeight: 800,
-                            color: "#F97316",
+                            color: "#6366f1",
                             fontSize: 14,
                           }}
                         >
@@ -1306,15 +1194,15 @@ export function AttendanceTab({
                               title={hasNote ? "View/Edit note" : "Add note"}
                               style={{
                                 background: hasNote
-                                  ? "rgba(255,127,17,0.15)"
-                                  : "rgba(255,255,255,0.06)",
-                                border: `1px solid ${hasNote ? "#FF7F11" : "rgba(255,255,255,0.1)"}`,
+                                  ? "rgba(99,102,241,0.1)"
+                                  : "rgba(99,102,241,0.05)",
+                                border: `1px solid ${hasNote ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.12)"}`,
                                 borderRadius: 6,
                                 padding: "4px 6px",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
-                                color: hasNote ? "#F97316" : "#94A3B8",
+                                color: hasNote ? "#6366f1" : TEXT_SECONDARY,
                               }}
                             >
                               <MessageSquare size={14} />
@@ -1326,15 +1214,21 @@ export function AttendanceTab({
                   );
                 })}
 
-                <tr style={{ background: "#0F172A", fontWeight: 700 }}>
+                {/* Totals row */}
+                <tr
+                  style={{
+                    background: "rgba(243,244,255,0.95)",
+                    fontWeight: 700,
+                  }}
+                >
                   <td
                     style={{
                       ...TD,
                       position: "sticky",
                       left: 0,
-                      background: "#0F172A",
+                      background: "rgba(243,244,255,0.98)",
                       zIndex: 1,
-                      color: "#94A3B8",
+                      color: TEXT_SECONDARY,
                       fontSize: 11,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
@@ -1350,7 +1244,9 @@ export function AttendanceTab({
                         key={colKey}
                         style={{
                           ...TD,
-                          color: holidays.has(colKey) ? "#475569" : "#F97316",
+                          color: holidays.has(colKey)
+                            ? TEXT_SECONDARY
+                            : "#6366f1",
                           fontWeight: 800,
                           borderBottom: "none",
                         }}
@@ -1362,7 +1258,7 @@ export function AttendanceTab({
                   <td
                     style={{
                       ...TD,
-                      color: "#7DD3FC",
+                      color: "#3b82f6",
                       fontWeight: 800,
                       borderBottom: "none",
                     }}
@@ -1373,7 +1269,7 @@ export function AttendanceTab({
                     <td
                       style={{
                         ...TD,
-                        color: "#FED7AA",
+                        color: "#6366f1",
                         fontWeight: 800,
                         fontSize: 15,
                         borderBottom: "none",
@@ -1396,14 +1292,8 @@ export function AttendanceTab({
               disabled={saving || dirtyKeys.size === 0}
               style={{
                 marginTop: 16,
-                background:
-                  saving || dirtyKeys.size === 0
-                    ? "#CBD5E1"
-                    : "linear-gradient(135deg, #F97316, #EA580C)",
-                color:
-                  saving || dirtyKeys.size === 0
-                    ? "rgba(255,255,255,0.3)"
-                    : "#fff",
+                background: saving || dirtyKeys.size === 0 ? "#e5e7eb" : GRAD,
+                color: saving || dirtyKeys.size === 0 ? TEXT_SECONDARY : "#fff",
                 border: "none",
                 borderRadius: 999,
                 padding: "10px 28px",
@@ -1414,7 +1304,7 @@ export function AttendanceTab({
                 boxShadow:
                   saving || dirtyKeys.size === 0
                     ? "none"
-                    : "0 4px 16px rgba(249,115,22,0.40)",
+                    : "0 4px 16px rgba(99,102,241,0.35)",
                 letterSpacing: "0.02em",
                 transition: "all 0.2s",
               }}
@@ -1457,11 +1347,7 @@ export function AttendanceTab({
                 data-ocid="attendance.note.save_button"
                 onClick={handleSaveNote}
                 disabled={savingNote}
-                style={{
-                  background: "linear-gradient(135deg, #F97316, #EA580C)",
-                  color: "#fff",
-                  border: "none",
-                }}
+                style={{ background: GRAD, color: "#fff", border: "none" }}
               >
                 {savingNote ? "Saving…" : "Save Note"}
               </Button>
@@ -1485,15 +1371,11 @@ export function AttendanceTab({
             padding: 0,
             overflow: "hidden",
             borderRadius: 20,
+            background: "#ffffff",
           }}
         >
           {/* Header */}
-          <div
-            style={{
-              background: "linear-gradient(135deg, #1E293B, #0F172A)",
-              padding: "20px 24px 16px",
-            }}
-          >
+          <div style={{ background: GRAD, padding: "20px 24px 16px" }}>
             <div
               style={{
                 display: "flex",
@@ -1516,7 +1398,7 @@ export function AttendanceTab({
                 data-ocid="attendance.mark.close_button"
                 onClick={() => setMarkDialogOpen(false)}
                 style={{
-                  background: "rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.2)",
                   border: "none",
                   borderRadius: 8,
                   color: "#fff",
@@ -1529,8 +1411,6 @@ export function AttendanceTab({
                 ✕
               </button>
             </div>
-
-            {/* Column selector */}
             <div style={{ marginTop: 12 }}>
               <label
                 htmlFor="mark-col-select"
@@ -1538,7 +1418,7 @@ export function AttendanceTab({
                   display: "block",
                   fontSize: 10,
                   fontWeight: 700,
-                  color: "#94A3B8",
+                  color: "rgba(255,255,255,0.75)",
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   marginBottom: 6,
@@ -1552,8 +1432,8 @@ export function AttendanceTab({
                 value={markDialogCol}
                 onChange={(e) => setMarkDialogCol(e.target.value)}
                 style={{
-                  background: "rgba(255,255,255,0.12)",
-                  border: "1.5px solid rgba(255,255,255,0.25)",
+                  background: "rgba(255,255,255,0.2)",
+                  border: "1.5px solid rgba(255,255,255,0.35)",
                   color: "#fff",
                   borderRadius: 10,
                   padding: "8px 14px",
@@ -1562,13 +1442,14 @@ export function AttendanceTab({
                   width: "100%",
                   cursor: "pointer",
                   appearance: "auto",
+                  outline: "none",
                 }}
               >
                 {allColKeys.map((ck) => (
                   <option
                     key={ck}
                     value={ck}
-                    style={{ background: "#1E293B", color: "#fff" }}
+                    style={{ background: "#4f46e5", color: "#fff" }}
                   >
                     {allColLabels[ck] ?? ck}
                   </option>
@@ -1578,7 +1459,7 @@ export function AttendanceTab({
           </div>
 
           {/* Body */}
-          <div style={{ padding: "28px 24px 24px" }}>
+          <div style={{ padding: "28px 24px 24px", background: "#ffffff" }}>
             {markDone ? (
               <div
                 data-ocid="attendance.mark.success_state"
@@ -1589,14 +1470,18 @@ export function AttendanceTab({
                   style={{
                     fontSize: 22,
                     fontWeight: 800,
-                    color: "#16A34A",
+                    color: "#16a34a",
                     marginBottom: 8,
                   }}
                 >
                   All Done!
                 </div>
                 <div
-                  style={{ fontSize: 14, color: "#64748B", marginBottom: 24 }}
+                  style={{
+                    fontSize: 14,
+                    color: TEXT_SECONDARY,
+                    marginBottom: 24,
+                  }}
                 >
                   Attendance marked for all {labours.length} labours.
                 </div>
@@ -1605,7 +1490,7 @@ export function AttendanceTab({
                   data-ocid="attendance.mark.close_button"
                   onClick={() => setMarkDialogOpen(false)}
                   style={{
-                    background: "linear-gradient(135deg, #F97316, #EA580C)",
+                    background: GRAD,
                     color: "#fff",
                     border: "none",
                     borderRadius: 999,
@@ -1613,7 +1498,7 @@ export function AttendanceTab({
                     fontSize: 16,
                     fontWeight: 800,
                     cursor: "pointer",
-                    boxShadow: "0 4px 16px rgba(249,115,22,0.35)",
+                    boxShadow: "0 4px 16px rgba(99,102,241,0.35)",
                   }}
                 >
                   Close
@@ -1621,22 +1506,23 @@ export function AttendanceTab({
               </div>
             ) : currentMarkLabour ? (
               <>
-                {/* Labour counter */}
                 <div style={{ textAlign: "center", marginBottom: 8 }}>
                   <span
-                    style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}
+                    style={{
+                      fontSize: 13,
+                      color: TEXT_SECONDARY,
+                      fontWeight: 600,
+                    }}
                   >
                     Labour {markDialogIndex + 1} of {labours.length}
                   </span>
                 </div>
-
-                {/* Labour name */}
                 <div
                   style={{
                     textAlign: "center",
                     fontSize: 32,
                     fontWeight: 900,
-                    color: "#F1F5F9",
+                    color: TEXT_PRIMARY,
                     lineHeight: 1.15,
                     marginBottom: 16,
                     letterSpacing: "-0.02em",
@@ -1646,7 +1532,7 @@ export function AttendanceTab({
                   {currentMarkLabour.name}
                 </div>
 
-                {/* Current values for all columns */}
+                {/* Current values summary */}
                 <div
                   style={{
                     display: "flex",
@@ -1669,7 +1555,7 @@ export function AttendanceTab({
                       <span
                         style={{
                           fontSize: 9,
-                          color: "#94A3B8",
+                          color: TEXT_SECONDARY,
                           fontWeight: 700,
                           textTransform: "uppercase",
                           letterSpacing: "0.06em",
@@ -1682,13 +1568,12 @@ export function AttendanceTab({
                   ))}
                 </div>
 
-                {/* Attendance select */}
                 <div style={{ marginBottom: 28 }}>
                   <div
                     style={{
                       fontSize: 11,
                       fontWeight: 700,
-                      color: "#64748B",
+                      color: TEXT_SECONDARY,
                       letterSpacing: "0.06em",
                       textTransform: "uppercase",
                       marginBottom: 14,
@@ -1698,7 +1583,6 @@ export function AttendanceTab({
                     Mark as — auto-advances on selection
                   </div>
 
-                  {/* Large Present / Absent buttons */}
                   <div style={{ display: "flex", gap: 14, marginBottom: 16 }}>
                     <button
                       type="button"
@@ -1707,24 +1591,23 @@ export function AttendanceTab({
                       style={{
                         flex: 1,
                         padding: "22px 0",
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: 900,
                         borderRadius: 16,
                         border:
                           currentMarkVal === "Present"
-                            ? "3px solid #16A34A"
-                            : "2.5px solid #DCFCE7",
+                            ? "3px solid #16a34a"
+                            : "2.5px solid #dcfce7",
                         background:
-                          currentMarkVal === "Present" ? "#16A34A" : "#F0FDF4",
+                          currentMarkVal === "Present" ? "#16a34a" : "#f0fdf4",
                         color:
-                          currentMarkVal === "Present" ? "#fff" : "#16A34A",
+                          currentMarkVal === "Present" ? "#fff" : "#16a34a",
                         cursor: "pointer",
                         boxShadow:
                           currentMarkVal === "Present"
-                            ? "0 4px 18px rgba(22,163,74,0.35)"
+                            ? "0 4px 18px rgba(22,163,74,0.3)"
                             : "none",
                         transition: "all 0.15s",
-                        letterSpacing: "-0.01em",
                       }}
                     >
                       ✓ Present
@@ -1736,30 +1619,28 @@ export function AttendanceTab({
                       style={{
                         flex: 1,
                         padding: "22px 0",
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: 900,
                         borderRadius: 16,
                         border:
                           currentMarkVal === "Absent"
-                            ? "3px solid #DC2626"
-                            : "2.5px solid #FEE2E2",
+                            ? "3px solid #dc2626"
+                            : "2.5px solid #fee2e2",
                         background:
-                          currentMarkVal === "Absent" ? "#DC2626" : "#FFF5F5",
-                        color: currentMarkVal === "Absent" ? "#fff" : "#DC2626",
+                          currentMarkVal === "Absent" ? "#dc2626" : "#fff5f5",
+                        color: currentMarkVal === "Absent" ? "#fff" : "#dc2626",
                         cursor: "pointer",
                         boxShadow:
                           currentMarkVal === "Absent"
-                            ? "0 4px 18px rgba(220,38,38,0.35)"
+                            ? "0 4px 18px rgba(220,38,38,0.3)"
                             : "none",
                         transition: "all 0.15s",
-                        letterSpacing: "-0.01em",
                       }}
                     >
                       ✕ Absent
                     </button>
                   </div>
 
-                  {/* Other values dropdown */}
                   <select
                     id="mark-value-select"
                     data-ocid="attendance.mark.value.select"
@@ -1778,15 +1659,16 @@ export function AttendanceTab({
                       fontSize: 14,
                       fontWeight: 600,
                       borderRadius: 12,
-                      border: "2px solid #E2E8F0",
+                      border: "1.5px solid rgba(99,102,241,0.2)",
                       background: ["Present", "Absent"].includes(currentMarkVal)
-                        ? "#F8FAFC"
-                        : "#FFF7ED",
+                        ? "#f8fafc"
+                        : "#fef3c7",
                       color: ["Present", "Absent"].includes(currentMarkVal)
-                        ? "#94A3B8"
-                        : "#EA580C",
+                        ? TEXT_SECONDARY
+                        : "#d97706",
                       cursor: "pointer",
                       appearance: "auto" as const,
+                      outline: "none",
                     }}
                   >
                     <option value="">Other values...</option>
@@ -1800,7 +1682,6 @@ export function AttendanceTab({
                   </select>
                 </div>
 
-                {/* Prev / Next */}
                 <div style={{ display: "flex", gap: 12 }}>
                   <button
                     type="button"
@@ -1812,12 +1693,13 @@ export function AttendanceTab({
                     style={{
                       flex: 1,
                       padding: "14px 0",
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: 800,
                       borderRadius: 14,
-                      border: "2px solid #E2E8F0",
-                      background: markDialogIndex === 0 ? "#F8FAFC" : "#fff",
-                      color: markDialogIndex === 0 ? "#CBD5E1" : "#1E293B",
+                      border: "1.5px solid rgba(99,102,241,0.2)",
+                      background: markDialogIndex === 0 ? "#f3f4f6" : "#fff",
+                      color:
+                        markDialogIndex === 0 ? TEXT_SECONDARY : TEXT_PRIMARY,
                       cursor: markDialogIndex === 0 ? "not-allowed" : "pointer",
                       transition: "all 0.15s",
                     }}
@@ -1836,22 +1718,23 @@ export function AttendanceTab({
                     style={{
                       flex: 1,
                       padding: "14px 0",
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: 800,
                       borderRadius: 14,
-                      border: "2px solid #E2E8F0",
+                      border: "none",
                       background:
                         markDialogIndex >= labours.length - 1
-                          ? "#F8FAFC"
-                          : "#fff",
-                      color:
-                        markDialogIndex >= labours.length - 1
-                          ? "#CBD5E1"
-                          : "#1E293B",
+                          ? "#e5e7eb"
+                          : GRAD,
+                      color: "#fff",
                       cursor:
                         markDialogIndex >= labours.length - 1
                           ? "not-allowed"
                           : "pointer",
+                      boxShadow:
+                        markDialogIndex >= labours.length - 1
+                          ? "none"
+                          : "0 4px 14px rgba(99,102,241,0.3)",
                       transition: "all 0.15s",
                     }}
                   >
@@ -1863,7 +1746,7 @@ export function AttendanceTab({
               <div
                 style={{
                   textAlign: "center",
-                  color: "#94A3B8",
+                  color: TEXT_SECONDARY,
                   padding: "24px 0",
                 }}
               >

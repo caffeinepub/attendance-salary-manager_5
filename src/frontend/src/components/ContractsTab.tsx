@@ -4,30 +4,17 @@ import type { AppMode } from "../App";
 import type { Contract } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
-const LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
+const _LAST_ATTENDANCE_KEY = "attendpay_last_attendance";
 
-function getTodayWorkingData(): Map<string, { ts: string; count: number }> {
-  const result = new Map<string, { ts: string; count: number }>();
-  try {
-    const raw = localStorage.getItem(LAST_ATTENDANCE_KEY);
-    if (!raw) return result;
-    const data = JSON.parse(raw) as Record<
-      string,
-      { ts: string; count: number } | string
-    >;
-    const now = new Date();
-    const cutoff = new Date(now);
-    cutoff.setHours(23, 0, 0, 0);
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    for (const [id, val] of Object.entries(data)) {
-      const entry = typeof val === "string" ? { ts: val, count: 0 } : val;
-      const t = new Date(entry.ts);
-      if (t >= todayStart && t <= cutoff) result.set(id, entry);
-    }
-  } catch (_) {}
-  return result;
-}
+// Design tokens
+const GRAD = "linear-gradient(135deg, #6366f1, #8b5cf6)";
+const PAGE_BG = "#f1f3f8";
+const CARD_BG = "rgba(255,255,255,0.88)";
+const CARD_BORDER = "1px solid rgba(120,80,255,0.14)";
+const CARD_SHADOW =
+  "0 2px 16px rgba(99,102,241,0.08), 0 1px 4px rgba(0,0,0,0.04)";
+const TEXT_PRIMARY = "#1e1b4b";
+const TEXT_SECONDARY = "#6b7280";
 
 interface Props {
   mode: AppMode;
@@ -50,14 +37,12 @@ export function ContractsTab({
   const [selected, setSelected] = useState<Contract | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [todayWorkingData, setTodayWorkingData] = useState<
-    Map<string, { ts: string; count: number }>
-  >(() => getTodayWorkingData());
-  const [backendWorkingData, setBackendWorkingData] = useState<
-    Map<string, { ts: string; count: number }>
-  >(new Map());
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [editBed, setEditBed] = useState("");
+  const [editPaper, setEditPaper] = useState("");
+  const [editingAmounts, setEditingAmounts] = useState(false);
+  const [editContract, setEditContract] = useState<Contract | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -65,10 +50,6 @@ export function ContractsTab({
     amount: "",
     machineExp: "",
   });
-  const [editBed, setEditBed] = useState("");
-  const [editPaper, setEditPaper] = useState("");
-  const [editingAmounts, setEditingAmounts] = useState(false);
-  const [editContract, setEditContract] = useState<Contract | null>(null);
   const [editForm, setEditForm] = useState({
     name: "",
     multiplier: "",
@@ -82,30 +63,8 @@ export function ContractsTab({
     if (!actor) return;
     setLoading(true);
     try {
-      const [all] = await Promise.all([actor.getAllContracts()]);
+      const all = await actor.getAllContracts();
       setContracts((all ?? []).filter((c) => !c.isSettled));
-      // Load working today from backend for cross-device badge
-      try {
-        const map = await actor.getWorkingTodayMap();
-        const now = new Date();
-        const cutoff = new Date(now);
-        cutoff.setHours(23, 0, 0, 0);
-        const todayStart = new Date(now);
-        todayStart.setHours(0, 0, 0, 0);
-        const bwd = new Map<string, { ts: string; count: number }>();
-        for (const [id, val] of map) {
-          const t = new Date(val.ts);
-          if (t >= todayStart && t <= cutoff) {
-            bwd.set(String(id), { ts: val.ts, count: Number(val.count) });
-          }
-        }
-        setBackendWorkingData(bwd);
-        // Refresh localStorage data too
-        setTodayWorkingData(getTodayWorkingData());
-      } catch (_) {
-        // Fall back to localStorage only
-        setTodayWorkingData(getTodayWorkingData());
-      }
     } finally {
       setLoading(false);
     }
@@ -128,7 +87,6 @@ export function ContractsTab({
     const paper = calcPaper(m);
     const mesh = ca - bed - paper - me;
 
-    // Optimistic update: add a placeholder contract immediately
     const tempId = BigInt(-Date.now());
     const optimistic: Contract = {
       id: tempId,
@@ -157,7 +115,6 @@ export function ContractsTab({
         null,
         ["Mesh"],
       );
-      // Refresh to get real ID
       const all = await actor.getAllContracts();
       setContracts((all ?? []).filter((c) => !c.isSettled));
       toast.success(`Contract "${form.name}" added`);
@@ -238,17 +195,20 @@ export function ContractsTab({
 
   const inputStyle = {
     background: "#FFFFFF",
-    border: "1px solid #E5E5E5",
-    color: "#1E293B",
-    borderRadius: 6,
-    padding: "6px 10px",
+    border: "1.5px solid rgba(99,102,241,0.2)",
+    color: TEXT_PRIMARY,
+    borderRadius: 8,
+    padding: "8px 12px",
     width: "100%",
+    fontSize: 14,
+    outline: "none",
   };
   const labelStyle = {
-    color: "#94A3B8",
+    color: TEXT_SECONDARY,
     fontSize: 12,
-    marginBottom: 2,
+    marginBottom: 4,
     display: "block" as const,
+    fontWeight: 600,
   };
 
   if (selected && !editContract) {
@@ -256,84 +216,158 @@ export function ContractsTab({
     const previewPaper = Number(selected.paperAmount);
     const previewMesh = Number(selected.meshAmount);
     return (
-      <div>
+      <div style={{ background: PAGE_BG, minHeight: "100%" }}>
         <button
           type="button"
           data-ocid="contract.back.button"
           onClick={() => setSelected(null)}
-          className="mb-4 text-sm flex items-center gap-1"
-          style={{ color: "#FF7F11" }}
+          className="mb-4 text-sm flex items-center gap-1 font-semibold"
+          style={{ color: "#6366f1" }}
         >
           ← Back to Contracts
         </button>
         <div
-          className="rounded-xl p-6 max-w-xl"
+          className="rounded-2xl p-5 max-w-xl"
           style={{
-            background: "rgba(255,255,255,0.055)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: CARD_BG,
+            border: CARD_BORDER,
             backdropFilter: "blur(12px)",
+            boxShadow: CARD_SHADOW,
           }}
         >
           <div className="flex items-start justify-between mb-4">
-            <h2 className="text-xl font-bold" style={{ color: "#F1F5F9" }}>
+            <h2 className="text-xl font-bold" style={{ color: TEXT_PRIMARY }}>
               {selected.name}
             </h2>
             {mode === "edit" && (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  data-ocid="contract.edit.button"
-                  onClick={() => openEdit(selected)}
-                  className="text-xs px-3 py-1 rounded"
-                  style={{
-                    background: "transparent",
-                    color: "#FF7F11",
-                    border: "1px solid rgba(255,127,17,0.6)",
-                  }}
-                >
-                  Edit
-                </button>
-              </div>
+              <button
+                type="button"
+                data-ocid="contract.edit.button"
+                onClick={() => openEdit(selected)}
+                className="text-xs px-3 py-1.5 rounded-lg font-semibold"
+                style={{
+                  background: "rgba(99,102,241,0.1)",
+                  color: "#6366f1",
+                  border: "1px solid rgba(99,102,241,0.2)",
+                }}
+              >
+                Edit
+              </button>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <span style={{ color: "#94A3B8" }}>Contract Amount:</span>
-              <br />
-              <span className="font-semibold" style={{ color: "#F1F5F9" }}>
+            <div
+              className="rounded-xl p-3"
+              style={{
+                background: "rgba(99,102,241,0.06)",
+                border: "1px solid rgba(99,102,241,0.1)",
+              }}
+            >
+              <span
+                style={{
+                  color: TEXT_SECONDARY,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Contract Amount
+              </span>
+              <div
+                className="font-bold mt-1"
+                style={{ color: TEXT_PRIMARY, fontSize: 16 }}
+              >
                 ₹{fmt(selected.contractAmount)}
-              </span>
+              </div>
             </div>
-            <div>
-              <span style={{ color: "#94A3B8" }}>Multiplier:</span>
-              <br />
-              <span className="font-semibold" style={{ color: "#F1F5F9" }}>
+            <div
+              className="rounded-xl p-3"
+              style={{
+                background: "rgba(99,102,241,0.06)",
+                border: "1px solid rgba(99,102,241,0.1)",
+              }}
+            >
+              <span
+                style={{
+                  color: TEXT_SECONDARY,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Multiplier
+              </span>
+              <div
+                className="font-bold mt-1"
+                style={{ color: TEXT_PRIMARY, fontSize: 16 }}
+              >
                 {selected.multiplierValue}
-              </span>
+              </div>
             </div>
-            <div>
-              <span style={{ color: "#94A3B8" }}>Machine Exp:</span>
-              <br />
-              <span className="font-semibold" style={{ color: "#F1F5F9" }}>
+            <div
+              className="rounded-xl p-3"
+              style={{
+                background: "rgba(99,102,241,0.06)",
+                border: "1px solid rgba(99,102,241,0.1)",
+              }}
+            >
+              <span
+                style={{
+                  color: TEXT_SECONDARY,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Machine Exp
+              </span>
+              <div
+                className="font-bold mt-1"
+                style={{ color: TEXT_PRIMARY, fontSize: 16 }}
+              >
                 ₹{fmt(selected.machineExp)}
-              </span>
+              </div>
             </div>
-            <div>
-              <span style={{ color: "#94A3B8" }}>Mesh Amount:</span>
-              <br />
-              <span className="font-semibold" style={{ color: "#FF7F11" }}>
-                ₹{previewMesh.toLocaleString()}
+            <div
+              className="rounded-xl p-3"
+              style={{
+                background: "rgba(139,92,246,0.08)",
+                border: "1px solid rgba(139,92,246,0.15)",
+              }}
+            >
+              <span
+                style={{
+                  color: TEXT_SECONDARY,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Mesh Amount
               </span>
+              <div
+                className="font-bold mt-1"
+                style={{ color: "#7c3aed", fontSize: 16 }}
+              >
+                ₹{previewMesh.toLocaleString()}
+              </div>
             </div>
           </div>
           <div
-            className="mt-4 p-3 rounded-lg"
-            style={{ background: "#111827", border: "1px solid #E5E5E5" }}
+            className="mt-4 p-4 rounded-xl"
+            style={{
+              background: "rgba(99,102,241,0.05)",
+              border: "1px solid rgba(99,102,241,0.12)",
+            }}
           >
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span
-                className="text-sm font-medium"
-                style={{ color: "#FF7F11" }}
+                className="text-sm font-semibold"
+                style={{ color: "#6366f1" }}
               >
                 Bed &amp; Paper Amounts
               </span>
@@ -346,8 +380,8 @@ export function ContractsTab({
                     setEditPaper(String(previewPaper));
                     setEditingAmounts(true);
                   }}
-                  className="text-xs px-2 py-1 rounded"
-                  style={{ background: "#FF7F11", color: "#fff" }}
+                  className="text-xs px-2.5 py-1 rounded-lg font-semibold"
+                  style={{ background: GRAD, color: "#fff" }}
                 >
                   Edit
                 </button>
@@ -371,17 +405,18 @@ export function ContractsTab({
                     onChange={(e) => setEditPaper(e.target.value)}
                   />
                 </div>
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-1">
                   <button
                     type="button"
                     data-ocid="contract.saveamounts.button"
                     onClick={handleSaveAmounts}
                     disabled={updating}
-                    className="text-xs px-3 py-1 rounded"
+                    className="text-xs px-3 py-1.5 rounded-lg font-semibold"
                     style={{
-                      background: updating ? "#334155" : "#FF7F11",
-                      color: updating ? "#64748B" : "#fff",
+                      background: updating ? "#e5e7eb" : GRAD,
+                      color: updating ? TEXT_SECONDARY : "#fff",
                       cursor: updating ? "not-allowed" : "pointer",
+                      border: "none",
                     }}
                   >
                     {updating ? "Saving…" : "Save"}
@@ -389,11 +424,11 @@ export function ContractsTab({
                   <button
                     type="button"
                     onClick={() => setEditingAmounts(false)}
-                    className="text-xs px-3 py-1 rounded"
+                    className="text-xs px-3 py-1.5 rounded-lg font-semibold"
                     style={{
-                      background: "#111827",
-                      color: "#94A3B8",
-                      border: "1px solid #E5E5E5",
+                      background: "#f3f4f6",
+                      color: TEXT_SECONDARY,
+                      border: "1px solid #e5e7eb",
                     }}
                   >
                     Cancel
@@ -403,14 +438,24 @@ export function ContractsTab({
             ) : (
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span style={{ color: "#94A3B8" }}>Bed:</span>{" "}
-                  <span className="font-semibold" style={{ color: "#F1F5F9" }}>
+                  <span style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
+                    Bed:
+                  </span>{" "}
+                  <span
+                    className="font-semibold"
+                    style={{ color: TEXT_PRIMARY }}
+                  >
                     ₹{previewBed.toLocaleString()}
                   </span>
                 </div>
                 <div>
-                  <span style={{ color: "#94A3B8" }}>Paper:</span>{" "}
-                  <span className="font-semibold" style={{ color: "#F1F5F9" }}>
+                  <span style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
+                    Paper:
+                  </span>{" "}
+                  <span
+                    className="font-semibold"
+                    style={{ color: TEXT_PRIMARY }}
+                  >
                     ₹{previewPaper.toLocaleString()}
                   </span>
                 </div>
@@ -418,16 +463,16 @@ export function ContractsTab({
             )}
           </div>
 
-          {/* View Attendance Button */}
           <button
             type="button"
             data-ocid="contract.view_attendance.button"
             onClick={() => onViewAttendance?.(selected.id)}
             className="mt-4 w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
             style={{
-              background: "linear-gradient(135deg, #1E293B, #334155)",
+              background: GRAD,
               color: "#FFFFFF",
               border: "none",
+              boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
             }}
           >
             <span>📋</span> View Attendance
@@ -449,24 +494,28 @@ export function ContractsTab({
       : calcPaper(m);
     const meshP = ca - bedO - papO - me;
     return (
-      <div>
+      <div style={{ background: PAGE_BG, minHeight: "100%" }}>
         <button
           type="button"
           onClick={() => setEditContract(null)}
-          className="mb-4 text-sm"
-          style={{ color: "#FF7F11" }}
+          className="mb-4 text-sm font-semibold"
+          style={{ color: "#6366f1" }}
         >
           ← Cancel
         </button>
         <div
-          className="rounded-xl p-6 max-w-md"
+          className="rounded-2xl p-5 max-w-md"
           style={{
-            background: "rgba(255,255,255,0.055)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: CARD_BG,
+            border: CARD_BORDER,
             backdropFilter: "blur(12px)",
+            boxShadow: CARD_SHADOW,
           }}
         >
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#F1F5F9" }}>
+          <h2
+            className="text-lg font-bold mb-4"
+            style={{ color: TEXT_PRIMARY }}
+          >
             Edit Contract
           </h2>
           <div className="flex flex-col gap-3">
@@ -543,24 +592,34 @@ export function ContractsTab({
                 }
               />
             </div>
-            <div className="p-3 rounded" style={{ background: "#111827" }}>
-              <div className="text-xs" style={{ color: "#94A3B8" }}>
+            <div
+              className="p-3 rounded-xl text-xs"
+              style={{
+                background: "rgba(99,102,241,0.06)",
+                border: "1px solid rgba(99,102,241,0.1)",
+              }}
+            >
+              <span style={{ color: TEXT_SECONDARY }}>
                 Mesh Amount Preview:{" "}
-                <span style={{ color: "#FF7F11" }}>
-                  ₹{meshP.toLocaleString()}
-                </span>
-              </div>
+              </span>
+              <span style={{ color: "#7c3aed", fontWeight: 700 }}>
+                ₹{meshP.toLocaleString()}
+              </span>
             </div>
             <button
               type="button"
               data-ocid="contract.update.submit.button"
               onClick={handleUpdate}
               disabled={updating}
-              className="py-2 rounded font-semibold"
+              className="py-2.5 rounded-xl font-semibold text-sm"
               style={{
-                background: updating ? "#334155" : "#FF7F11",
-                color: updating ? "#64748B" : "#fff",
+                background: updating ? "#e5e7eb" : GRAD,
+                color: updating ? TEXT_SECONDARY : "#fff",
+                border: "none",
                 cursor: updating ? "not-allowed" : "pointer",
+                boxShadow: updating
+                  ? "none"
+                  : "0 4px 14px rgba(99,102,241,0.35)",
               }}
             >
               {updating ? "Updating…" : "Update Contract"}
@@ -572,10 +631,9 @@ export function ContractsTab({
   }
 
   return (
-    <div>
+    <div style={{ background: PAGE_BG, minHeight: "100%" }}>
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2" />
-        <h2 className="text-lg font-bold" style={{ color: "#F1F5F9" }}>
+        <h2 className="text-lg font-bold" style={{ color: TEXT_PRIMARY }}>
           Contracts
         </h2>
         {mode === "edit" && (
@@ -583,8 +641,13 @@ export function ContractsTab({
             type="button"
             data-ocid="contract.add.button"
             onClick={() => setShowAdd((v) => !v)}
-            className="text-sm px-4 py-2 rounded-lg font-semibold"
-            style={{ background: "#FF7F11", color: "#fff" }}
+            className="text-sm px-4 py-2 rounded-xl font-semibold transition-all active:scale-95"
+            style={{
+              background: GRAD,
+              color: "#fff",
+              border: "none",
+              boxShadow: "0 4px 14px rgba(99,102,241,0.3)",
+            }}
           >
             + Add Contract
           </button>
@@ -593,16 +656,17 @@ export function ContractsTab({
 
       {showAdd && mode === "edit" && (
         <div
-          className="rounded-xl p-5 mb-4 max-w-md"
+          className="rounded-2xl p-5 mb-4 max-w-md"
           style={{
-            background: "rgba(255,255,255,0.055)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: CARD_BG,
+            border: CARD_BORDER,
             backdropFilter: "blur(12px)",
+            boxShadow: CARD_SHADOW,
           }}
         >
           <h3
             className="text-sm font-semibold mb-3"
-            style={{ color: "#FF7F11" }}
+            style={{ color: "#6366f1" }}
           >
             New Contract
           </h3>
@@ -656,17 +720,21 @@ export function ContractsTab({
             </div>
             {form.multiplier && (
               <div
-                className="p-3 rounded text-xs"
-                style={{ background: "#111827", color: "#94A3B8" }}
+                className="p-3 rounded-xl text-xs"
+                style={{
+                  background: "rgba(99,102,241,0.06)",
+                  border: "1px solid rgba(99,102,241,0.1)",
+                  color: TEXT_SECONDARY,
+                }}
               >
                 Bed: ₹
                 {calcBed(
                   Number.parseFloat(form.multiplier) || 0,
-                ).toLocaleString()}{" "}
+                ).toLocaleString()}
                 &nbsp;| Paper: ₹
                 {calcPaper(
                   Number.parseFloat(form.multiplier) || 0,
-                ).toLocaleString()}{" "}
+                ).toLocaleString()}
                 &nbsp;| Mesh: ₹
                 {(
                   Number.parseFloat(form.amount || "0") -
@@ -681,11 +749,13 @@ export function ContractsTab({
               data-ocid="contract.add.submit.button"
               onClick={handleAdd}
               disabled={adding}
-              className="py-2 rounded font-semibold"
+              className="py-2.5 rounded-xl font-semibold text-sm"
               style={{
-                background: adding ? "#334155" : "#FF7F11",
-                color: adding ? "#64748B" : "#fff",
+                background: adding ? "#e5e7eb" : GRAD,
+                color: adding ? TEXT_SECONDARY : "#fff",
+                border: "none",
                 cursor: adding ? "not-allowed" : "pointer",
+                boxShadow: adding ? "none" : "0 4px 14px rgba(99,102,241,0.3)",
               }}
             >
               {adding ? "Saving…" : "Save Contract"}
@@ -695,7 +765,10 @@ export function ContractsTab({
       )}
 
       {loading && contracts.length === 0 ? (
-        <div data-ocid="contracts.loading_state" style={{ color: "#94A3B8" }}>
+        <div
+          data-ocid="contracts.loading_state"
+          style={{ color: TEXT_SECONDARY, fontSize: 14 }}
+        >
           Loading...
         </div>
       ) : (
@@ -704,94 +777,60 @@ export function ContractsTab({
             <div
               data-ocid="contracts.empty_state"
               className="text-sm"
-              style={{ color: "#94A3B8" }}
+              style={{
+                background: "rgba(255,255,255,0.8)",
+                border: "1px dashed rgba(99,102,241,0.2)",
+                borderRadius: 12,
+                padding: "32px 20px",
+                textAlign: "center",
+                color: TEXT_SECONDARY,
+              }}
             >
               No contracts yet.
             </div>
           )}
-          {[...contracts]
-            .sort((a, b) => {
-              // Put working today contract first
-              const getTs = (c2: typeof a) => {
-                const localWd = todayWorkingData.get(String(c2.id));
-                const backendWd = backendWorkingData.get(String(c2.id));
-                let mergedWd: { ts: string; count: number } | undefined;
-                if (localWd && backendWd) {
-                  mergedWd =
-                    new Date(localWd.ts) >= new Date(backendWd.ts)
-                      ? localWd
-                      : backendWd;
-                } else {
-                  mergedWd = localWd ?? backendWd;
-                }
-                return mergedWd && mergedWd.count > 0
-                  ? new Date(mergedWd.ts).getTime()
-                  : 0;
-              };
-              return getTs(b) - getTs(a);
-            })
-            .map((c, i) => (
-              <button
-                type="button"
-                key={String(c.id)}
-                data-ocid={`contract.item.${i + 1}`}
-                className="flex items-center justify-between w-full px-4 py-3 rounded-lg cursor-pointer transition-all text-left"
-                style={{
-                  background: "rgba(255,255,255,0.055)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  opacity: c.id < 0n ? 0.6 : 1,
-                }}
-                onClick={() => c.id >= 0n && setSelected(c)}
-              >
-                <div className="flex flex-col gap-0.5 items-start">
-                  <span className="font-medium" style={{ color: "#F1F5F9" }}>
-                    {c.name}
-                    {c.id < 0n ? " (saving…)" : ""}
-                  </span>
-                  {(() => {
-                    const localWd = todayWorkingData.get(String(c.id));
-                    const backendWd = backendWorkingData.get(String(c.id));
-                    // Use whichever has the more recent timestamp
-                    let mergedWd: { ts: string; count: number } | undefined;
-                    if (localWd && backendWd) {
-                      mergedWd =
-                        new Date(localWd.ts) >= new Date(backendWd.ts)
-                          ? localWd
-                          : backendWd;
-                    } else {
-                      mergedWd = localWd ?? backendWd;
-                    }
-                    const count = mergedWd?.count;
-                    return count && count > 0 ? (
-                      <span
-                        className="flex items-center gap-1 text-xs font-semibold"
-                        style={{
-                          color: "#22C55E",
-                          background: "rgba(34,197,94,0.12)",
-                          border: "1px solid rgba(34,197,94,0.25)",
-                          borderRadius: 8,
-                          padding: "1px 7px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            background: "#22C55E",
-                            display: "inline-block",
-                          }}
-                        />
-                        Working Today · {count} labours
-                      </span>
-                    ) : null;
-                  })()}
-                </div>
-                <span className="text-sm" style={{ color: "#FF7F11" }}>
+          {[...contracts].map((c, i) => (
+            <button
+              type="button"
+              key={String(c.id)}
+              data-ocid={`contract.item.${i + 1}`}
+              className="flex items-center justify-between w-full px-4 py-3.5 rounded-2xl cursor-pointer transition-all text-left active:scale-98"
+              style={{
+                background: CARD_BG,
+                border: CARD_BORDER,
+                backdropFilter: "blur(10px)",
+                boxShadow: CARD_SHADOW,
+                opacity: c.id < 0n ? 0.6 : 1,
+              }}
+              onClick={() => c.id >= 0n && setSelected(c)}
+            >
+              <div className="flex flex-col gap-0.5 items-start">
+                <span
+                  className="font-semibold"
+                  style={{ color: TEXT_PRIMARY, fontSize: 15 }}
+                >
+                  {c.name}
+                  {c.id < 0n ? " (saving…)" : ""}
+                </span>
+                <span style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
+                  Multiplier: {c.multiplierValue}
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                <span
+                  className="font-bold text-sm"
+                  style={{
+                    background: GRAD,
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
+                >
                   ₹{fmt(c.contractAmount)}
                 </span>
-              </button>
-            ))}
+              </div>
+            </button>
+          ))}
         </div>
       )}
     </div>

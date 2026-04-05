@@ -126,6 +126,17 @@ function getTodayWorkingContractId(): bigint | null {
   }
 }
 
+// Design tokens
+const GRAD = "linear-gradient(135deg, #6366f1, #8b5cf6)";
+const _GRAD_HOVER = "linear-gradient(135deg, #4f46e5, #7c3aed)";
+const PAGE_BG = "#f1f3f8";
+const CARD_BG = "rgba(255,255,255,0.88)";
+const CARD_BORDER = "1px solid rgba(120,80,255,0.14)";
+const CARD_SHADOW =
+  "0 2px 20px rgba(99,102,241,0.1), 0 1px 4px rgba(0,0,0,0.04)";
+const TEXT_PRIMARY = "#1e1b4b";
+const TEXT_SECONDARY = "#6b7280";
+
 export default function App() {
   const [mode, setMode] = useState<AppMode>("view");
   const [screen, setScreen] = useState<Screen>("home");
@@ -142,6 +153,7 @@ export default function App() {
   const { actor } = useActor();
   const [appReady, setAppReady] = useState(false);
   const [appReadyDom, setAppReadyDom] = useState(false);
+  // loginWorkingContract kept for backend data fetch but badge UI removed
   const [loginWorkingContract, setLoginWorkingContract] = useState<{
     id: bigint;
     name: string;
@@ -463,7 +475,6 @@ export default function App() {
   // ----------- Admin credential logic -----------
   const handleWelcomeTap = async () => {
     if (!actor) return;
-    // Check if device is remembered
     const remembered = localStorage.getItem(REMEMBER_DEVICE_KEY) === "true";
     if (remembered) {
       setMode("edit");
@@ -476,11 +487,9 @@ export default function App() {
     setAdminPasswordConfirm("");
     setAdminError("");
     setRememberDevice(false);
-    // Open dialog immediately with a loading state
     setAdminDialogChecking(true);
-    setAdminDialogMode("enter"); // default; will be updated after check
+    setAdminDialogMode("enter");
     setShowAdminDialog(true);
-    // Check credentials in the background
     try {
       const hasCreds = await actor.hasAdminCredentials();
       setAdminDialogMode(hasCreds ? "enter" : "set");
@@ -607,7 +616,7 @@ export default function App() {
     };
   }, [screen]);
 
-  // Fetch working today from backend while on login screen
+  // Fetch working today from backend while on login screen (keep for data consistency)
   useEffect(() => {
     if (screen !== "home" || !actor) return;
     const fetchWorkingToday = async () => {
@@ -663,93 +672,81 @@ export default function App() {
   if (screen === "home") {
     return (
       <>
-        {/* Dark premium background */}
+        {/* Light glassmorphism background */}
         <div
           className="min-h-screen flex flex-col items-center justify-center px-5 py-10 relative overflow-hidden"
           style={{
-            background: "#0B1120",
+            background: PAGE_BG,
             opacity: homeVisible ? 1 : 0,
             transition: "opacity 0.4s ease",
           }}
         >
-          {/* Mesh gradient blob — top right */}
+          {/* Blue-purple glow blob top right */}
           <div
             className="absolute pointer-events-none"
             style={{
-              top: "-80px",
+              top: "-100px",
               right: "-80px",
-              width: "360px",
-              height: "360px",
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle, rgba(255,127,17,0.22) 0%, transparent 70%)",
-              filter: "blur(40px)",
-            }}
-          />
-          {/* Mesh gradient blob — bottom left */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              bottom: "-100px",
-              left: "-80px",
               width: "400px",
               height: "400px",
               borderRadius: "50%",
               background:
-                "radial-gradient(circle, rgba(255,127,17,0.10) 0%, transparent 70%)",
-              filter: "blur(60px)",
+                "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)",
+              filter: "blur(50px)",
             }}
           />
-          {/* Subtle grid overlay */}
+          {/* Violet glow blob bottom left */}
           <div
-            className="absolute inset-0 pointer-events-none"
+            className="absolute pointer-events-none"
             style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
+              bottom: "-80px",
+              left: "-60px",
+              width: "360px",
+              height: "360px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%)",
+              filter: "blur(60px)",
             }}
           />
 
           {/* App branding */}
-          <div className="flex flex-col items-center mb-10 z-10">
-            {/* Icon with glow halo */}
-            <div style={{ position: "relative", marginBottom: "20px" }}>
-              {/* Outer glow */}
+          <div className="flex flex-col items-center mb-8 z-10">
+            <div style={{ position: "relative", marginBottom: "18px" }}>
               <div
                 style={{
                   position: "absolute",
                   inset: "-10px",
                   borderRadius: "36px",
                   background:
-                    "radial-gradient(circle, rgba(255,127,17,0.4) 0%, transparent 70%)",
-                  filter: "blur(14px)",
+                    "radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)",
+                  filter: "blur(16px)",
                 }}
               />
               <div
                 style={{
-                  width: "88px",
-                  height: "88px",
-                  borderRadius: "28px",
-                  background:
-                    "linear-gradient(135deg, #FF7F11 0%, #EA580C 100%)",
+                  width: "80px",
+                  height: "80px",
+                  borderRadius: "24px",
+                  background: GRAD,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   position: "relative",
                   boxShadow:
-                    "0 0 0 1px rgba(255,127,17,0.4), 0 8px 32px rgba(255,127,17,0.45)",
+                    "0 0 0 1px rgba(99,102,241,0.3), 0 8px 28px rgba(99,102,241,0.4)",
                 }}
               >
-                <CalendarCheck size={42} color="#FFFFFF" strokeWidth={2.2} />
+                <CalendarCheck size={38} color="#FFFFFF" strokeWidth={2.2} />
               </div>
             </div>
 
             <h1
               style={{
-                fontSize: "28px",
+                fontSize: "26px",
                 fontWeight: 800,
                 letterSpacing: "-0.02em",
-                color: "#FFFFFF",
+                color: TEXT_PRIMARY,
                 textAlign: "center",
                 lineHeight: 1.2,
                 margin: 0,
@@ -759,9 +756,12 @@ export default function App() {
             </h1>
             <p
               style={{
-                fontSize: "18px",
+                fontSize: "15px",
                 fontWeight: 700,
-                color: "#FF7F11",
+                background: GRAD,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
                 margin: "4px 0 0",
                 letterSpacing: "0.04em",
                 textTransform: "uppercase",
@@ -771,8 +771,8 @@ export default function App() {
             </p>
             <p
               style={{
-                fontSize: "13px",
-                color: "rgba(255,255,255,0.38)",
+                fontSize: "12px",
+                color: TEXT_SECONDARY,
                 marginTop: "8px",
                 fontWeight: 400,
               }}
@@ -781,33 +781,32 @@ export default function App() {
             </p>
           </div>
 
-          {/* Glassmorphism login card */}
+          {/* Glossy morphism login card */}
           <div
             className="w-full z-10"
             style={{
               maxWidth: "360px",
-              background: "rgba(255,255,255,0.055)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "28px",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
+              background: CARD_BG,
+              border: CARD_BORDER,
+              borderRadius: "24px",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
               overflow: "hidden",
-              boxShadow:
-                "0 4px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+              boxShadow: CARD_SHADOW,
             }}
           >
             {/* Card header */}
             <div
               style={{
-                padding: "24px 24px 20px",
-                borderBottom: "1px solid rgba(255,255,255,0.07)",
+                padding: "22px 24px 18px",
+                borderBottom: "1px solid rgba(120,80,255,0.1)",
               }}
             >
               <h2
                 style={{
-                  fontSize: "18px",
+                  fontSize: "17px",
                   fontWeight: 700,
-                  color: "#FFFFFF",
+                  color: TEXT_PRIMARY,
                   margin: 0,
                 }}
               >
@@ -816,7 +815,7 @@ export default function App() {
               <p
                 style={{
                   fontSize: "13px",
-                  color: "rgba(255,255,255,0.45)",
+                  color: TEXT_SECONDARY,
                   margin: "4px 0 0",
                 }}
               >
@@ -827,13 +826,13 @@ export default function App() {
             {/* Login buttons */}
             <div
               style={{
-                padding: "20px 24px",
+                padding: "18px 24px",
                 display: "flex",
                 flexDirection: "column",
                 gap: "12px",
               }}
             >
-              {/* Admin Login — gradient orange */}
+              {/* Admin Login */}
               <button
                 type="button"
                 data-ocid="home.welcome.text"
@@ -843,15 +842,13 @@ export default function App() {
                   display: "flex",
                   alignItems: "center",
                   gap: "14px",
-                  padding: "15px 20px",
+                  padding: "14px 18px",
                   borderRadius: "16px",
-                  background:
-                    "linear-gradient(135deg, #FF7F11 0%, #EA580C 100%)",
+                  background: GRAD,
                   color: "#FFFFFF",
                   border: "none",
                   cursor: "pointer",
-                  boxShadow:
-                    "0 4px 24px rgba(255,127,17,0.5), 0 1px 6px rgba(0,0,0,0.25)",
+                  boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
                   fontFamily: "inherit",
                 }}
               >
@@ -860,14 +857,14 @@ export default function App() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: "38px",
-                    height: "38px",
+                    width: "36px",
+                    height: "36px",
                     borderRadius: "12px",
-                    background: "rgba(255,255,255,0.18)",
+                    background: "rgba(255,255,255,0.2)",
                     flexShrink: 0,
                   }}
                 >
-                  <ShieldCheck size={20} color="#FFFFFF" strokeWidth={2.2} />
+                  <ShieldCheck size={18} color="#FFFFFF" strokeWidth={2.2} />
                 </span>
                 <span
                   style={{
@@ -880,7 +877,7 @@ export default function App() {
                 >
                   <span
                     style={{
-                      fontSize: "15px",
+                      fontSize: "14px",
                       fontWeight: 700,
                       lineHeight: 1.3,
                     }}
@@ -889,16 +886,16 @@ export default function App() {
                   </span>
                   <span
                     style={{
-                      fontSize: "12px",
+                      fontSize: "11px",
                       fontWeight: 400,
-                      color: "rgba(255,255,255,0.75)",
+                      color: "rgba(255,255,255,0.8)",
                       marginTop: "2px",
                     }}
                   >
                     Full access to all features
                   </span>
                 </span>
-                <Lock size={15} color="rgba(255,255,255,0.7)" />
+                <Lock size={14} color="rgba(255,255,255,0.7)" />
               </button>
 
               {/* Divider */}
@@ -913,14 +910,14 @@ export default function App() {
                   style={{
                     flex: 1,
                     height: "1px",
-                    background: "rgba(255,255,255,0.1)",
+                    background: "rgba(120,80,255,0.12)",
                   }}
                 />
                 <span
                   style={{
                     fontSize: "11px",
                     fontWeight: 500,
-                    color: "rgba(255,255,255,0.25)",
+                    color: TEXT_SECONDARY,
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
                   }}
@@ -931,12 +928,12 @@ export default function App() {
                   style={{
                     flex: 1,
                     height: "1px",
-                    background: "rgba(255,255,255,0.1)",
+                    background: "rgba(120,80,255,0.12)",
                   }}
                 />
               </div>
 
-              {/* User Login — ghost outline */}
+              {/* User Login */}
               <button
                 type="button"
                 data-ocid="home.view_attendpay.button"
@@ -955,13 +952,14 @@ export default function App() {
                   display: "flex",
                   alignItems: "center",
                   gap: "14px",
-                  padding: "15px 20px",
+                  padding: "14px 18px",
                   borderRadius: "16px",
-                  background: "transparent",
-                  color: "#FFFFFF",
-                  border: "1.5px solid rgba(255,255,255,0.2)",
+                  background: "#ffffff",
+                  color: TEXT_PRIMARY,
+                  border: "1.5px solid rgba(99,102,241,0.2)",
                   cursor: "pointer",
                   fontFamily: "inherit",
+                  boxShadow: "0 1px 6px rgba(99,102,241,0.08)",
                 }}
               >
                 <span
@@ -969,15 +967,15 @@ export default function App() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: "38px",
-                    height: "38px",
+                    width: "36px",
+                    height: "36px",
                     borderRadius: "12px",
-                    background: "rgba(255,127,17,0.15)",
-                    border: "1px solid rgba(255,127,17,0.25)",
+                    background: "rgba(99,102,241,0.1)",
+                    border: "1px solid rgba(99,102,241,0.18)",
                     flexShrink: 0,
                   }}
                 >
-                  <Eye size={20} color="#FF7F11" strokeWidth={2.2} />
+                  <Eye size={18} color="#6366f1" strokeWidth={2.2} />
                 </span>
                 <span
                   style={{
@@ -990,18 +988,19 @@ export default function App() {
                 >
                   <span
                     style={{
-                      fontSize: "15px",
+                      fontSize: "14px",
                       fontWeight: 700,
                       lineHeight: 1.3,
+                      color: TEXT_PRIMARY,
                     }}
                   >
                     User Login
                   </span>
                   <span
                     style={{
-                      fontSize: "12px",
+                      fontSize: "11px",
                       fontWeight: 400,
-                      color: "rgba(255,255,255,0.45)",
+                      color: TEXT_SECONDARY,
                       marginTop: "2px",
                     }}
                   >
@@ -1011,60 +1010,18 @@ export default function App() {
               </button>
             </div>
 
-            {/* Working Today Badge */}
-            {loginWorkingContract && (
-              <div
-                style={{
-                  padding: "10px 24px",
-                  borderTop: "1px solid rgba(255,255,255,0.07)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                }}
-              >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    background: "rgba(34,197,94,0.12)",
-                    border: "1px solid rgba(34,197,94,0.3)",
-                    borderRadius: "20px",
-                    padding: "5px 12px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#22C55E",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: "50%",
-                      background: "#22C55E",
-                      display: "inline-block",
-                      animation: "pulse-dot 1.5s ease-in-out infinite",
-                    }}
-                  />
-                  {loginWorkingContract.name} · {loginWorkingContract.count}{" "}
-                  working
-                </span>
-              </div>
-            )}
-
             {/* Card footer */}
             <div
               style={{
-                padding: "14px 24px",
-                borderTop: "1px solid rgba(255,255,255,0.07)",
+                padding: "12px 24px",
+                borderTop: "1px solid rgba(120,80,255,0.1)",
                 textAlign: "center",
               }}
             >
               <p
                 style={{
                   fontSize: "11px",
-                  color: "rgba(255,255,255,0.25)",
+                  color: TEXT_SECONDARY,
                   margin: 0,
                 }}
               >
@@ -1086,7 +1043,7 @@ export default function App() {
               <DialogTitle
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
-                <Lock size={18} style={{ color: "#F97316" }} />
+                <Lock size={18} style={{ color: "#6366f1" }} />
                 {adminDialogChecking
                   ? "Admin Login"
                   : adminDialogMode === "set"
@@ -1110,9 +1067,9 @@ export default function App() {
                 <Loader2
                   size={28}
                   className="animate-spin"
-                  style={{ color: "#F97316" }}
+                  style={{ color: "#6366f1" }}
                 />
-                <p style={{ fontSize: 14, color: "#64748B", margin: 0 }}>
+                <p style={{ fontSize: 14, color: TEXT_SECONDARY, margin: 0 }}>
                   Checking...
                 </p>
               </div>
@@ -1121,7 +1078,7 @@ export default function App() {
                 style={{ display: "flex", flexDirection: "column", gap: 12 }}
               >
                 {adminDialogMode === "set" && (
-                  <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>
+                  <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: 0 }}>
                     First time setup. Create an admin username and password to
                     protect edit mode.
                   </p>
@@ -1130,7 +1087,7 @@ export default function App() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: "#64748B",
+                      color: TEXT_SECONDARY,
                       margin: "0 0 4px",
                     }}
                   >
@@ -1149,12 +1106,14 @@ export default function App() {
                     onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
                     placeholder="Enter username"
                     style={{
-                      border: "2px solid #E2E8F0",
+                      border: "1.5px solid rgba(99,102,241,0.25)",
                       borderRadius: 10,
                       padding: "10px 14px",
                       fontSize: 15,
                       outline: "none",
                       width: "100%",
+                      background: "#ffffff",
+                      color: TEXT_PRIMARY,
                     }}
                   />
                 </div>
@@ -1162,7 +1121,7 @@ export default function App() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: "#64748B",
+                      color: TEXT_SECONDARY,
                       margin: "0 0 4px",
                     }}
                   >
@@ -1179,12 +1138,14 @@ export default function App() {
                     onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
                     placeholder="Enter password"
                     style={{
-                      border: "2px solid #E2E8F0",
+                      border: "1.5px solid rgba(99,102,241,0.25)",
                       borderRadius: 10,
                       padding: "10px 14px",
                       fontSize: 15,
                       outline: "none",
                       width: "100%",
+                      background: "#ffffff",
+                      color: TEXT_PRIMARY,
                     }}
                   />
                 </div>
@@ -1193,7 +1154,7 @@ export default function App() {
                     <p
                       style={{
                         fontSize: 12,
-                        color: "#64748B",
+                        color: TEXT_SECONDARY,
                         margin: "0 0 4px",
                       }}
                     >
@@ -1212,12 +1173,14 @@ export default function App() {
                       }
                       placeholder="Confirm password"
                       style={{
-                        border: "2px solid #E2E8F0",
+                        border: "1.5px solid rgba(99,102,241,0.25)",
                         borderRadius: 10,
                         padding: "10px 14px",
                         fontSize: 15,
                         outline: "none",
                         width: "100%",
+                        background: "#ffffff",
+                        color: TEXT_PRIMARY,
                       }}
                     />
                   </div>
@@ -1225,7 +1188,7 @@ export default function App() {
                 {adminError && (
                   <p
                     data-ocid="admin.error_state"
-                    style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
+                    style={{ color: "#dc2626", fontSize: 13, margin: 0 }}
                   >
                     {adminError}
                   </p>
@@ -1238,7 +1201,7 @@ export default function App() {
                       gap: 8,
                       cursor: "pointer",
                       fontSize: 13,
-                      color: "#64748B",
+                      color: TEXT_SECONDARY,
                       userSelect: "none",
                     }}
                   >
@@ -1246,7 +1209,7 @@ export default function App() {
                       type="checkbox"
                       checked={rememberDevice}
                       onChange={(e) => setRememberDevice(e.target.checked)}
-                      style={{ accentColor: "#F97316", width: 15, height: 15 }}
+                      style={{ accentColor: "#6366f1", width: 15, height: 15 }}
                     />
                     Remember this device
                   </label>
@@ -1261,7 +1224,7 @@ export default function App() {
                   onClick={handleAdminSubmit}
                   disabled={adminLoading}
                   style={{
-                    background: "linear-gradient(135deg, #F97316, #EA580C)",
+                    background: GRAD,
                     color: "#fff",
                     border: "none",
                     width: "100%",
@@ -1295,7 +1258,7 @@ export default function App() {
             position: "fixed",
             inset: 0,
             zIndex: 9999,
-            background: "#0B1120",
+            background: PAGE_BG,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -1305,7 +1268,7 @@ export default function App() {
             pointerEvents: appReady ? "none" : "auto",
           }}
         >
-          {/* Orange glow blob */}
+          {/* Glow blobs */}
           <div
             style={{
               position: "absolute",
@@ -1315,12 +1278,11 @@ export default function App() {
               height: 360,
               borderRadius: "50%",
               background:
-                "radial-gradient(circle, rgba(255,127,17,0.22) 0%, transparent 70%)",
+                "radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%)",
               filter: "blur(40px)",
               pointerEvents: "none",
             }}
           />
-          {/* App icon with pulse */}
           <div style={{ position: "relative", marginBottom: 28 }}>
             <div
               style={{
@@ -1328,7 +1290,7 @@ export default function App() {
                 inset: "-14px",
                 borderRadius: "40px",
                 background:
-                  "radial-gradient(circle, rgba(255,127,17,0.5) 0%, transparent 70%)",
+                  "radial-gradient(circle, rgba(99,102,241,0.45) 0%, transparent 70%)",
                 filter: "blur(18px)",
                 animation: "pulse-glow 2s ease-in-out infinite",
               }}
@@ -1338,12 +1300,12 @@ export default function App() {
                 width: 96,
                 height: 96,
                 borderRadius: 30,
-                background: "linear-gradient(135deg, #FF7F11 0%, #EA580C 100%)",
+                background: GRAD,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 boxShadow:
-                  "0 0 0 1px rgba(255,127,17,0.4), 0 12px 40px rgba(255,127,17,0.5)",
+                  "0 0 0 1px rgba(99,102,241,0.35), 0 12px 40px rgba(99,102,241,0.45)",
                 position: "relative",
               }}
             >
@@ -1354,7 +1316,7 @@ export default function App() {
             style={{
               fontSize: 24,
               fontWeight: 800,
-              color: "#FFFFFF",
+              color: TEXT_PRIMARY,
               margin: 0,
               letterSpacing: "-0.02em",
               textAlign: "center",
@@ -1364,9 +1326,12 @@ export default function App() {
           </h1>
           <p
             style={{
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: 700,
-              color: "#FF7F11",
+              background: GRAD,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
               margin: "4px 0 0",
               letterSpacing: "0.04em",
               textTransform: "uppercase",
@@ -1378,14 +1343,9 @@ export default function App() {
             <Loader2
               size={28}
               className="animate-spin"
-              style={{ color: "#FF7F11" }}
+              style={{ color: "#6366f1" }}
             />
           </div>
-          <style>
-            {
-              "@keyframes pulse-glow { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } } @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }"
-            }
-          </style>
         </div>
       )}
       {/* Hidden file inputs */}
@@ -1406,9 +1366,9 @@ export default function App() {
 
       <div
         className="min-h-screen flex flex-col"
-        style={{ background: "#0B1120", position: "relative" }}
+        style={{ background: PAGE_BG, position: "relative" }}
       >
-        {/* Orange glow blobs - decorative, matches home screen */}
+        {/* Decorative blobs */}
         <div
           aria-hidden="true"
           style={{
@@ -1419,7 +1379,7 @@ export default function App() {
             height: "500px",
             borderRadius: "50%",
             background:
-              "radial-gradient(circle, rgba(255,127,17,0.12) 0%, transparent 70%)",
+              "radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)",
             filter: "blur(60px)",
             pointerEvents: "none",
             zIndex: 0,
@@ -1435,7 +1395,7 @@ export default function App() {
             height: "400px",
             borderRadius: "50%",
             background:
-              "radial-gradient(circle, rgba(255,127,17,0.07) 0%, transparent 70%)",
+              "radial-gradient(circle, rgba(139,92,246,0.09) 0%, transparent 70%)",
             filter: "blur(60px)",
             pointerEvents: "none",
             zIndex: 0,
@@ -1447,11 +1407,14 @@ export default function App() {
           <div
             data-ocid="reminder.banner.toast"
             className="flex items-center justify-between px-4 py-3 gap-3 shrink-0 z-50"
-            style={{ background: "#FF7F11", borderBottom: "1px solid #E56A00" }}
+            style={{
+              background: GRAD,
+              borderBottom: "1px solid rgba(99,102,241,0.3)",
+            }}
           >
             <span
               className="text-sm font-semibold flex-1"
-              style={{ color: "#000000" }}
+              style={{ color: "#FFFFFF" }}
             >
               It&apos;s 6 PM — time to export your daily data!
             </span>
@@ -1460,7 +1423,7 @@ export default function App() {
               data-ocid="reminder.export.button"
               onClick={handleReminderExport}
               className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-all active:scale-95"
-              style={{ background: "#FFFFFF", color: "#FF7F11" }}
+              style={{ background: "#FFFFFF", color: "#6366f1" }}
             >
               <Download size={13} />
               Export Now
@@ -1470,7 +1433,7 @@ export default function App() {
               data-ocid="reminder.close.button"
               onClick={dismissReminder}
               className="flex items-center justify-center w-7 h-7 rounded-full transition-all active:scale-95"
-              style={{ background: "rgba(255,255,255,0.2)", color: "#FFFFFF" }}
+              style={{ background: "rgba(255,255,255,0.25)", color: "#FFFFFF" }}
             >
               <X size={14} />
             </button>
@@ -1481,14 +1444,15 @@ export default function App() {
         <div
           className="flex items-center justify-between px-3 py-3 shrink-0"
           style={{
-            background: "rgba(255,255,255,0.055)",
-            borderBottom: "1px solid rgba(255,255,255,0.1)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
+            background: "rgba(255,255,255,0.82)",
+            borderBottom: "1px solid rgba(120,80,255,0.12)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
             position: "relative",
+            boxShadow: "0 1px 8px rgba(99,102,241,0.07)",
           }}
         >
-          {/* Maaya - centered in header */}
+          {/* Maaya centered */}
           <div
             style={{
               position: "absolute",
@@ -1501,7 +1465,7 @@ export default function App() {
               style={{
                 fontSize: 22,
                 fontWeight: 900,
-                background: "linear-gradient(90deg, #FF7F11, #FBBF24, #FF7F11)",
+                background: GRAD,
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -1520,7 +1484,7 @@ export default function App() {
                   data-ocid="nav.back.button"
                   onClick={() => setActiveTab("Contracts")}
                   className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
+                  style={{ color: "#6366f1" }}
                 >
                   <ChevronLeft size={18} />
                   <span className="text-xs">Back</span>
@@ -1534,7 +1498,7 @@ export default function App() {
                     setMode("view");
                   }}
                   className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
+                  style={{ color: "#6366f1" }}
                 >
                   <Home size={18} />
                   <span className="text-xs">Home</span>
@@ -1549,7 +1513,7 @@ export default function App() {
                   setViewModeSelectedContract(false);
                 }}
                 className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
-                style={{ color: "rgba(255,255,255,0.5)" }}
+                style={{ color: "#6366f1" }}
               >
                 <ChevronLeft size={18} />
                 <span className="text-xs">Back</span>
@@ -1563,7 +1527,7 @@ export default function App() {
                   setMode("view");
                 }}
                 className="flex items-center gap-1 rounded-lg px-2 py-1 transition-all active:scale-95"
-                style={{ color: "rgba(255,255,255,0.5)" }}
+                style={{ color: "#6366f1" }}
               >
                 <Home size={18} />
                 <span className="text-xs">Home</span>
@@ -1572,7 +1536,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Edit mode menu */}
             {mode === "edit" && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1581,9 +1544,9 @@ export default function App() {
                     data-ocid="header.menu.button"
                     className="flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
                     style={{
-                      background: "rgba(255,255,255,0.07)",
-                      color: "rgba(255,255,255,0.6)",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "rgba(99,102,241,0.08)",
+                      color: "#6366f1",
+                      border: "1px solid rgba(99,102,241,0.15)",
                     }}
                     title="More options"
                   >
@@ -1647,7 +1610,7 @@ export default function App() {
                       onClick={() => {
                         localStorage.removeItem(REMEMBER_DEVICE_KEY);
                       }}
-                      style={{ gap: 8, cursor: "pointer", color: "#EF4444" }}
+                      style={{ gap: 8, cursor: "pointer", color: "#dc2626" }}
                     >
                       <X size={14} />
                       Forget This Device
@@ -1690,15 +1653,16 @@ export default function App() {
           {activeTab === "Settled" && <SettledTab mode={mode} />}
         </div>
 
-        {/* Bottom nav */}
+        {/* Bottom nav — edit mode only */}
         {mode === "edit" && (
           <nav
             className="fixed bottom-0 left-0 right-0 flex z-50"
             style={{
-              background: "rgba(15,23,42,0.92)",
-              borderTop: "1px solid rgba(255,255,255,0.1)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
+              background: "rgba(255,255,255,0.9)",
+              borderTop: "1px solid rgba(120,80,255,0.12)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              boxShadow: "0 -2px 12px rgba(99,102,241,0.08)",
             }}
           >
             {visibleTabs.map((tab) => {
@@ -1712,15 +1676,21 @@ export default function App() {
                   onClick={() => setActiveTab(tab.id)}
                   className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-all active:scale-95"
                   style={{
-                    color: isActive ? "#FF7F11" : "rgba(255,255,255,0.4)",
+                    color: isActive ? "#6366f1" : "#9ca3af",
+                    background: "transparent",
+                    border: "none",
                   }}
                 >
                   <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
                   <span
                     className="text-xs leading-tight"
                     style={{
-                      fontWeight: isActive ? 600 : 400,
+                      fontWeight: isActive ? 700 : 400,
                       fontSize: "0.6rem",
+                      background: isActive ? GRAD : "none",
+                      WebkitBackgroundClip: isActive ? "text" : "unset",
+                      WebkitTextFillColor: isActive ? "transparent" : "inherit",
+                      backgroundClip: isActive ? "text" : "unset",
                     }}
                   >
                     {tab.short}
@@ -1737,11 +1707,13 @@ export default function App() {
         offset={8}
         toastOptions={{
           style: {
-            background: "rgba(15,23,42,0.5)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-            border: "1px solid rgba(255,255,255,0.15)",
-            color: "white",
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: "1px solid rgba(99,102,241,0.2)",
+            borderLeft: "4px solid #6366f1",
+            color: TEXT_PRIMARY,
+            boxShadow: "0 4px 16px rgba(99,102,241,0.12)",
           },
         }}
       />
@@ -1760,7 +1732,7 @@ export default function App() {
           <DialogHeader>
             <DialogTitle>Restore Backup?</DialogTitle>
           </DialogHeader>
-          <p style={{ fontSize: 14, color: "#94A3B8" }}>
+          <p style={{ fontSize: 14, color: TEXT_SECONDARY }}>
             This will add all contracts and labours from the backup file on top
             of your existing data.
             {pendingRestoreData && " Contracts: "}
@@ -1786,7 +1758,7 @@ export default function App() {
               data-ocid="restore.confirm_button"
               onClick={doRestore}
               style={{
-                background: "linear-gradient(135deg, #F97316, #EA580C)",
+                background: GRAD,
                 color: "#fff",
                 border: "none",
               }}
@@ -1808,13 +1780,13 @@ export default function App() {
           <DialogHeader>
             <DialogTitle>Import Complete</DialogTitle>
           </DialogHeader>
-          <p style={{ fontSize: 14, color: "#94A3B8" }}>{importResult}</p>
+          <p style={{ fontSize: 14, color: TEXT_SECONDARY }}>{importResult}</p>
           <DialogFooter>
             <Button
               data-ocid="import.close_button"
               onClick={() => setImportResult(null)}
               style={{
-                background: "linear-gradient(135deg, #F97316, #EA580C)",
+                background: GRAD,
                 color: "#fff",
                 border: "none",
               }}
@@ -1837,13 +1809,19 @@ export default function App() {
             <DialogTitle
               style={{ display: "flex", alignItems: "center", gap: 8 }}
             >
-              <Lock size={18} style={{ color: "#F97316" }} />
+              <Lock size={18} style={{ color: "#6366f1" }} />
               Change Admin Credentials
             </DialogTitle>
           </DialogHeader>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 4px" }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: TEXT_SECONDARY,
+                  margin: "0 0 4px",
+                }}
+              >
                 Current Username
               </p>
               <input
@@ -1856,19 +1834,25 @@ export default function App() {
                 }}
                 placeholder="Current username"
                 style={{
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(99,102,241,0.25)",
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 15,
                   outline: "none",
                   width: "100%",
-                  color: "#F1F5F9",
+                  color: TEXT_PRIMARY,
                 }}
               />
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 4px" }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: TEXT_SECONDARY,
+                  margin: "0 0 4px",
+                }}
+              >
                 Current Password
               </p>
               <input
@@ -1880,19 +1864,25 @@ export default function App() {
                 }}
                 placeholder="Current password"
                 style={{
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(99,102,241,0.25)",
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 15,
                   outline: "none",
                   width: "100%",
-                  color: "#F1F5F9",
+                  color: TEXT_PRIMARY,
                 }}
               />
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 4px" }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: TEXT_SECONDARY,
+                  margin: "0 0 4px",
+                }}
+              >
                 New Username
               </p>
               <input
@@ -1905,19 +1895,25 @@ export default function App() {
                 }}
                 placeholder="New username"
                 style={{
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(99,102,241,0.25)",
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 15,
                   outline: "none",
                   width: "100%",
-                  color: "#F1F5F9",
+                  color: TEXT_PRIMARY,
                 }}
               />
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#94A3B8", margin: "0 0 4px" }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: TEXT_SECONDARY,
+                  margin: "0 0 4px",
+                }}
+              >
                 New Password
               </p>
               <input
@@ -1927,24 +1923,23 @@ export default function App() {
                   setChangeNewPassword(e.target.value);
                   setAdminError("");
                 }}
-                onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
                 placeholder="New password"
                 style={{
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "#ffffff",
+                  border: "1.5px solid rgba(99,102,241,0.25)",
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 15,
                   outline: "none",
                   width: "100%",
-                  color: "#F1F5F9",
+                  color: TEXT_PRIMARY,
                 }}
               />
             </div>
             {adminError && (
               <p
                 data-ocid="admin.change.error_state"
-                style={{ color: "#DC2626", fontSize: 13, margin: 0 }}
+                style={{ color: "#dc2626", fontSize: 13, margin: 0 }}
               >
                 {adminError}
               </p>
@@ -1956,13 +1951,13 @@ export default function App() {
               onClick={handleAdminSubmit}
               disabled={adminLoading}
               style={{
-                background: "linear-gradient(135deg, #F97316, #EA580C)",
+                background: GRAD,
                 color: "#fff",
                 border: "none",
                 width: "100%",
               }}
             >
-              {adminLoading ? "Saving..." : "Change Credentials"}
+              {adminLoading ? "Saving…" : "Update Credentials"}
             </Button>
           </DialogFooter>
         </DialogContent>

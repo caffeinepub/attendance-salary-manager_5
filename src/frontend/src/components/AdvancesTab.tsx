@@ -5,6 +5,15 @@ import type { AppMode } from "../App";
 import type { Advance, Contract, Labour } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
+const GRAD = "linear-gradient(135deg, #6366f1, #8b5cf6)";
+const PAGE_BG = "#f1f3f8";
+const CARD_BG = "rgba(255,255,255,0.88)";
+const CARD_BORDER = "1px solid rgba(120,80,255,0.14)";
+const CARD_SHADOW =
+  "0 2px 16px rgba(99,102,241,0.08), 0 1px 4px rgba(0,0,0,0.04)";
+const TEXT_PRIMARY = "#1e1b4b";
+const TEXT_SECONDARY = "#6b7280";
+
 interface Props {
   mode: AppMode;
 }
@@ -56,10 +65,6 @@ export function AdvancesTab({ mode }: Props) {
     ]);
   };
 
-  const handleSelectContract = (id: bigint | null) => {
-    setSelectedContractId(id);
-  };
-
   const displayedAdvances = selectedContractId
     ? allAdvances.filter((a) => a.contractId === selectedContractId)
     : allAdvances;
@@ -87,16 +92,13 @@ export function AdvancesTab({ mode }: Props) {
   };
 
   const handleDelete = async (adv: Advance) => {
-    // Optimistic UI update
     setAllAdvances((prev) => prev.filter((a) => a.id !== adv.id));
     toast.success("Advance deleted");
     setSavingAdvance(true);
-    // Persist to backend
     try {
       await actor?.deleteAdvance(adv.id);
     } catch (err) {
       console.error("Failed to delete advance", err);
-      // Restore on failure
       setAllAdvances((prev) => [...prev, adv]);
       toast.error("Failed to delete advance");
     } finally {
@@ -107,7 +109,6 @@ export function AdvancesTab({ mode }: Props) {
   const handleEditSave = async (adv: Advance) => {
     const newAmount = BigInt(Math.round(Number.parseFloat(editForm.amount)));
     const newNote = editForm.note;
-    // Optimistic UI update
     setAllAdvances((prev) =>
       prev.map((a) =>
         a.id === adv.id ? { ...a, amount: newAmount, note: newNote } : a,
@@ -116,12 +117,10 @@ export function AdvancesTab({ mode }: Props) {
     setEditingId(null);
     toast.success("Advance updated");
     setSavingAdvance(true);
-    // Persist to backend
     try {
       await actor?.updateAdvance(adv.id, newAmount, newNote);
     } catch (err) {
       console.error("Failed to update advance", err);
-      // Restore original on failure
       setAllAdvances((prev) => prev.map((a) => (a.id === adv.id ? adv : a)));
       toast.error("Failed to update advance");
     } finally {
@@ -131,59 +130,68 @@ export function AdvancesTab({ mode }: Props) {
 
   const inputStyle = {
     background: "#FFFFFF",
-    border: "1px solid #E5E5E5",
-    color: "#1E293B",
-    borderRadius: 6,
-    padding: "6px 10px",
+    border: "1.5px solid rgba(99,102,241,0.2)",
+    color: TEXT_PRIMARY,
+    borderRadius: 8,
+    padding: "7px 11px",
     width: "100%",
+    fontSize: 14,
+    outline: "none",
   };
   const labelStyle = {
-    color: "#94A3B8",
+    color: TEXT_SECONDARY,
     fontSize: 12,
-    marginBottom: 2,
+    marginBottom: 3,
     display: "block" as const,
+    fontWeight: 600,
   };
   const thStyle: React.CSSProperties = {
     padding: "10px 12px",
     textAlign: "left",
-    fontWeight: 600,
-    fontSize: 12,
-    color: "#94A3B8",
-    background: "#111827",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
+    fontWeight: 700,
+    fontSize: 11,
+    color: TEXT_SECONDARY,
+    background: "rgba(99,102,241,0.06)",
+    borderBottom: "1px solid rgba(99,102,241,0.1)",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
   };
   const tdStyle: React.CSSProperties = {
-    padding: "8px 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
+    padding: "10px 12px",
+    borderBottom: "1px solid rgba(99,102,241,0.07)",
     fontSize: 13,
-    color: "#F1F5F9",
+    color: TEXT_PRIMARY,
+    verticalAlign: "middle",
   };
 
   const getLabourName = (id: bigint) =>
     labours.find((l) => l.id === id)?.name || String(id);
-
   const getContractName = (id: bigint) =>
     contracts.find((c) => c.id === id)?.name || String(id);
 
   return (
-    <div>
+    <div style={{ background: PAGE_BG, minHeight: "100%" }}>
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <h2 className="text-lg font-bold" style={{ color: "#F1F5F9" }}>
+        <h2 className="text-lg font-bold" style={{ color: TEXT_PRIMARY }}>
           Advances
         </h2>
         <select
           data-ocid="advances.contract.select"
           value={selectedContractId ? String(selectedContractId) : ""}
           onChange={(e) =>
-            handleSelectContract(e.target.value ? BigInt(e.target.value) : null)
+            setSelectedContractId(
+              e.target.value ? BigInt(e.target.value) : null,
+            )
           }
           style={{
-            background: "#111827",
-            border: "1px solid rgba(255,255,255,0.1)",
-            color: "#F1F5F9",
-            borderRadius: 6,
-            padding: "6px 10px",
+            background: "#ffffff",
+            border: "1.5px solid rgba(99,102,241,0.2)",
+            color: TEXT_PRIMARY,
+            borderRadius: 8,
+            padding: "7px 11px",
             minWidth: 180,
+            fontSize: 13,
+            outline: "none",
           }}
         >
           <option value="">All Contracts</option>
@@ -198,8 +206,13 @@ export function AdvancesTab({ mode }: Props) {
             type="button"
             data-ocid="advances.add.button"
             onClick={() => setShowAdd((v) => !v)}
-            className="text-sm px-3 py-2 rounded"
-            style={{ background: "#FF7F11", color: "#fff" }}
+            className="text-sm px-3 py-2 rounded-xl font-semibold"
+            style={{
+              background: GRAD,
+              color: "#fff",
+              border: "none",
+              boxShadow: "0 4px 12px rgba(99,102,241,0.3)",
+            }}
           >
             + Add Advance
           </button>
@@ -214,11 +227,11 @@ export function AdvancesTab({ mode }: Props) {
             alignItems: "center",
             gap: 8,
             padding: "8px 12px",
-            background: "rgba(255,127,17,0.1)",
-            border: "1px solid rgba(255,127,17,0.25)",
+            background: "rgba(99,102,241,0.07)",
+            border: "1px solid rgba(99,102,241,0.18)",
             borderRadius: 8,
             marginBottom: 12,
-            color: "#FF7F11",
+            color: "#6366f1",
             fontSize: 13,
             fontWeight: 500,
           }}
@@ -230,16 +243,17 @@ export function AdvancesTab({ mode }: Props) {
 
       {showAdd && mode === "edit" && (
         <div
-          className="rounded-xl p-4 mb-4 max-w-sm"
+          className="rounded-2xl p-4 mb-4 max-w-sm"
           style={{
-            background: "rgba(255,255,255,0.055)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: CARD_BG,
+            border: CARD_BORDER,
             backdropFilter: "blur(12px)",
+            boxShadow: CARD_SHADOW,
           }}
         >
           <h3
             className="text-sm font-semibold mb-3"
-            style={{ color: "#FF7F11" }}
+            style={{ color: "#6366f1" }}
           >
             New Advance
           </h3>
@@ -309,8 +323,13 @@ export function AdvancesTab({ mode }: Props) {
               type="button"
               data-ocid="advances.add.submit.button"
               onClick={handleAdd}
-              className="py-2 rounded font-semibold"
-              style={{ background: "#FF7F11", color: "#fff" }}
+              className="py-2 rounded-xl font-semibold text-sm"
+              style={{
+                background: GRAD,
+                color: "#fff",
+                border: "none",
+                boxShadow: "0 4px 12px rgba(99,102,241,0.3)",
+              }}
             >
               Save
             </button>
@@ -320,13 +339,22 @@ export function AdvancesTab({ mode }: Props) {
 
       {loading ? (
         <div
-          style={{ color: "#94A3B8", textAlign: "center", padding: 24 }}
+          style={{ color: TEXT_SECONDARY, textAlign: "center", padding: 24 }}
           data-ocid="advances.loading_state"
         >
           Loading advances...
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
+        <div
+          style={{
+            overflowX: "auto",
+            background: CARD_BG,
+            border: CARD_BORDER,
+            borderRadius: 16,
+            boxShadow: CARD_SHADOW,
+            backdropFilter: "blur(10px)",
+          }}
+        >
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
               <tr>
@@ -344,7 +372,7 @@ export function AdvancesTab({ mode }: Props) {
                     colSpan={5}
                     style={{
                       ...tdStyle,
-                      color: "#94A3B8",
+                      color: TEXT_SECONDARY,
                       textAlign: "center",
                     }}
                     data-ocid="advances.empty_state"
@@ -357,11 +385,16 @@ export function AdvancesTab({ mode }: Props) {
                 <tr
                   key={String(adv.id)}
                   data-ocid={`advances.item.${i + 1}`}
-                  style={{ background: i % 2 === 0 ? "#111827" : "#0D1626" }}
+                  style={{
+                    background:
+                      i % 2 === 0
+                        ? "rgba(255,255,255,0.9)"
+                        : "rgba(245,247,255,0.8)",
+                  }}
                 >
                   <td style={tdStyle}>{getLabourName(adv.labourId)}</td>
                   {!selectedContractId && (
-                    <td style={{ ...tdStyle, color: "#94A3B8" }}>
+                    <td style={{ ...tdStyle, color: TEXT_SECONDARY }}>
                       {getContractName(adv.contractId)}
                     </td>
                   )}
@@ -371,12 +404,13 @@ export function AdvancesTab({ mode }: Props) {
                         <input
                           type="number"
                           style={{
-                            background: "#1E293B",
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            color: "#F1F5F9",
-                            borderRadius: 4,
-                            padding: "3px 6px",
+                            background: "#fff",
+                            border: "1.5px solid rgba(99,102,241,0.2)",
+                            color: TEXT_PRIMARY,
+                            borderRadius: 6,
+                            padding: "4px 8px",
                             width: 100,
+                            outline: "none",
                           }}
                           value={editForm.amount}
                           onChange={(e) =>
@@ -390,12 +424,13 @@ export function AdvancesTab({ mode }: Props) {
                       <td style={tdStyle}>
                         <input
                           style={{
-                            background: "#1E293B",
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            color: "#F1F5F9",
-                            borderRadius: 4,
-                            padding: "3px 6px",
+                            background: "#fff",
+                            border: "1.5px solid rgba(99,102,241,0.2)",
+                            color: TEXT_PRIMARY,
+                            borderRadius: 6,
+                            padding: "4px 8px",
                             width: 140,
+                            outline: "none",
                           }}
                           value={editForm.note}
                           onChange={(e) =>
@@ -408,19 +443,23 @@ export function AdvancesTab({ mode }: Props) {
                           type="button"
                           data-ocid={`advances.save.button.${i + 1}`}
                           onClick={() => handleEditSave(adv)}
-                          className="text-xs px-2 py-1 rounded mr-1"
-                          style={{ background: "#FF7F11", color: "#fff" }}
+                          className="text-xs px-2.5 py-1.5 rounded-lg mr-1 font-semibold"
+                          style={{
+                            background: GRAD,
+                            color: "#fff",
+                            border: "none",
+                          }}
                         >
                           Save
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingId(null)}
-                          className="text-xs px-2 py-1 rounded"
+                          className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
                           style={{
-                            background: "#111827",
-                            color: "#94A3B8",
-                            border: "1px solid #E5E5E5",
+                            background: "#f3f4f6",
+                            color: TEXT_SECONDARY,
+                            border: "1px solid #e5e7eb",
                           }}
                         >
                           Cancel
@@ -429,10 +468,16 @@ export function AdvancesTab({ mode }: Props) {
                     </>
                   ) : (
                     <>
-                      <td style={{ ...tdStyle, color: "#FF7F11" }}>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          color: "#6366f1",
+                          fontWeight: 700,
+                        }}
+                      >
                         ₹{Number(adv.amount).toLocaleString()}
                       </td>
-                      <td style={{ ...tdStyle, color: "#94A3B8" }}>
+                      <td style={{ ...tdStyle, color: TEXT_SECONDARY }}>
                         {adv.note}
                       </td>
                       {mode === "edit" && (
@@ -447,11 +492,11 @@ export function AdvancesTab({ mode }: Props) {
                                 note: adv.note,
                               });
                             }}
-                            className="text-xs px-2 py-1 rounded mr-1"
+                            className="text-xs px-2.5 py-1.5 rounded-lg mr-1 font-semibold"
                             style={{
-                              background: "rgba(255,127,17,0.15)",
-                              color: "#FF7F11",
-                              border: "1px solid #FF7F11",
+                              background: "rgba(99,102,241,0.1)",
+                              color: "#6366f1",
+                              border: "1px solid rgba(99,102,241,0.2)",
                             }}
                           >
                             Edit
@@ -460,10 +505,11 @@ export function AdvancesTab({ mode }: Props) {
                             type="button"
                             data-ocid={`advances.delete.button.${i + 1}`}
                             onClick={() => handleDelete(adv)}
-                            className="text-xs px-2 py-1 rounded"
+                            className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
                             style={{
-                              background: "rgba(220,38,38,0.15)",
-                              color: "#DC2626",
+                              background: "rgba(220,38,38,0.08)",
+                              color: "#dc2626",
+                              border: "1px solid rgba(220,38,38,0.15)",
                             }}
                           >
                             Delete
