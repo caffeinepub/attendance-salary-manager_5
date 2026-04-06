@@ -26,12 +26,27 @@ function fmt(n: bigint) {
   return Number(n).toLocaleString();
 }
 
+function formatDate(iso?: string): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
 export function ContractsTab({
   mode,
   onViewAttendance,
   onGoHome: _onGoHome,
 }: Props) {
   const { actor } = useActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const a = actor as any;
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [selected, setSelected] = useState<Contract | null>(null);
@@ -60,11 +75,11 @@ export function ContractsTab({
   });
 
   const load = async () => {
-    if (!actor) return;
+    if (!a) return;
     setLoading(true);
     try {
-      const all = await actor.getAllContracts();
-      setContracts((all ?? []).filter((c) => !c.isSettled));
+      const all = await a.getAllContracts();
+      setContracts((all ?? []).filter((c: Contract) => !c.isSettled));
     } finally {
       setLoading(false);
     }
@@ -72,14 +87,14 @@ export function ContractsTab({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: load captures actor from closure
   useEffect(() => {
-    if (actor) load();
+    if (a) load();
   }, [actor]);
 
   const calcBed = (m: number) => Math.round(11000 * m);
   const calcPaper = (m: number) => Math.round(7000 * m);
 
   const handleAdd = async () => {
-    if (!actor || !form.name.trim()) return;
+    if (!a || !form.name.trim()) return;
     const m = Number.parseFloat(form.multiplier) || 0;
     const ca = Number.parseFloat(form.amount) || 0;
     const me = Number.parseFloat(form.machineExp) || 0;
@@ -99,6 +114,7 @@ export function ContractsTab({
       meshAmount: BigInt(Math.round(mesh)),
       meshColumns: ["Mesh"],
       isSettled: false,
+      createdAt: new Date().toISOString(),
     };
     setContracts((prev) => [optimistic, ...prev]);
     setForm({ name: "", multiplier: "", amount: "", machineExp: "" });
@@ -106,7 +122,7 @@ export function ContractsTab({
     setAdding(true);
 
     try {
-      await actor.createContract(
+      await a.createContract(
         form.name,
         m,
         BigInt(Math.round(ca)),
@@ -114,10 +130,14 @@ export function ContractsTab({
         null,
         null,
         ["Mesh"],
+        new Date().toISOString(),
       );
-      const all = await actor.getAllContracts();
-      setContracts((all ?? []).filter((c) => !c.isSettled));
+      const all = await a.getAllContracts();
+      setContracts((all ?? []).filter((c: Contract) => !c.isSettled));
       toast.success(`Contract "${form.name}" added`);
+    } catch {
+      setContracts((prev) => prev.filter((c) => c.id !== tempId));
+      toast.error("Failed to save contract. Please try again.");
     } finally {
       setAdding(false);
     }
@@ -147,7 +167,7 @@ export function ContractsTab({
     const papO = editForm.paperOverride
       ? BigInt(Math.round(Number.parseFloat(editForm.paperOverride)))
       : null;
-    await actor?.updateContract(
+    await a?.updateContract(
       editContract.id,
       editForm.name,
       m,
@@ -160,7 +180,7 @@ export function ContractsTab({
     toast.success(`Contract "${editForm.name}" updated`);
     setEditContract(null);
     if (selected?.id === editContract.id) {
-      const updated = await actor?.getContract(editContract.id);
+      const updated = await a?.getContract(editContract.id);
       setSelected(updated ?? null);
     }
     await load();
@@ -176,7 +196,7 @@ export function ContractsTab({
     const papO = editPaper
       ? BigInt(Math.round(Number.parseFloat(editPaper)))
       : null;
-    await actor?.updateContract(
+    await a?.updateContract(
       selected.id,
       selected.name,
       selected.multiplierValue,
@@ -186,7 +206,7 @@ export function ContractsTab({
       papO,
       selected.meshColumns,
     );
-    const updated = await actor?.getContract(selected.id);
+    const updated = await a?.getContract(selected.id);
     setSelected(updated ?? null);
     setEditingAmounts(false);
     await load();
@@ -255,6 +275,11 @@ export function ContractsTab({
               </button>
             )}
           </div>
+          {selected.createdAt && (
+            <div className="text-xs mb-3" style={{ color: TEXT_SECONDARY }}>
+              Created: {formatDate(selected.createdAt)}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div
               className="rounded-xl p-3"
@@ -297,7 +322,7 @@ export function ContractsTab({
                   letterSpacing: "0.05em",
                 }}
               >
-                Multiplier
+                Acres
               </span>
               <div
                 className="font-bold mt-1"
@@ -531,7 +556,7 @@ export function ContractsTab({
               />
             </div>
             <div>
-              <span style={labelStyle}>Multiplier Value</span>
+              <span style={labelStyle}>Acres</span>
               <input
                 data-ocid="contract.edit.multiplier.input"
                 type="number"
@@ -683,7 +708,7 @@ export function ContractsTab({
               />
             </div>
             <div>
-              <span style={labelStyle}>Multiplier Value</span>
+              <span style={labelStyle}>Acres</span>
               <input
                 data-ocid="contract.add.multiplier.input"
                 type="number"
@@ -813,7 +838,8 @@ export function ContractsTab({
                   {c.id < 0n ? " (saving…)" : ""}
                 </span>
                 <span style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
-                  Multiplier: {c.multiplierValue}
+                  Acres: {c.multiplierValue}
+                  {c.createdAt ? ` · Created: ${formatDate(c.createdAt)}` : ""}
                 </span>
               </div>
               <div className="flex flex-col items-end gap-0.5">

@@ -1,52 +1,43 @@
 # Attendance & Salary Manager
 
 ## Current State
-The app uses a premium dark aesthetic throughout: deep dark backgrounds (#0a0f1e range), orange glow accents, glassmorphism cards, bold orange gradient buttons, and the Figtree font. All tabs (Contracts, Attendance, Advances, Payments, Labours, Settled) use this dark theme. The header shows a large gradient "Maaya" title. The login screen has a dark glassmorphism card.
-
-The app also displays "Working Today" badges on contract cards (in both edit and view mode), with a labour count beside them (e.g. "Working Today · 5 labours"). These badges also appear on the login screen.
+- Full-stack attendance/salary management app with Motoko backend and React/TypeScript frontend.
+- Glossy morphism UI with blue/purple accents, light gray background.
+- Edit mode: Contracts, Attendance (per contract), Advances, Payments, Labours, Settled tabs.
+- View mode: Attendance only.
+- Contracts can be added/edited. Mark Attendance dialog exists in AttendanceTab with a column dropdown inside the dialog header.
 
 ## Requested Changes (Diff)
 
 ### Add
-- New design system: modern glossy morphism with blue and purple accents, very light gray background (#f3f4f6 or similar)
-- Cards with gloss white outline design (white/near-white card backgrounds with subtle blue-purple border glow)
-- Blue-purple gradient accents for buttons, headers, highlights, and interactive elements
-- Consistent visible text colors (dark text on light backgrounds, white text where needed on colored surfaces)
+- Error handling (catch block) in `handleAdd` in ContractsTab so if `createContract` fails, the optimistic contract is removed from the list and an error toast is shown.
+- A two-step flow for the Mark Attendance button: Step 1 = column picker dialog (choose Bed, Paper, Mesh columns); Step 2 = the per-labour marking dialog for that selected column. The column picker must appear FIRST as a dedicated step before the labour dialog opens.
+- `will-change: transform` and CSS containment on frequently re-rendered elements to reduce repaints.
+- `React.memo` or stable references where possible to prevent unnecessary re-renders in AttendanceTab.
 
 ### Modify
-- `index.css` and `tailwind.config.js`: Replace all dark theme tokens with light gray background + blue/purple accent palette
-- `App.tsx`: Replace dark background classes, orange accents, and dark glassmorphism styles with new light glossy morphism styles. Remove all "Working Today" badge UI and related frontend display logic (keep backend calls for data integrity but remove badge rendering everywhere). Remove labour count display.
-- `ContractsTab.tsx`: Remove "Working Today · {count} labours" badge rendering. Update all card/container/text styles to new light theme.
-- `AttendanceTab.tsx`: Remove "Working Today · {wd.count} labours" text display from contract list cards. Update all styles to new light theme.
-- `AdvancesTab.tsx`: Update all styles to new light glossy morphism theme.
-- `PaymentsTab.tsx`: Update all styles to new light glossy morphism theme.
-- `LaboursTab.tsx`: Update all styles to new light glossy morphism theme.
-- `SettledTab.tsx`: Update all styles to new light glossy morphism theme.
-- Login screen: Replace dark glassmorphism with light glossy morphism card (white card, blue/purple gradient buttons, light gray page background).
-- Header: Replace dark background with light/white frosted glass style, keep "Maaya" gradient but use blue-purple gradient instead of orange.
-- Bottom tab bar: Switch from dark to light style with blue/purple active state.
-- All dialogs/modals: Replace dark backgrounds with white/light glossy morphism surfaces.
-- All buttons: Replace orange gradient with blue-purple gradient.
-- All badges (attendance: Present/Absent/Other): Keep color coding but ensure visibility on light backgrounds.
+- `handleAdd` in ContractsTab: wrap the entire backend call in try/catch/finally. On error, revert the optimistic UI (remove the temp contract from state) and show `toast.error`.
+- Mark Attendance flow in AttendanceTab: Instead of embedding the column picker as a select inside the dialog header, split it into two separate steps:
+  - Step 1: Show a modal/dialog with column buttons (Bed, Paper, each Mesh column). User taps a column to select it.
+  - Step 2: The per-labour attendance marking dialog opens for that specific column (same UI as current, but without the inline column switcher since the column is already chosen). User can still switch column from inside if needed.
+- App.tsx loading screen: Ensure the loading overlay fully fades out before the main content is interactive to avoid visual flicker. The `appReadyDom` state removal should use `onTransitionEnd` instead of a hardcoded 600ms timeout to avoid blank frames.
+- Reduce unnecessary re-renders in App.tsx by memoizing callbacks passed to child tabs.
 
 ### Remove
-- "Working Today" badge and labour count display in ContractsTab contract cards
-- "Working Today" badge and labour count display in AttendanceTab contract list
-- "Working Today" contract name and badge on the login screen (App.tsx)
-- All dark background colors, orange accent colors, and dark glassmorphism styling
+- Nothing to remove.
 
 ## Implementation Plan
-1. Update `index.css` and `tailwind.config.js` with new light gray + blue/purple OKLCH token palette
-2. Update `App.tsx`:
-   - Remove Working Today badge section on login screen
-   - Replace all dark/orange styles with light glossy morphism styles
-   - Update header, bottom tab bar, login card, dialogs
-3. Update `ContractsTab.tsx`:
-   - Remove Working Today badge rendering (the "Working Today · {count} labours" JSX)
-   - Update all inline styles and className strings to new theme
-4. Update `AttendanceTab.tsx`:
-   - Remove Working Today badge/count from contract cards in view mode
-   - Update all styles to new theme
-5. Update `AdvancesTab.tsx`, `PaymentsTab.tsx`, `LaboursTab.tsx`, `SettledTab.tsx`:
-   - Replace dark backgrounds, borders, and text colors with light glossy morphism equivalents
-6. Validate (lint + typecheck + build)
+1. **ContractsTab.tsx** — Fix `handleAdd`:
+   - Add `catch` block: on error, filter out the optimistic contract (by `tempId`), show `toast.error("Failed to save contract. Please try again.")`.
+   - Keep `finally` for `setAdding(false)`.
+
+2. **AttendanceTab.tsx** — Two-step Mark Attendance:
+   - Add state: `showColumnPicker` (boolean), separate from `markDialogOpen`.
+   - "Mark Attendance" button now sets `showColumnPicker = true`.
+   - Step 1: A Dialog/modal showing column buttons (Bed, Paper, Mesh 1, Mesh 2...). Tapping a column sets `markDialogCol` to that column, closes column picker, and opens `markDialogOpen`.
+   - Step 2: Existing per-labour dialog, but remove the inline column select from the header (or keep it as a small change-column link for convenience).
+
+3. **App.tsx** — Reduce flicker:
+   - Change the loading overlay unmount logic: instead of `setTimeout(() => setAppReadyDom(true), 600)`, use `onTransitionEnd` on the overlay div to set `appReadyDom = true` after the opacity fade completes.
+   - Add `useCallback` wrappers on `handleViewAttendance` and other callbacks passed as props to prevent re-renders.
+   - Add `translate3d(0,0,0)` or `will-change: opacity` on the home screen container to prevent repaints during fade transitions.

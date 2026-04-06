@@ -16,6 +16,7 @@ export interface Advance {
   'labourId' : bigint,
   'amount' : bigint,
   'contractId' : bigint,
+  'timestamp' : string,
 }
 export interface Attendance {
   'id' : bigint,
@@ -44,6 +45,8 @@ export interface Contract {
   'meshAmount' : bigint,
   'contractAmount' : bigint,
   'multiplierValue' : number,
+  'createdAt' : string,
+  'settledAt' : [] | [string],
 }
 export interface Group { 'id' : bigint, 'name' : string }
 export interface Holiday {
@@ -68,9 +71,15 @@ export interface SalaryBreakdown {
   'bedSalary' : bigint,
   'paperSalary' : bigint,
 }
+export interface ActivityLogEntry {
+  'contractId' : bigint,
+  'contractName' : string,
+  'createdAt' : string,
+  'settledAt' : [] | [string],
+}
 export interface _SERVICE {
   'calculateNetSalaries' : ActorMethod<[bigint], Array<SalaryBreakdown>>,
-  'createAdvance' : ActorMethod<[bigint, bigint, bigint, string], bigint>,
+  'createAdvance' : ActorMethod<[bigint, bigint, bigint, string, string], bigint>,
   'createContract' : ActorMethod<
     [
       string,
@@ -80,6 +89,7 @@ export interface _SERVICE {
       [] | [bigint],
       [] | [bigint],
       Array<string>,
+      string,
     ],
     bigint
   >,
@@ -89,6 +99,7 @@ export interface _SERVICE {
   'deleteContract' : ActorMethod<[bigint], undefined>,
   'deleteGroup' : ActorMethod<[bigint], undefined>,
   'deleteLabour' : ActorMethod<[bigint], undefined>,
+  'getActivityLog' : ActorMethod<[], Array<ActivityLogEntry>>,
   'getAdvancesByContract' : ActorMethod<[bigint], Array<Advance>>,
   'getAdvancesByLabour' : ActorMethod<[bigint], Array<Advance>>,
   'getAllAdvances' : ActorMethod<[], Array<Advance>>,
@@ -104,7 +115,7 @@ export interface _SERVICE {
   'saveAttendance' : ActorMethod<[bigint, bigint, ColumnType, string], bigint>,
   'saveAttendanceNote' : ActorMethod<[bigint, bigint, string], bigint>,
   'setLabourActive' : ActorMethod<[bigint, boolean], undefined>,
-  'settleContract' : ActorMethod<[bigint], undefined>,
+  'settleContract' : ActorMethod<[bigint, string], undefined>,
   'unsettleContract' : ActorMethod<[bigint], undefined>,
   'updateAdvance' : ActorMethod<[bigint, bigint, string], undefined>,
   'updateContract' : ActorMethod<

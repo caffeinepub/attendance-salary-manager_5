@@ -177,6 +177,8 @@ export function AttendanceTab({
   triggerClearViewContract,
 }: Props) {
   const { actor } = useActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const a = actor as any;
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [labours, setLabours] = useState<Labour[]>([]);
@@ -209,13 +211,15 @@ export function AttendanceTab({
   const [markDialogIndex, setMarkDialogIndex] = useState(0);
   const [markDialogCol, setMarkDialogCol] = useState("bed");
   const [markDone, setMarkDone] = useState(false);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a is derived from actor
   useEffect(() => {
-    if (!actor) return;
-    actor
-      .getAllContracts()
-      .then((cs) => setContracts(cs.filter((c) => !c.isSettled)));
-    actor.getAllLabours().then(setLabours);
+    if (!a) return;
+    a.getAllContracts().then((cs: Contract[]) =>
+      setContracts(cs.filter((c) => !c.isSettled)),
+    );
+    a.getAllLabours().then((ls: Labour[]) => setLabours(ls));
   }, [actor]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: onContractIdConsumed is a stable callback
@@ -226,16 +230,17 @@ export function AttendanceTab({
     }
   }, [initialContractId, contracts.length]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a is derived from actor
   useEffect(() => {
     if (!selectedContractId || !actor) return;
     setDirtyKeys(new Set());
     setNotes(new Map());
     setHolidays(new Set());
     Promise.all([
-      actor.getContract(selectedContractId),
-      actor.getAttendanceByContract(selectedContractId),
-      actor.getNotesByContract(selectedContractId),
-      actor.getHolidaysByContract(selectedContractId),
+      a.getContract(selectedContractId),
+      a.getAttendanceByContract(selectedContractId),
+      a.getNotesByContract(selectedContractId),
+      a.getHolidaysByContract(selectedContractId),
     ]).then(([c, records, noteRecords, holidayRecords]) => {
       setContract(c);
       setMeshCols(c.meshColumns);
@@ -481,9 +486,8 @@ export function AttendanceTab({
 
   const openMarkDialog = () => {
     setMarkDialogIndex(0);
-    setMarkDialogCol("bed");
     setMarkDone(false);
-    setMarkDialogOpen(true);
+    setShowColumnPicker(true);
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only reacts to triggerClearViewContract
@@ -1353,6 +1357,118 @@ export function AttendanceTab({
               </Button>
             </DialogFooter>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Column Picker Dialog */}
+      <Dialog
+        open={showColumnPicker}
+        onOpenChange={(open) => {
+          if (!open) setShowColumnPicker(false);
+        }}
+      >
+        <DialogContent
+          data-ocid="attendance.col_picker.dialog"
+          style={{
+            maxWidth: 400,
+            width: "95vw",
+            padding: 0,
+            overflow: "hidden",
+            borderRadius: 20,
+            background: "#ffffff",
+          }}
+        >
+          <div style={{ background: GRAD, padding: "20px 24px 16px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h2
+                style={{
+                  color: "#fff",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  margin: 0,
+                }}
+              >
+                Select Column
+              </h2>
+              <button
+                type="button"
+                data-ocid="attendance.col_picker.close_button"
+                onClick={() => setShowColumnPicker(false)}
+                style={{
+                  background: "rgba(255,255,255,0.2)",
+                  border: "none",
+                  borderRadius: 8,
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 16,
+                  padding: "4px 10px",
+                  fontWeight: 700,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <p
+              style={{
+                color: "rgba(255,255,255,0.8)",
+                fontSize: 13,
+                margin: "8px 0 0",
+              }}
+            >
+              Choose which column to mark attendance in
+            </p>
+          </div>
+          <div
+            style={{
+              padding: "20px 20px 24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            {allColKeys.map((ck) => (
+              <button
+                key={ck}
+                type="button"
+                data-ocid="attendance.col_picker.button"
+                onClick={() => {
+                  setMarkDialogCol(ck);
+                  setShowColumnPicker(false);
+                  setMarkDialogOpen(true);
+                  setMarkDialogIndex(0);
+                  setMarkDone(false);
+                }}
+                style={{
+                  background:
+                    markDialogCol === ck ? GRAD : "rgba(99,102,241,0.06)",
+                  color: markDialogCol === ck ? "#fff" : TEXT_PRIMARY,
+                  border:
+                    markDialogCol === ck
+                      ? "none"
+                      : "1.5px solid rgba(99,102,241,0.18)",
+                  borderRadius: 14,
+                  padding: "16px 20px",
+                  fontSize: 17,
+                  fontWeight: 700,
+                  textAlign: "left",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  boxShadow:
+                    markDialogCol === ck
+                      ? "0 4px 12px rgba(99,102,241,0.3)"
+                      : "none",
+                }}
+              >
+                {allColLabels[ck] ?? ck}
+              </button>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -130,9 +130,9 @@ function getTodayWorkingContractId(): bigint | null {
 const GRAD = "linear-gradient(135deg, #6366f1, #8b5cf6)";
 const _GRAD_HOVER = "linear-gradient(135deg, #4f46e5, #7c3aed)";
 const PAGE_BG = "#f1f3f8";
-const CARD_BG = "rgba(255,255,255,0.88)";
-const CARD_BORDER = "1px solid rgba(120,80,255,0.14)";
-const CARD_SHADOW =
+const _CARD_BG = "rgba(255,255,255,0.88)";
+const _CARD_BORDER = "1px solid rgba(120,80,255,0.14)";
+const _CARD_SHADOW =
   "0 2px 20px rgba(99,102,241,0.1), 0 1px 4px rgba(0,0,0,0.04)";
 const TEXT_PRIMARY = "#1e1b4b";
 const TEXT_SECONDARY = "#6b7280";
@@ -165,7 +165,6 @@ export default function App() {
     if (actor && !appReady) {
       const t = setTimeout(() => {
         setAppReady(true);
-        setTimeout(() => setAppReadyDom(true), 600);
       }, 300);
       return () => clearTimeout(t);
     }
@@ -210,10 +209,10 @@ export default function App() {
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  const handleViewAttendance = (contractId: bigint) => {
+  const handleViewAttendance = useCallback((contractId: bigint) => {
     setAttendanceContractId(contractId);
     setActiveTab("Attendance");
-  };
+  }, []);
 
   useEffect(() => {
     if (screen !== "app") return;
@@ -676,12 +675,15 @@ export default function App() {
         <div
           className="min-h-screen flex flex-col items-center justify-center px-5 py-10 relative overflow-hidden"
           style={{
-            background: PAGE_BG,
+            background:
+              "linear-gradient(135deg, #7c3aed 0%, #6366f1 40%, #2563eb 100%)",
             opacity: homeVisible ? 1 : 0,
             transition: "opacity 0.4s ease",
+            willChange: "opacity",
+            transform: "translateZ(0)",
           }}
         >
-          {/* Blue-purple glow blob top right */}
+          {/* Glow blob top right */}
           <div
             className="absolute pointer-events-none"
             style={{
@@ -691,11 +693,11 @@ export default function App() {
               height: "400px",
               borderRadius: "50%",
               background:
-                "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)",
+                "radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)",
               filter: "blur(50px)",
             }}
           />
-          {/* Violet glow blob bottom left */}
+          {/* Glow blob bottom left */}
           <div
             className="absolute pointer-events-none"
             style={{
@@ -705,7 +707,7 @@ export default function App() {
               height: "360px",
               borderRadius: "50%",
               background:
-                "radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%)",
+                "radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)",
               filter: "blur(60px)",
             }}
           />
@@ -746,10 +748,11 @@ export default function App() {
                 fontSize: "26px",
                 fontWeight: 800,
                 letterSpacing: "-0.02em",
-                color: TEXT_PRIMARY,
+                color: "#ffffff",
                 textAlign: "center",
                 lineHeight: 1.2,
                 margin: 0,
+                textShadow: "0 1px 8px rgba(0,0,0,0.15)",
               }}
             >
               Attendance &amp; Salary
@@ -758,12 +761,9 @@ export default function App() {
               style={{
                 fontSize: "15px",
                 fontWeight: 700,
-                background: GRAD,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
+                color: "rgba(255,255,255,0.9)",
                 margin: "4px 0 0",
-                letterSpacing: "0.04em",
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
               }}
             >
@@ -772,7 +772,7 @@ export default function App() {
             <p
               style={{
                 fontSize: "12px",
-                color: TEXT_SECONDARY,
+                color: "rgba(255,255,255,0.65)",
                 marginTop: "8px",
                 fontWeight: 400,
               }}
@@ -786,27 +786,28 @@ export default function App() {
             className="w-full z-10"
             style={{
               maxWidth: "360px",
-              background: CARD_BG,
-              border: CARD_BORDER,
+              background: "rgba(255,255,255,0.18)",
+              border: "1.5px solid rgba(255,255,255,0.3)",
               borderRadius: "24px",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
               overflow: "hidden",
-              boxShadow: CARD_SHADOW,
+              boxShadow:
+                "0 8px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.15) inset",
             }}
           >
             {/* Card header */}
             <div
               style={{
                 padding: "22px 24px 18px",
-                borderBottom: "1px solid rgba(120,80,255,0.1)",
+                borderBottom: "1px solid rgba(255,255,255,0.15)",
               }}
             >
               <h2
                 style={{
                   fontSize: "17px",
                   fontWeight: 700,
-                  color: TEXT_PRIMARY,
+                  color: "#ffffff",
                   margin: 0,
                 }}
               >
@@ -815,7 +816,7 @@ export default function App() {
               <p
                 style={{
                   fontSize: "13px",
-                  color: TEXT_SECONDARY,
+                  color: "rgba(255,255,255,0.7)",
                   margin: "4px 0 0",
                 }}
               >
@@ -910,14 +911,14 @@ export default function App() {
                   style={{
                     flex: 1,
                     height: "1px",
-                    background: "rgba(120,80,255,0.12)",
+                    background: "rgba(255,255,255,0.2)",
                   }}
                 />
                 <span
                   style={{
                     fontSize: "11px",
                     fontWeight: 500,
-                    color: TEXT_SECONDARY,
+                    color: "rgba(255,255,255,0.6)",
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
                   }}
@@ -928,7 +929,7 @@ export default function App() {
                   style={{
                     flex: 1,
                     height: "1px",
-                    background: "rgba(120,80,255,0.12)",
+                    background: "rgba(255,255,255,0.2)",
                   }}
                 />
               </div>
@@ -954,12 +955,12 @@ export default function App() {
                   gap: "14px",
                   padding: "14px 18px",
                   borderRadius: "16px",
-                  background: "#ffffff",
-                  color: TEXT_PRIMARY,
-                  border: "1.5px solid rgba(99,102,241,0.2)",
+                  background: "rgba(255,255,255,0.15)",
+                  color: "#ffffff",
+                  border: "1.5px solid rgba(255,255,255,0.3)",
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  boxShadow: "0 1px 6px rgba(99,102,241,0.08)",
+                  boxShadow: "0 1px 6px rgba(0,0,0,0.1)",
                 }}
               >
                 <span
@@ -970,12 +971,12 @@ export default function App() {
                     width: "36px",
                     height: "36px",
                     borderRadius: "12px",
-                    background: "rgba(99,102,241,0.1)",
-                    border: "1px solid rgba(99,102,241,0.18)",
+                    background: "rgba(255,255,255,0.2)",
+                    border: "1px solid rgba(255,255,255,0.3)",
                     flexShrink: 0,
                   }}
                 >
-                  <Eye size={18} color="#6366f1" strokeWidth={2.2} />
+                  <Eye size={18} color="#ffffff" strokeWidth={2.2} />
                 </span>
                 <span
                   style={{
@@ -991,7 +992,7 @@ export default function App() {
                       fontSize: "14px",
                       fontWeight: 700,
                       lineHeight: 1.3,
-                      color: TEXT_PRIMARY,
+                      color: "#ffffff",
                     }}
                   >
                     User Login
@@ -1000,7 +1001,7 @@ export default function App() {
                     style={{
                       fontSize: "11px",
                       fontWeight: 400,
-                      color: TEXT_SECONDARY,
+                      color: "rgba(255,255,255,0.7)",
                       marginTop: "2px",
                     }}
                   >
@@ -1014,14 +1015,14 @@ export default function App() {
             <div
               style={{
                 padding: "12px 24px",
-                borderTop: "1px solid rgba(120,80,255,0.1)",
+                borderTop: "1px solid rgba(255,255,255,0.15)",
                 textAlign: "center",
               }}
             >
               <p
                 style={{
                   fontSize: "11px",
-                  color: TEXT_SECONDARY,
+                  color: "rgba(255,255,255,0.65)",
                   margin: 0,
                 }}
               >
@@ -1266,6 +1267,9 @@ export default function App() {
             opacity: appReady ? 0 : 1,
             transition: "opacity 0.5s ease",
             pointerEvents: appReady ? "none" : "auto",
+          }}
+          onTransitionEnd={() => {
+            if (appReady) setAppReadyDom(true);
           }}
         >
           {/* Glow blobs */}

@@ -12,6 +12,7 @@ export interface Labour {
     name: string;
     groupId?: bigint;
     phone?: string;
+    isActive: boolean;
 }
 export interface SalaryBreakdown {
     meshSalary: bigint;
@@ -51,6 +52,8 @@ export interface Contract {
     meshAmount: bigint;
     contractAmount: bigint;
     multiplierValue: number;
+    createdAt: string;
+    settledAt?: string;
 }
 export interface Holiday {
     id: bigint;
@@ -73,17 +76,25 @@ export interface Advance {
     labourId: bigint;
     amount: bigint;
     contractId: bigint;
+    timestamp: string;
+}
+export interface ActivityLogEntry {
+    contractId: bigint;
+    contractName: string;
+    createdAt: string;
+    settledAt?: string;
 }
 export interface backendInterface {
     calculateNetSalaries(contractId: bigint): Promise<Array<SalaryBreakdown>>;
-    createAdvance(contractId: bigint, labourId: bigint, amount: bigint, note: string): Promise<bigint>;
-    createContract(name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<bigint>;
+    createAdvance(contractId: bigint, labourId: bigint, amount: bigint, note: string, timestamp: string): Promise<bigint>;
+    createContract(name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>, createdAt: string): Promise<bigint>;
     createGroup(name: string): Promise<bigint>;
     createLabour(name: string, phone: string | null, groupId: bigint | null): Promise<bigint>;
     deleteAdvance(id: bigint): Promise<void>;
     deleteContract(id: bigint): Promise<void>;
     deleteGroup(id: bigint): Promise<void>;
     deleteLabour(id: bigint): Promise<void>;
+    getActivityLog(): Promise<Array<ActivityLogEntry>>;
     getAdvancesByContract(contractId: bigint): Promise<Array<Advance>>;
     getAdvancesByLabour(labourId: bigint): Promise<Array<Advance>>;
     getAllAdvances(): Promise<Array<Advance>>;
@@ -98,7 +109,8 @@ export interface backendInterface {
     removeHoliday(contractId: bigint, columnKey: string): Promise<void>;
     saveAttendance(contractId: bigint, labourId: bigint, columnType: ColumnType, value: string): Promise<bigint>;
     saveAttendanceNote(contractId: bigint, labourId: bigint, note: string): Promise<bigint>;
-    settleContract(id: bigint): Promise<void>;
+    setLabourActive(id: bigint, active: boolean): Promise<void>;
+    settleContract(id: bigint, settledAt: string): Promise<void>;
     unsettleContract(id: bigint): Promise<void>;
     updateAdvance(id: bigint, amount: bigint, note: string): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;

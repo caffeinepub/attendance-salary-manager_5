@@ -14,12 +14,29 @@ const CARD_SHADOW =
 const TEXT_PRIMARY = "#1e1b4b";
 const TEXT_SECONDARY = "#6b7280";
 
+function formatDateTime(iso?: string): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
 interface Props {
   mode: AppMode;
 }
 
 export function AdvancesTab({ mode }: Props) {
   const { actor } = useActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const a = actor as any;
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [labours, setLabours] = useState<Labour[]>([]);
@@ -39,17 +56,18 @@ export function AdvancesTab({ mode }: Props) {
   const [editingId, setEditingId] = useState<bigint | null>(null);
   const [editForm, setEditForm] = useState({ amount: "", note: "" });
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a is derived from actor
   useEffect(() => {
-    if (!actor) return;
+    if (!a) return;
     setLoading(true);
-    Promise.all([actor.getAllContracts(), actor.getAllLabours()]).then(
-      ([cs, ls]) => {
-        const activeContracts = cs.filter((c) => !c.isSettled);
+    Promise.all([a.getAllContracts(), a.getAllLabours()]).then(
+      ([cs, ls]: [Contract[], Labour[]]) => {
+        const activeContracts = cs.filter((c: Contract) => !c.isSettled);
         setContracts(activeContracts);
         setLabours(ls);
         Promise.all(
-          activeContracts.map((c) => actor.getAdvancesByContract(c.id)),
-        ).then((advArrays) => {
+          activeContracts.map((c: Contract) => a.getAdvancesByContract(c.id)),
+        ).then((advArrays: Advance[][]) => {
           setAllAdvances(advArrays.flat());
           setLoading(false);
         });
@@ -58,15 +76,15 @@ export function AdvancesTab({ mode }: Props) {
   }, [actor]);
 
   const loadForContract = async (contractId: bigint) => {
-    const adv = await actor?.getAdvancesByContract(contractId);
+    const adv = await a?.getAdvancesByContract(contractId);
     setAllAdvances((prev) => [
-      ...prev.filter((a) => a.contractId !== contractId),
+      ...prev.filter((x: Advance) => x.contractId !== contractId),
       ...(adv ?? []),
     ]);
   };
 
   const displayedAdvances = selectedContractId
-    ? allAdvances.filter((a) => a.contractId === selectedContractId)
+    ? allAdvances.filter((x) => x.contractId === selectedContractId)
     : allAdvances;
 
   const handleAdd = async () => {
@@ -76,11 +94,13 @@ export function AdvancesTab({ mode }: Props) {
     if (!cId || !addForm.labourId || !addForm.amount) return;
     setSavingAdvance(true);
     try {
-      await actor?.createAdvance(
+      const timestamp = new Date().toISOString();
+      await a?.createAdvance(
         cId,
         BigInt(addForm.labourId),
         BigInt(Math.round(Number.parseFloat(addForm.amount))),
         addForm.note,
+        timestamp,
       );
       toast.success("Advance added");
       setAddForm({ labourId: "", amount: "", note: "", contractId: "" });
@@ -91,37 +111,22 @@ export function AdvancesTab({ mode }: Props) {
     }
   };
 
-  const handleDelete = async (adv: Advance) => {
-    setAllAdvances((prev) => prev.filter((a) => a.id !== adv.id));
-    toast.success("Advance deleted");
-    setSavingAdvance(true);
-    try {
-      await actor?.deleteAdvance(adv.id);
-    } catch (err) {
-      console.error("Failed to delete advance", err);
-      setAllAdvances((prev) => [...prev, adv]);
-      toast.error("Failed to delete advance");
-    } finally {
-      setSavingAdvance(false);
-    }
-  };
-
   const handleEditSave = async (adv: Advance) => {
     const newAmount = BigInt(Math.round(Number.parseFloat(editForm.amount)));
     const newNote = editForm.note;
     setAllAdvances((prev) =>
-      prev.map((a) =>
-        a.id === adv.id ? { ...a, amount: newAmount, note: newNote } : a,
+      prev.map((x) =>
+        x.id === adv.id ? { ...x, amount: newAmount, note: newNote } : x,
       ),
     );
     setEditingId(null);
     toast.success("Advance updated");
     setSavingAdvance(true);
     try {
-      await actor?.updateAdvance(adv.id, newAmount, newNote);
+      await a?.updateAdvance(adv.id, newAmount, newNote);
     } catch (err) {
       console.error("Failed to update advance", err);
-      setAllAdvances((prev) => prev.map((a) => (a.id === adv.id ? adv : a)));
+      setAllAdvances((prev) => prev.map((x) => (x.id === adv.id ? adv : x)));
       toast.error("Failed to update advance");
     } finally {
       setSavingAdvance(false);
@@ -362,6 +367,7 @@ export function AdvancesTab({ mode }: Props) {
                 {!selectedContractId && <th style={thStyle}>Contract</th>}
                 <th style={thStyle}>Amount</th>
                 <th style={thStyle}>Note</th>
+                <th style={thStyle}>Date</th>
                 {mode === "edit" && <th style={thStyle}>Actions</th>}
               </tr>
             </thead>
@@ -369,7 +375,7 @@ export function AdvancesTab({ mode }: Props) {
               {displayedAdvances.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     style={{
                       ...tdStyle,
                       color: TEXT_SECONDARY,
@@ -438,6 +444,15 @@ export function AdvancesTab({ mode }: Props) {
                           }
                         />
                       </td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          color: TEXT_SECONDARY,
+                          fontSize: 11,
+                        }}
+                      >
+                        {adv.timestamp ? formatDateTime(adv.timestamp) : "—"}
+                      </td>
                       <td style={tdStyle}>
                         <button
                           type="button"
@@ -480,6 +495,15 @@ export function AdvancesTab({ mode }: Props) {
                       <td style={{ ...tdStyle, color: TEXT_SECONDARY }}>
                         {adv.note}
                       </td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          color: TEXT_SECONDARY,
+                          fontSize: 11,
+                        }}
+                      >
+                        {adv.timestamp ? formatDateTime(adv.timestamp) : "—"}
+                      </td>
                       {mode === "edit" && (
                         <td style={tdStyle}>
                           <button
@@ -492,7 +516,7 @@ export function AdvancesTab({ mode }: Props) {
                                 note: adv.note,
                               });
                             }}
-                            className="text-xs px-2.5 py-1.5 rounded-lg mr-1 font-semibold"
+                            className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
                             style={{
                               background: "rgba(99,102,241,0.1)",
                               color: "#6366f1",
@@ -500,19 +524,6 @@ export function AdvancesTab({ mode }: Props) {
                             }}
                           >
                             Edit
-                          </button>
-                          <button
-                            type="button"
-                            data-ocid={`advances.delete.button.${i + 1}`}
-                            onClick={() => handleDelete(adv)}
-                            className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
-                            style={{
-                              background: "rgba(220,38,38,0.08)",
-                              color: "#dc2626",
-                              border: "1px solid rgba(220,38,38,0.15)",
-                            }}
-                          >
-                            Delete
                           </button>
                         </td>
                       )}

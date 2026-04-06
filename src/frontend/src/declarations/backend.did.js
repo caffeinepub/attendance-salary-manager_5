@@ -24,6 +24,7 @@ export const Advance = IDL.Record({
   'labourId' : IDL.Nat,
   'amount' : IDL.Int,
   'contractId' : IDL.Nat,
+  'timestamp' : IDL.Text,
 });
 export const Contract = IDL.Record({
   'id' : IDL.Nat,
@@ -36,6 +37,8 @@ export const Contract = IDL.Record({
   'meshAmount' : IDL.Int,
   'contractAmount' : IDL.Int,
   'multiplierValue' : IDL.Float64,
+  'createdAt' : IDL.Text,
+  'settledAt' : IDL.Opt(IDL.Text),
 });
 export const Group = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
 export const Labour = IDL.Record({
@@ -68,6 +71,12 @@ export const AttendanceNote = IDL.Record({
   'labourId' : IDL.Nat,
   'contractId' : IDL.Nat,
 });
+export const ActivityLogEntry = IDL.Record({
+  'contractId' : IDL.Nat,
+  'contractName' : IDL.Text,
+  'createdAt' : IDL.Text,
+  'settledAt' : IDL.Opt(IDL.Text),
+});
 
 export const idlService = IDL.Service({
   'calculateNetSalaries' : IDL.Func(
@@ -76,7 +85,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'createAdvance' : IDL.Func(
-      [IDL.Nat, IDL.Nat, IDL.Int, IDL.Text],
+      [IDL.Nat, IDL.Nat, IDL.Int, IDL.Text, IDL.Text],
       [IDL.Nat],
       [],
     ),
@@ -89,6 +98,7 @@ export const idlService = IDL.Service({
         IDL.Opt(IDL.Int),
         IDL.Opt(IDL.Int),
         IDL.Vec(IDL.Text),
+        IDL.Text,
       ],
       [IDL.Nat],
       [],
@@ -103,6 +113,7 @@ export const idlService = IDL.Service({
   'deleteContract' : IDL.Func([IDL.Nat], [], []),
   'deleteGroup' : IDL.Func([IDL.Nat], [], []),
   'deleteLabour' : IDL.Func([IDL.Nat], [], []),
+  'getActivityLog' : IDL.Func([], [IDL.Vec(ActivityLogEntry)], ['query']),
   'getAdvancesByContract' : IDL.Func(
       [IDL.Nat],
       [IDL.Vec(Advance)],
@@ -142,7 +153,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'setLabourActive' : IDL.Func([IDL.Nat, IDL.Bool], [], []),
-  'settleContract' : IDL.Func([IDL.Nat], [], []),
+  'settleContract' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'unsettleContract' : IDL.Func([IDL.Nat], [], []),
   'updateAdvance' : IDL.Func([IDL.Nat, IDL.Int, IDL.Text], [], []),
   'updateContract' : IDL.Func(

@@ -49,20 +49,25 @@ export function ReportsTab({ mode: _mode }: Props) {
     const load = async () => {
       setLoading(true);
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const aa = actor as any;
         const [cs, ls, advs] = await Promise.all([
-          actor.getAllContracts(),
-          actor.getAllLabours(),
-          actor.getAllAdvances(),
+          aa.getAllContracts(),
+          aa.getAllLabours(),
+          aa.getAllAdvances(),
         ]);
         if (cancelled) return;
         const [attendanceResults, salariesResults] = await Promise.all([
-          Promise.all(cs.map((c) => actor.getAttendanceByContract(c.id))),
-          Promise.all(cs.map((c) => actor.calculateNetSalaries(c.id))),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          Promise.all(cs.map((c: any) => aa.getAttendanceByContract(c.id))),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          Promise.all(cs.map((c: any) => aa.calculateNetSalaries(c.id))),
         ]);
         if (cancelled) return;
         const aMap = new Map<bigint, Attendance[]>();
         const sMap = new Map<bigint, SalaryBreakdown[]>();
-        cs.forEach((c, i) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        cs.forEach((c: any, i: number) => {
           aMap.set(c.id, attendanceResults[i]);
           sMap.set(c.id, salariesResults[i]);
         });

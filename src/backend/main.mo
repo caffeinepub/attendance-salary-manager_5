@@ -29,7 +29,8 @@ actor {
     isActive : Bool;
   };
 
-  type Contract = {
+  // Old Contract type (without new fields) - used for migration compatibility
+  type ContractV1 = {
     id : Nat;
     name : Text;
     multiplierValue : Float;
@@ -42,6 +43,21 @@ actor {
     isSettled : Bool;
   };
 
+  type Contract = {
+    id : Nat;
+    name : Text;
+    multiplierValue : Float;
+    contractAmount : Int;
+    machineExp : Int;
+    bedAmount : Int;
+    paperAmount : Int;
+    meshAmount : Int;
+    meshColumns : [Text];
+    isSettled : Bool;
+    createdAt : Text;
+    settledAt : ?Text;
+  };
+
   type Attendance = {
     id : Nat;
     contractId : Nat;
@@ -50,12 +66,22 @@ actor {
     value : Text;
   };
 
+  // Old Advance type (without timestamp) - used for migration compatibility
+  type AdvanceV1 = {
+    id : Nat;
+    contractId : Nat;
+    labourId : Nat;
+    amount : Int;
+    note : Text;
+  };
+
   type Advance = {
     id : Nat;
     contractId : Nat;
     labourId : Nat;
     amount : Int;
     note : Text;
+    timestamp : Text;
   };
 
   type SalaryBreakdown = {
@@ -88,6 +114,13 @@ actor {
     columnKey : Text;
   };
 
+  type ActivityLogEntry = {
+    contractId : Nat;
+    contractName : Text;
+    createdAt : Text;
+    settledAt : ?Text;
+  };
+
   module ColumnType {
     public func compare(a : ColumnType, b : ColumnType) : Order.Order {
       switch (a, b) {
@@ -118,19 +151,60 @@ actor {
   var noteCounter = 0;
   var holidayCounter = 0;
 
-  // Persistent Maps
+  // Persistent Maps - contracts and advances use V1 types to maintain stable compatibility
   let labours = Map.empty<Nat, LabourStorage>();
   let labourGroups = Map.empty<Nat, Nat>();
   let labourActiveMap = Map.empty<Nat, Bool>();
   let groups = Map.empty<Nat, Group>();
-  let contracts = Map.empty<Nat, Contract>();
+  let contracts = Map.empty<Nat, ContractV1>();
   let attendances = Map.empty<Nat, Attendance>();
-  let advances = Map.empty<Nat, Advance>();
+  let advances = Map.empty<Nat, AdvanceV1>();
   let attendanceNotes = Map.empty<Nat, AttendanceNote>();
   let holidays = Map.empty<Nat, Holiday>();
   // Working Today: contractId -> { ts: Text; count: Nat }
   type WorkingTodayEntry = { ts : Text; count : Nat };
   let workingTodayMap = Map.empty<Nat, WorkingTodayEntry>();
+
+  // Extra fields stored separately for migration-safe new fields
+  let contractCreatedAt = Map.empty<Nat, Text>();
+  let contractSettledAt = Map.empty<Nat, Text>();
+  let advanceTimestamps = Map.empty<Nat, Text>();
+
+  // Helper: upgrade a ContractV1 to Contract using extra maps
+  func toContract(c : ContractV1) : Contract {
+    {
+      id = c.id;
+      name = c.name;
+      multiplierValue = c.multiplierValue;
+      contractAmount = c.contractAmount;
+      machineExp = c.machineExp;
+      bedAmount = c.bedAmount;
+      paperAmount = c.paperAmount;
+      meshAmount = c.meshAmount;
+      meshColumns = c.meshColumns;
+      isSettled = c.isSettled;
+      createdAt = switch (contractCreatedAt.get(c.id)) {
+        case (null) { "" };
+        case (?v) { v };
+      };
+      settledAt = contractSettledAt.get(c.id);
+    };
+  };
+
+  // Helper: upgrade an AdvanceV1 to Advance using extra maps
+  func toAdvance(a : AdvanceV1) : Advance {
+    {
+      id = a.id;
+      contractId = a.contractId;
+      labourId = a.labourId;
+      amount = a.amount;
+      note = a.note;
+      timestamp = switch (advanceTimestamps.get(a.id)) {
+        case (null) { "" };
+        case (?v) { v };
+      };
+    };
+  };
 
   // Group CRUD
   public shared ({ caller }) func createGroup(name : Text) : async Nat {
@@ -200,7 +274,8 @@ actor {
     machineExp : Int,
     bedAmount : ?Int,
     paperAmount : ?Int,
-    meshColumns : [Text]
+    meshColumns : [Text],
+    createdAt : Text
   ) : async Nat {
     let id = contractCounter;
     contractCounter += 1;
@@ -217,7 +292,7 @@ actor {
 
     let meshAmount = contractAmount - finalBedAmount - finalPaperAmount - machineExp;
 
-    let contract : Contract = {
+    let contract : ContractV1 = {
       id;
       name;
       multiplierValue;
@@ -230,6 +305,7 @@ actor {
       isSettled = false;
     };
     contracts.add(id, contract);
+    contractCreatedAt.add(id, createdAt);
     id;
   };
 
@@ -245,7 +321,7 @@ actor {
   ) : async () {
     switch (contracts.get(id)) {
       case (null) { Runtime.trap("Contract not found") };
-      case (?_) {
+      case (?existing) {
         let finalBedAmount = switch (bedAmount) {
           case (null) { (11000.0 * multiplierValue).toInt() };
           case (?amount) { amount };
@@ -258,7 +334,7 @@ actor {
 
         let meshAmount = contractAmount - finalBedAmount - finalPaperAmount - machineExp;
 
-        let contract : Contract = {
+        let contract : ContractV1 = {
           id;
           name;
           multiplierValue;
@@ -268,7 +344,7 @@ actor {
           paperAmount = finalPaperAmount;
           meshAmount;
           meshColumns;
-          isSettled = false;
+          isSettled = existing.isSettled;
         };
         contracts.add(id, contract);
       };
@@ -276,12 +352,12 @@ actor {
   };
 
   // Contract Settlement
-  public shared ({ caller }) func settleContract(id : Nat) : async () {
+  public shared ({ caller }) func settleContract(id : Nat, settledAt : Text) : async () {
     switch (contracts.get(id)) {
       case (null) { Runtime.trap("Contract not found") };
       case (?contract) {
-        let updatedContract = { contract with isSettled = true };
-        contracts.add(id, updatedContract);
+        contracts.add(id, { contract with isSettled = true });
+        contractSettledAt.add(id, settledAt);
       };
     };
   };
@@ -290,14 +366,16 @@ actor {
     switch (contracts.get(id)) {
       case (null) { Runtime.trap("Contract not found") };
       case (?contract) {
-        let updatedContract = { contract with isSettled = false };
-        contracts.add(id, updatedContract);
+        contracts.add(id, { contract with isSettled = false });
+        contractSettledAt.remove(id);
       };
     };
   };
 
   public shared ({ caller }) func deleteContract(id : Nat) : async () {
     contracts.remove(id);
+    contractCreatedAt.remove(id);
+    contractSettledAt.remove(id);
   };
 
   // Attendance
@@ -325,14 +403,14 @@ actor {
   };
 
   // Advances
-  public shared ({ caller }) func createAdvance(contractId : Nat, labourId : Nat, amount : Int, note : Text) : async Nat {
+  public shared ({ caller }) func createAdvance(contractId : Nat, labourId : Nat, amount : Int, note : Text, timestamp : Text) : async Nat {
     if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
     if (not labours.containsKey(labourId)) { Runtime.trap("Labour not found") };
 
     let id = advanceCounter;
     advanceCounter += 1;
 
-    let advance : Advance = {
+    let advance : AdvanceV1 = {
       id;
       contractId;
       labourId;
@@ -340,11 +418,13 @@ actor {
       note;
     };
     advances.add(id, advance);
+    advanceTimestamps.add(id, timestamp);
     id;
   };
 
   public shared ({ caller }) func deleteAdvance(id : Nat) : async () {
     advances.remove(id);
+    advanceTimestamps.remove(id);
   };
 
   public shared ({ caller }) func updateAdvance(id : Nat, amount : Int, note : Text) : async () {
@@ -456,13 +536,13 @@ actor {
   };
 
   public query ({ caller }) func getAllContracts() : async [Contract] {
-    contracts.values().toArray();
+    contracts.values().toArray().map(toContract);
   };
 
   public query ({ caller }) func getContract(id : Nat) : async Contract {
     switch (contracts.get(id)) {
       case (null) { Runtime.trap("Contract not found") };
-      case (?contract) { contract };
+      case (?contract) { toContract(contract) };
     };
   };
 
@@ -475,17 +555,34 @@ actor {
   public query ({ caller }) func getAdvancesByLabour(labourId : Nat) : async [Advance] {
     advances.values().toArray().filter(
       func(a) { a.labourId == labourId }
-    );
+    ).map(toAdvance);
   };
 
   public query ({ caller }) func getAdvancesByContract(contractId : Nat) : async [Advance] {
     advances.values().toArray().filter(
       func(a) { a.contractId == contractId }
-    );
+    ).map(toAdvance);
   };
 
   public query ({ caller }) func getAllAdvances() : async [Advance] {
-    advances.values().toArray();
+    advances.values().toArray().map(toAdvance);
+  };
+
+  // Activity Log: settled contracts with created/settled dates
+  public query ({ caller }) func getActivityLog() : async [ActivityLogEntry] {
+    contracts.values().toArray()
+      .filter(func(c) { c.isSettled })
+      .map(func(c : ContractV1) : ActivityLogEntry {
+        {
+          contractId = c.id;
+          contractName = c.name;
+          createdAt = switch (contractCreatedAt.get(c.id)) {
+            case (null) { "" };
+            case (?v) { v };
+          };
+          settledAt = contractSettledAt.get(c.id);
+        }
+      });
   };
 
   // Calculate Net Salaries

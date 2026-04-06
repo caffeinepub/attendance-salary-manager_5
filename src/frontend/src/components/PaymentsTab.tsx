@@ -1,14 +1,43 @@
 import { useEffect, useRef, useState } from "react";
-import type { Attendance, Contract, Group, Labour } from "../backend.d";
+import type {
+  Advance,
+  Attendance,
+  Contract,
+  Group,
+  Labour,
+} from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyActor = any;
 
+const ACCENT = "#6366f1";
+const ACCENT2 = "#8b5cf6";
+const GRAD = `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`;
+const TEXT_PRIMARY = "#1e1b4b";
+const TEXT_SECONDARY = "#6b7280";
+const CARD_BG = "rgba(255,255,255,0.95)";
+const PAGE_BG = "#f1f3f8";
+
 function attendanceNum(v: string): number {
   if (v === "Present" || v === "present") return 1;
   if (v === "Absent" || v === "absent") return 0;
   return Number.parseFloat(v) || 0;
+}
+
+function formatDateTime(iso?: string): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
 }
 
 interface LabourPayment {
@@ -18,6 +47,7 @@ interface LabourPayment {
   totalGross: number;
   totalAdvances: number;
   finalPayment: number;
+  advances: Advance[];
 }
 
 function useClickOutside(
@@ -58,6 +88,10 @@ export function PaymentsTab() {
     "one-by-one" | "multi-select"
   >("one-by-one");
   const [currentOverviewIndex, setCurrentOverviewIndex] = useState(0);
+  const [includeAdvances, setIncludeAdvances] = useState(true);
+  const [expandedBreakdown, setExpandedBreakdown] = useState<Set<number>>(
+    new Set(),
+  );
 
   useClickOutside(contractDropRef, () => setContractDropOpen(false));
 
@@ -65,14 +99,14 @@ export function PaymentsTab() {
   useEffect(() => {
     if (!a) return;
     a.getAllContracts().then((cs: Contract[]) =>
-      setContracts(cs.filter((c) => !c.isSettled)),
+      setContracts(cs.filter((c: Contract) => !c.isSettled)),
     );
     a.getAllLabours().then((ls: Labour[]) => {
       setLabours(ls);
     });
     a.getAllGroups().then((gs: Group[]) =>
       setGroups(
-        [...gs].sort((a: Group, b: Group) => a.name.localeCompare(b.name)),
+        [...gs].sort((x: Group, y: Group) => x.name.localeCompare(y.name)),
       ),
     );
   }, [actor]);
@@ -115,6 +149,7 @@ export function PaymentsTab() {
           totalGross: 0,
           totalAdvances: 0,
           finalPayment: 0,
+          advances: [],
         });
       }
 
@@ -147,13 +182,17 @@ export function PaymentsTab() {
           return s + colSum(`mesh_${i}`);
         }, 0);
 
-        const advanceMap = new Map<string, number>();
-        for (const adv of advancesList as Array<{
-          labourId: bigint;
-          amount: bigint;
-        }>) {
+        const advanceMap = new Map<
+          string,
+          { total: number; advances: Advance[] }
+        >();
+        for (const adv of advancesList as Advance[]) {
           const lid = String(adv.labourId);
-          advanceMap.set(lid, (advanceMap.get(lid) ?? 0) + Number(adv.amount));
+          if (!advanceMap.has(lid))
+            advanceMap.set(lid, { total: 0, advances: [] });
+          const entry = advanceMap.get(lid)!;
+          entry.total += Number(adv.amount);
+          entry.advances.push(adv);
         }
 
         for (const l of filteredLabours) {
@@ -189,7 +228,11 @@ export function PaymentsTab() {
           if (lp) {
             lp.contractSalaries.set(idStr, netSalary);
             lp.totalGross += netSalary;
-            lp.totalAdvances += advanceMap.get(lid) ?? 0;
+            const advEntry = advanceMap.get(lid);
+            if (advEntry) {
+              lp.totalAdvances += advEntry.total;
+              lp.advances.push(...advEntry.advances);
+            }
           }
         }
       }
@@ -217,6 +260,8 @@ export function PaymentsTab() {
     setSelectedOverviewIndices(new Set(payments.map((_, i) => i)));
     setOverviewMode("one-by-one");
     setCurrentOverviewIndex(0);
+    setIncludeAdvances(true);
+    setExpandedBreakdown(new Set());
     setOverviewOpen(true);
   };
 
@@ -232,12 +277,26 @@ export function PaymentsTab() {
     (s, p) => s + p.totalAdvances,
     0,
   );
-  const combinedNetPay = selectedPayments.reduce(
-    (s, p) => s + p.finalPayment,
-    0,
-  );
+  const combinedGross = selectedPayments.reduce((s, p) => s + p.totalGross, 0);
+  const combinedNetPay = includeAdvances
+    ? combinedGross - combinedAdvances
+    : combinedGross;
 
   const currentLabour = payments[currentOverviewIndex] ?? null;
+  const currentNetPay = currentLabour
+    ? includeAdvances
+      ? currentLabour.finalPayment
+      : currentLabour.totalGross
+    : 0;
+
+  const toggleBreakdown = (idx: number) => {
+    setExpandedBreakdown((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
 
   const downloadPDF = () => {
     const contractNames = selectedContracts.map((c) => c.name).join(", ");
@@ -261,23 +320,23 @@ export function PaymentsTab() {
           })
           .join("")}
         <td style="padding:9px 14px;color:#dc2626;font-weight:700;border-bottom:1px solid #e2e8f0;text-align:right">&#8377;${lp.totalAdvances.toLocaleString()}</td>
-        <td style="padding:9px 14px;color:#ea580c;font-weight:800;font-size:15px;border-bottom:1px solid #e2e8f0;text-align:right">&#8377;${lp.finalPayment.toFixed(0)}</td>
+        <td style="padding:9px 14px;color:#4f46e5;font-weight:800;font-size:15px;border-bottom:1px solid #e2e8f0;text-align:right">&#8377;${lp.finalPayment.toFixed(0)}</td>
       </tr>`,
       )
       .join("");
 
     const totalsHtml = `
-      <tr style="background:#0f172a">
-        <td style="padding:9px 14px;color:#94a3b8;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.06em">Totals</td>
-        ${contractTotals.map((ct) => `<td style="padding:9px 14px;color:#f97316;font-weight:800;text-align:right">&#8377;${ct.total.toFixed(0)}</td>`).join("")}
+      <tr style="background:#1e1b4b">
+        <td style="padding:9px 14px;color:#a5b4fc;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.06em">Totals</td>
+        ${contractTotals.map((ct) => `<td style="padding:9px 14px;color:#c4b5fd;font-weight:800;text-align:right">&#8377;${ct.total.toFixed(0)}</td>`).join("")}
         <td style="padding:9px 14px;color:#fca5a5;font-weight:800;text-align:right">&#8377;${payments.reduce((s, lp) => s + lp.totalAdvances, 0).toLocaleString()}</td>
-        <td style="padding:9px 14px;color:#fed7aa;font-weight:800;font-size:15px;text-align:right">&#8377;${totalFinal.toFixed(0)}</td>
+        <td style="padding:9px 14px;color:#c4b5fd;font-weight:800;font-size:15px;text-align:right">&#8377;${totalFinal.toFixed(0)}</td>
       </tr>`;
 
     const contractHeadersHtml = selectedContracts
       .map(
         (c) =>
-          `<th style="padding:11px 14px;background:#1e293b;color:#ffffff;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">${c.name}</th>`,
+          `<th style="padding:11px 14px;background:#1e1b4b;color:#ffffff;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">${c.name}</th>`,
       )
       .join("");
 
@@ -295,7 +354,7 @@ export function PaymentsTab() {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #0f172a; padding: 32px; }
-    h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+    h1 { font-size: 26px; font-weight: 800; color: #1e1b4b; margin-bottom: 4px; }
     .subtitle { font-size: 13px; color: #64748b; margin-bottom: 4px; }
     .date { font-size: 12px; color: #94a3b8; margin-bottom: 24px; }
     .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
@@ -314,7 +373,7 @@ export function PaymentsTab() {
   <div class="subtitle">Contracts: ${contractNames}</div>
   <div class="date">Generated on ${printDate}</div>
   <div class="stats">
-    <div class="stat"><div class="stat-label">Labours</div><div class="stat-value" style="color:#f97316">${payments.length}</div></div>
+    <div class="stat"><div class="stat-label">Labours</div><div class="stat-value" style="color:#6366f1">${payments.length}</div></div>
     <div class="stat"><div class="stat-label">Contracts</div><div class="stat-value" style="color:#7c3aed">${selectedContracts.length}</div></div>
     <div class="stat"><div class="stat-label">Total Advances</div><div class="stat-value" style="color:#dc2626">&#8377;${totalAdvances.toLocaleString()}</div></div>
     <div class="stat"><div class="stat-label">Total Payout</div><div class="stat-value" style="color:#16a34a">&#8377;${totalFinal.toFixed(0)}</div></div>
@@ -322,10 +381,10 @@ export function PaymentsTab() {
   <table>
     <thead>
       <tr>
-        <th style="padding:11px 14px;background:#1e293b;color:#ffffff;font-weight:700;font-size:12px;text-align:left;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Labour</th>
+        <th style="padding:11px 14px;background:#1e1b4b;color:#ffffff;font-weight:700;font-size:12px;text-align:left;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Labour</th>
         ${contractHeadersHtml}
-        <th style="padding:11px 14px;background:#1e293b;color:#fca5a5;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Advances</th>
-        <th style="padding:11px 14px;background:#1e293b;color:#fed7aa;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Net Pay</th>
+        <th style="padding:11px 14px;background:#1e1b4b;color:#fca5a5;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Advances</th>
+        <th style="padding:11px 14px;background:#1e1b4b;color:#a5b4fc;font-weight:700;font-size:12px;text-align:right;white-space:nowrap;letter-spacing:0.04em;text-transform:uppercase">Net Pay</th>
       </tr>
     </thead>
     <tbody>
@@ -342,11 +401,9 @@ export function PaymentsTab() {
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
-    // Wait for content to load before printing
     printWindow.onload = () => {
       printWindow.print();
     };
-    // Fallback if onload doesn't fire (content already loaded)
     setTimeout(() => {
       printWindow.print();
     }, 500);
@@ -358,7 +415,7 @@ export function PaymentsTab() {
     fontWeight: 700,
     fontSize: 12,
     color: "#ffffff",
-    background: "rgba(99,102,241,0.08)",
+    background: "#1e1b4b",
     whiteSpace: "nowrap",
     borderBottom: "none",
     letterSpacing: "0.04em",
@@ -367,8 +424,9 @@ export function PaymentsTab() {
   const TD: React.CSSProperties = {
     padding: "9px 14px",
     fontSize: 13,
-    color: "#1e1b4b",
+    color: TEXT_PRIMARY,
     borderBottom: "1px solid rgba(99,102,241,0.08)",
+    background: "#ffffff",
     verticalAlign: "middle",
   };
 
@@ -378,13 +436,13 @@ export function PaymentsTab() {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "9px 14px",
-    background: "rgba(255,255,255,0.75)",
-    border: open ? "2px solid #F97316" : "1.5px solid rgba(99,102,241,0.2)",
+    background: "#ffffff",
+    border: open ? `2px solid ${ACCENT}` : "1.5px solid rgba(99,102,241,0.2)",
     borderRadius: 10,
     cursor: "pointer",
     fontSize: 13,
     fontWeight: 500,
-    color: "#1e1b4b",
+    color: TEXT_PRIMARY,
     transition: "border-color 0.15s",
     outline: "none",
     boxShadow: open ? "0 0 0 3px rgba(99,102,241,0.15)" : "none",
@@ -395,8 +453,8 @@ export function PaymentsTab() {
     top: "calc(100% + 4px)",
     left: 0,
     right: 0,
-    background: "rgba(99,102,241,0.08)",
-    border: "1.5px solid rgba(99,102,241,0.15)",
+    background: "#ffffff",
+    border: "1.5px solid rgba(99,102,241,0.2)",
     borderRadius: 10,
     boxShadow: "0 8px 32px rgba(30,27,75,0.12)",
     zIndex: 50,
@@ -404,35 +462,29 @@ export function PaymentsTab() {
     overflowY: "auto",
   };
 
-  const labelStyle = (
-    isSelected: boolean,
-    accent: string,
-  ): React.CSSProperties => ({
+  const dropItemStyle = (isSelected: boolean): React.CSSProperties => ({
     display: "flex",
     alignItems: "center",
     gap: 10,
     padding: "9px 14px",
     cursor: "pointer",
-    background: isSelected ? `${accent}1a` : "transparent",
+    background: isSelected ? "rgba(99,102,241,0.08)" : "transparent",
     borderBottom: "1px solid rgba(99,102,241,0.08)",
     fontSize: 13,
-    color: isSelected ? accent : "#94A3B8",
+    color: isSelected ? ACCENT : TEXT_PRIMARY,
     fontWeight: isSelected ? 600 : 400,
     transition: "background 0.12s",
     userSelect: "none",
   });
 
-  const checkboxStyle = (
-    isSelected: boolean,
-    accent: string,
-  ): React.CSSProperties => ({
+  const checkboxStyle = (isSelected: boolean): React.CSSProperties => ({
     width: 16,
     height: 16,
     borderRadius: 4,
     border: isSelected
-      ? `2px solid ${accent}`
+      ? `2px solid ${ACCENT}`
       : "2px solid rgba(99,102,241,0.2)",
-    background: isSelected ? accent : "transparent",
+    background: isSelected ? ACCENT : "transparent",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -466,14 +518,14 @@ export function PaymentsTab() {
   );
 
   return (
-    <div>
+    <div style={{ background: PAGE_BG, minHeight: "100%" }}>
       {/* Section Header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          borderLeft: "4px solid #F97316",
+          borderLeft: `4px solid ${ACCENT}`,
           paddingLeft: 12,
           marginBottom: 16,
         }}
@@ -483,14 +535,19 @@ export function PaymentsTab() {
             style={{
               fontSize: 20,
               fontWeight: 800,
-              color: "#1e1b4b",
+              color: TEXT_PRIMARY,
               margin: 0,
             }}
           >
             Payments Sheet
           </h2>
           <p
-            style={{ fontSize: 12, color: "#6b7280", margin: 0, marginTop: 2 }}
+            style={{
+              fontSize: 12,
+              color: TEXT_SECONDARY,
+              margin: 0,
+              marginTop: 2,
+            }}
           >
             Net salary per contract minus advances
           </p>
@@ -501,10 +558,7 @@ export function PaymentsTab() {
           onClick={calculate}
           disabled={selectedIds.size === 0 || loading}
           style={{
-            background:
-              selectedIds.size === 0 || loading
-                ? "#CBD5E1"
-                : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            background: selectedIds.size === 0 || loading ? "#CBD5E1" : GRAD,
             color: "#fff",
             border: "none",
             borderRadius: 999,
@@ -533,7 +587,7 @@ export function PaymentsTab() {
           style={{
             fontSize: 11,
             fontWeight: 700,
-            color: "#6b7280",
+            color: TEXT_SECONDARY,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             marginBottom: 6,
@@ -549,7 +603,9 @@ export function PaymentsTab() {
             style={dropTriggerStyle(contractDropOpen)}
           >
             <span
-              style={{ color: selectedIds.size === 0 ? "#94A3B8" : "#F1F5F9" }}
+              style={{
+                color: selectedIds.size === 0 ? TEXT_SECONDARY : TEXT_PRIMARY,
+              }}
             >
               {selectedIds.size === 0
                 ? "Select contracts..."
@@ -564,7 +620,7 @@ export function PaymentsTab() {
                   style={{
                     padding: "12px 14px",
                     fontSize: 13,
-                    color: "#6b7280",
+                    color: TEXT_SECONDARY,
                   }}
                 >
                   No contracts available
@@ -573,10 +629,7 @@ export function PaymentsTab() {
                 contracts.map((c, i) => {
                   const isSelected = selectedIds.has(String(c.id));
                   return (
-                    <label
-                      key={String(c.id)}
-                      style={labelStyle(isSelected, "#F97316")}
-                    >
+                    <label key={String(c.id)} style={dropItemStyle(isSelected)}>
                       <input
                         data-ocid={`payments.contract.checkbox.${i + 1}`}
                         type="checkbox"
@@ -584,7 +637,7 @@ export function PaymentsTab() {
                         onChange={() => toggleContract(String(c.id))}
                         style={{ display: "none" }}
                       />
-                      <span style={checkboxStyle(isSelected, "#F97316")}>
+                      <span style={checkboxStyle(isSelected)}>
                         {isSelected ? "✓" : ""}
                       </span>
                       {c.name}
@@ -603,7 +656,7 @@ export function PaymentsTab() {
           style={{
             fontSize: 11,
             fontWeight: 700,
-            color: "#6b7280",
+            color: TEXT_SECONDARY,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             marginBottom: 8,
@@ -612,7 +665,6 @@ export function PaymentsTab() {
           Filter by Group
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {/* All Labours chip */}
           <button
             type="button"
             data-ocid="payments.group.all.toggle"
@@ -625,13 +677,13 @@ export function PaymentsTab() {
               cursor: "pointer",
               border:
                 selectedGroupId === null
-                  ? "1.5px solid #FF7F11"
-                  : "1.5px solid rgba(99,102,241,0.15)",
+                  ? `1.5px solid ${ACCENT}`
+                  : "1.5px solid rgba(99,102,241,0.2)",
               background:
                 selectedGroupId === null
-                  ? "rgba(255,127,17,0.18)"
-                  : "rgba(255,255,255,0.05)",
-              color: selectedGroupId === null ? "#FF7F11" : "#94A3B8",
+                  ? "rgba(99,102,241,0.12)"
+                  : "rgba(255,255,255,0.7)",
+              color: selectedGroupId === null ? ACCENT : TEXT_SECONDARY,
               display: "flex",
               alignItems: "center",
               gap: 5,
@@ -658,12 +710,12 @@ export function PaymentsTab() {
                   fontWeight: 600,
                   cursor: "pointer",
                   border: isSelected
-                    ? "1.5px solid #FF7F11"
-                    : "1.5px solid rgba(99,102,241,0.15)",
+                    ? `1.5px solid ${ACCENT}`
+                    : "1.5px solid rgba(99,102,241,0.2)",
                   background: isSelected
-                    ? "rgba(255,127,17,0.18)"
-                    : "rgba(255,255,255,0.05)",
-                  color: isSelected ? "#FF7F11" : "#94A3B8",
+                    ? "rgba(99,102,241,0.12)"
+                    : "rgba(255,255,255,0.7)",
+                  color: isSelected ? ACCENT : TEXT_SECONDARY,
                   display: "flex",
                   alignItems: "center",
                   gap: 5,
@@ -677,7 +729,11 @@ export function PaymentsTab() {
           })}
           {groups.length === 0 && (
             <span
-              style={{ fontSize: 12, color: "#475569", fontStyle: "italic" }}
+              style={{
+                fontSize: 12,
+                color: TEXT_SECONDARY,
+                fontStyle: "italic",
+              }}
             >
               No groups yet
             </span>
@@ -703,11 +759,11 @@ export function PaymentsTab() {
               style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: 1 }}
             >
               {[
-                { label: "Labours", value: payments.length, color: "#6366f1" },
+                { label: "Labours", value: payments.length, color: ACCENT },
                 {
                   label: "Contracts",
                   value: selectedContracts.length,
-                  color: "#7C3AED",
+                  color: ACCENT2,
                 },
                 {
                   label: "Total Advances",
@@ -723,7 +779,7 @@ export function PaymentsTab() {
                 <div
                   key={stat.label}
                   style={{
-                    background: "#ffffff",
+                    background: CARD_BG,
                     border: "1px solid rgba(99,102,241,0.12)",
                     borderRadius: 10,
                     padding: "8px 14px",
@@ -734,7 +790,7 @@ export function PaymentsTab() {
                   <div
                     style={{
                       fontSize: 10,
-                      color: "#6b7280",
+                      color: TEXT_SECONDARY,
                       fontWeight: 700,
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -775,28 +831,16 @@ export function PaymentsTab() {
                   alignItems: "center",
                   gap: 6,
                   padding: "8px 14px",
-                  background: "#ffffff",
-                  border: "1.5px solid #6366f1",
+                  background: CARD_BG,
+                  border: `1.5px solid ${ACCENT}`,
                   borderRadius: 10,
-                  color: "#6366f1",
+                  color: ACCENT,
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                   transition: "background 0.15s, box-shadow 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(255,127,17,0.2)";
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                    "0 2px 8px rgba(249,115,22,0.18)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(255,127,17,0.1)";
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                    "0 1px 3px rgba(0,0,0,0.06)";
                 }}
               >
                 <svg
@@ -810,12 +854,12 @@ export function PaymentsTab() {
                     cx="12"
                     cy="12"
                     r="9"
-                    stroke="#F97316"
+                    stroke={ACCENT}
                     strokeWidth="2.2"
                   />
                   <path
                     d="M12 8v4l3 3"
-                    stroke="#F97316"
+                    stroke={ACCENT}
                     strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -834,28 +878,16 @@ export function PaymentsTab() {
                   alignItems: "center",
                   gap: 6,
                   padding: "8px 14px",
-                  background: "#ffffff",
-                  border: "1.5px solid #6366f1",
+                  background: CARD_BG,
+                  border: `1.5px solid ${ACCENT}`,
                   borderRadius: 10,
-                  color: "#6366f1",
+                  color: ACCENT,
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                   transition: "background 0.15s, box-shadow 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(255,127,17,0.2)";
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                    "0 2px 8px rgba(249,115,22,0.18)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(255,127,17,0.1)";
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                    "0 1px 3px rgba(0,0,0,0.06)";
                 }}
               >
                 <svg
@@ -867,7 +899,7 @@ export function PaymentsTab() {
                 >
                   <path
                     d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
-                    stroke="#F97316"
+                    stroke={ACCENT}
                     strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -884,7 +916,7 @@ export function PaymentsTab() {
               overflowX: "auto",
               borderRadius: 14,
               boxShadow: "0 4px 24px rgba(15,23,42,0.10)",
-              border: "1px solid rgba(99,102,241,0.12)",
+              border: "1px solid rgba(99,102,241,0.15)",
             }}
           >
             <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
@@ -907,11 +939,11 @@ export function PaymentsTab() {
                       {c.name}
                     </th>
                   ))}
-                  <th style={{ ...TH_DARK, color: "#dc2626" }}>Advances</th>
+                  <th style={{ ...TH_DARK, color: "#fca5a5" }}>Advances</th>
                   <th
                     style={{
                       ...TH_DARK,
-                      color: "#6366f1",
+                      color: "#a5b4fc",
                       borderRadius: "0 14px 0 0",
                     }}
                   >
@@ -924,17 +956,17 @@ export function PaymentsTab() {
                   <tr
                     key={String(lp.labourId)}
                     data-ocid={`payments.item.${i + 1}`}
-                    style={{ background: i % 2 === 0 ? "#111827" : "#0D1626" }}
+                    style={{ background: i % 2 === 0 ? "#ffffff" : "#f8f9ff" }}
                   >
                     <td
                       style={{
                         ...TD,
                         position: "sticky",
                         left: 0,
-                        background: "rgba(246,247,252,0.96)",
+                        background: i % 2 === 0 ? "#ffffff" : "#f8f9ff",
                         zIndex: 1,
                         fontWeight: 700,
-                        color: "#1e1b4b",
+                        color: TEXT_PRIMARY,
                       }}
                     >
                       {lp.labourName}
@@ -944,7 +976,7 @@ export function PaymentsTab() {
                       return (
                         <td
                           key={String(c.id)}
-                          style={{ ...TD, color: "#6b7280" }}
+                          style={{ ...TD, color: TEXT_SECONDARY }}
                         >
                           {sal > 0 ? `₹${sal.toFixed(0)}` : "—"}
                         </td>
@@ -956,7 +988,7 @@ export function PaymentsTab() {
                     <td
                       style={{
                         ...TD,
-                        color: "#6366f1",
+                        color: ACCENT,
                         fontWeight: 800,
                         fontSize: 15,
                       }}
@@ -969,7 +1001,7 @@ export function PaymentsTab() {
                 {/* Totals Row */}
                 <tr
                   style={{
-                    background: "rgba(243,244,255,0.95)",
+                    background: "rgba(99,102,241,0.06)",
                     fontWeight: 700,
                   }}
                 >
@@ -978,9 +1010,9 @@ export function PaymentsTab() {
                       ...TD,
                       position: "sticky",
                       left: 0,
-                      background: "rgba(243,244,255,0.95)",
+                      background: "rgba(243,244,255,0.98)",
                       zIndex: 1,
-                      color: "#6b7280",
+                      color: TEXT_SECONDARY,
                       fontSize: 11,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
@@ -994,7 +1026,7 @@ export function PaymentsTab() {
                       key={String(c.id)}
                       style={{
                         ...TD,
-                        color: "#6366f1",
+                        color: ACCENT,
                         fontWeight: 800,
                         borderBottom: "none",
                       }}
@@ -1025,7 +1057,7 @@ export function PaymentsTab() {
                   <td
                     style={{
                       ...TD,
-                      color: "#6366f1",
+                      color: ACCENT,
                       fontWeight: 800,
                       fontSize: 15,
                       borderBottom: "none",
@@ -1069,19 +1101,19 @@ export function PaymentsTab() {
               background: "#ffffff",
               borderRadius: 20,
               width: "100%",
-              maxWidth: 420,
+              maxWidth: 440,
               boxShadow: "0 24px 80px rgba(15,23,42,0.28)",
               overflow: "hidden",
               position: "relative",
               display: "flex",
               flexDirection: "column",
-              maxHeight: "90vh",
+              maxHeight: "92vh",
             }}
           >
             {/* Dialog Header */}
             <div
               style={{
-                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                background: GRAD,
                 padding: "16px 20px",
                 display: "flex",
                 alignItems: "center",
@@ -1093,17 +1125,15 @@ export function PaymentsTab() {
               <div>
                 <div
                   style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "#6b7280",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: "#ffffff",
                     marginBottom: 2,
                   }}
                 >
                   Labour Overview
                 </div>
-                <div style={{ fontSize: 11, color: "#6b7280" }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>
                   {overviewMode === "one-by-one"
                     ? `${currentOverviewIndex + 1} / ${payments.length}`
                     : `${selectedOverviewIndices.size} of ${payments.length} selected`}
@@ -1118,29 +1148,71 @@ export function PaymentsTab() {
                   width: 36,
                   height: 36,
                   borderRadius: "50%",
-                  background: "rgba(99,102,241,0.07)",
-                  border: "1.5px solid rgba(99,102,241,0.2)",
-                  color: "#6b7280",
+                  background: "rgba(255,255,255,0.2)",
+                  border: "1.5px solid rgba(255,255,255,0.35)",
+                  color: "#ffffff",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
                   fontSize: 18,
                   lineHeight: 1,
-                  transition: "background 0.15s",
                   flexShrink: 0,
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(255,255,255,0.16)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(255,255,255,0.08)";
                 }}
                 aria-label="Close overview"
               >
                 ×
+              </button>
+            </div>
+
+            {/* Include Advances Toggle */}
+            <div
+              style={{
+                padding: "10px 16px",
+                borderBottom: "1px solid rgba(99,102,241,0.1)",
+                background: "#f8f9ff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{ fontSize: 13, fontWeight: 600, color: TEXT_PRIMARY }}
+              >
+                Include advances in net pay
+              </span>
+              <button
+                type="button"
+                data-ocid="payments.overview.include_advances.toggle"
+                onClick={() => setIncludeAdvances((v) => !v)}
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 999,
+                  background: includeAdvances ? ACCENT : "#cbd5e1",
+                  border: "none",
+                  cursor: "pointer",
+                  position: "relative",
+                  transition: "background 0.2s",
+                  flexShrink: 0,
+                }}
+                aria-label="Toggle include advances"
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    left: includeAdvances ? 22 : 2,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "#fff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    transition: "left 0.2s",
+                  }}
+                />
               </button>
             </div>
 
@@ -1168,16 +1240,13 @@ export function PaymentsTab() {
                   fontWeight: 700,
                   cursor: "pointer",
                   transition: "all 0.15s",
-                  background:
-                    overviewMode === "one-by-one"
-                      ? "linear-gradient(135deg, #6366f1, #8b5cf6)"
-                      : "#FFFFFF",
-                  color: overviewMode === "one-by-one" ? "#FFFFFF" : "#94A3B8",
+                  background: overviewMode === "one-by-one" ? GRAD : "#FFFFFF",
+                  color:
+                    overviewMode === "one-by-one" ? "#FFFFFF" : TEXT_SECONDARY,
                   boxShadow:
                     overviewMode === "one-by-one"
                       ? "0 2px 10px rgba(99,102,241,0.3)"
                       : "0 1px 3px rgba(0,0,0,0.08)",
-                  letterSpacing: "0.01em",
                 }}
               >
                 One by One
@@ -1196,16 +1265,15 @@ export function PaymentsTab() {
                   cursor: "pointer",
                   transition: "all 0.15s",
                   background:
-                    overviewMode === "multi-select"
-                      ? "linear-gradient(135deg, #6366f1, #8b5cf6)"
-                      : "#FFFFFF",
+                    overviewMode === "multi-select" ? GRAD : "#FFFFFF",
                   color:
-                    overviewMode === "multi-select" ? "#FFFFFF" : "#94A3B8",
+                    overviewMode === "multi-select"
+                      ? "#FFFFFF"
+                      : TEXT_SECONDARY,
                   boxShadow:
                     overviewMode === "multi-select"
                       ? "0 2px 10px rgba(99,102,241,0.3)"
                       : "0 1px 3px rgba(0,0,0,0.08)",
-                  letterSpacing: "0.01em",
                 }}
               >
                 Multi Select
@@ -1220,11 +1288,12 @@ export function PaymentsTab() {
                   style={{
                     flex: 1,
                     overflowY: "auto",
-                    padding: "24px 20px 16px",
+                    padding: "20px 20px 16px",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     gap: 12,
+                    background: "#ffffff",
                   }}
                 >
                   {/* Index badge */}
@@ -1232,8 +1301,8 @@ export function PaymentsTab() {
                     style={{
                       fontSize: 12,
                       fontWeight: 700,
-                      color: "#6b7280",
-                      background: "rgba(255,255,255,0.75)",
+                      color: TEXT_SECONDARY,
+                      background: "rgba(99,102,241,0.08)",
                       borderRadius: 999,
                       padding: "3px 12px",
                       letterSpacing: "0.05em",
@@ -1247,7 +1316,7 @@ export function PaymentsTab() {
                     style={{
                       fontSize: 26,
                       fontWeight: 900,
-                      color: "#1e1b4b",
+                      color: TEXT_PRIMARY,
                       textAlign: "center",
                       lineHeight: 1.2,
                       letterSpacing: "-0.01em",
@@ -1256,44 +1325,163 @@ export function PaymentsTab() {
                     {currentLabour.labourName}
                   </div>
 
-                  {/* Advances */}
+                  {/* Gross Salary */}
                   <div
                     style={{
                       width: "100%",
-                      background: "rgba(220,38,38,0.08)",
-                      border: "1.5px solid rgba(220,38,38,0.2)",
+                      background: "rgba(99,102,241,0.06)",
+                      border: "1.5px solid rgba(99,102,241,0.15)",
                       borderRadius: 14,
-                      padding: "14px 18px",
+                      padding: "12px 18px",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
                     }}
                   >
                     <span
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: "#dc2626",
-                      }}
+                      style={{ fontSize: 13, fontWeight: 600, color: ACCENT }}
                     >
-                      Total Advances
+                      Gross Salary
                     </span>
                     <span
+                      style={{ fontSize: 18, fontWeight: 800, color: ACCENT }}
+                    >
+                      ₹{currentLabour.totalGross.toFixed(0)}
+                    </span>
+                  </div>
+
+                  {/* Advances with Breakdown */}
+                  <div style={{ width: "100%" }}>
+                    <div
                       style={{
-                        fontSize: 22,
-                        fontWeight: 800,
-                        color: "#DC2626",
+                        background: "rgba(220,38,38,0.08)",
+                        border: "1.5px solid rgba(220,38,38,0.2)",
+                        borderRadius: 14,
+                        padding: "12px 18px",
                       }}
                     >
-                      ₹{currentLabour.totalAdvances.toLocaleString()}
-                    </span>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom:
+                            currentLabour.advances.length > 0 ? 8 : 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#dc2626",
+                          }}
+                        >
+                          Total Advances
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 18,
+                            fontWeight: 800,
+                            color: "#DC2626",
+                          }}
+                        >
+                          ₹{currentLabour.totalAdvances.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Advance Breakdown Toggle */}
+                      {currentLabour.advances.length > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            data-ocid="payments.overview.advance_breakdown.toggle"
+                            onClick={() =>
+                              toggleBreakdown(currentOverviewIndex)
+                            }
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "#dc2626",
+                              background: "rgba(220,38,38,0.1)",
+                              border: "none",
+                              borderRadius: 6,
+                              padding: "3px 10px",
+                              cursor: "pointer",
+                              letterSpacing: "0.03em",
+                            }}
+                          >
+                            {expandedBreakdown.has(currentOverviewIndex)
+                              ? "▲ Hide Breakdown"
+                              : "▼ Show Breakdown"}
+                          </button>
+
+                          {expandedBreakdown.has(currentOverviewIndex) && (
+                            <div
+                              style={{
+                                marginTop: 8,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 4,
+                              }}
+                            >
+                              {currentLabour.advances.map((adv, ai) => (
+                                <div
+                                  key={String(adv.id)}
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    padding: "6px 8px",
+                                    background: "rgba(255,255,255,0.7)",
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    gap: 8,
+                                  }}
+                                >
+                                  <div style={{ flex: 1 }}>
+                                    <div
+                                      style={{
+                                        fontWeight: 600,
+                                        color: TEXT_PRIMARY,
+                                      }}
+                                    >
+                                      {adv.note || `Advance ${ai + 1}`}
+                                    </div>
+                                    {adv.timestamp && (
+                                      <div
+                                        style={{
+                                          color: TEXT_SECONDARY,
+                                          fontSize: 10,
+                                          marginTop: 2,
+                                        }}
+                                      >
+                                        {formatDateTime(adv.timestamp)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span
+                                    style={{
+                                      fontWeight: 700,
+                                      color: "#dc2626",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    ₹{Number(adv.amount).toLocaleString()}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* Net Pay hero */}
                   <div
                     style={{
                       width: "100%",
-                      background: "rgba(243,244,255,0.9)",
+                      background: "rgba(99,102,241,0.06)",
                       border: "1.5px solid rgba(99,102,241,0.15)",
                       borderRadius: 14,
                       padding: "18px 18px 20px",
@@ -1304,24 +1492,24 @@ export function PaymentsTab() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: "#4338ca",
+                        color: ACCENT,
                         textTransform: "uppercase",
                         letterSpacing: "0.09em",
                         marginBottom: 6,
                       }}
                     >
-                      Net Pay
+                      Net Pay {!includeAdvances && "(Advances Excluded)"}
                     </div>
                     <div
                       style={{
                         fontSize: 42,
                         fontWeight: 900,
-                        color: "#7c3aed",
+                        color: ACCENT2,
                         lineHeight: 1.1,
                         letterSpacing: "-0.02em",
                       }}
                     >
-                      ₹{currentLabour.finalPayment.toFixed(0)}
+                      ₹{currentNetPay.toFixed(0)}
                     </div>
                   </div>
                 </div>
@@ -1334,6 +1522,7 @@ export function PaymentsTab() {
                     padding: "12px 16px",
                     borderTop: "1px solid rgba(99,102,241,0.1)",
                     flexShrink: 0,
+                    background: "#f8f9ff",
                   }}
                 >
                   <button
@@ -1350,7 +1539,8 @@ export function PaymentsTab() {
                       border: "1.5px solid #E2E8F0",
                       background:
                         currentOverviewIndex === 0 ? "#F8FAFC" : "#FFFFFF",
-                      color: currentOverviewIndex === 0 ? "#CBD5E1" : "#1E293B",
+                      color:
+                        currentOverviewIndex === 0 ? "#CBD5E1" : TEXT_PRIMARY,
                       fontSize: 14,
                       fontWeight: 700,
                       cursor:
@@ -1377,7 +1567,7 @@ export function PaymentsTab() {
                       background:
                         currentOverviewIndex === payments.length - 1
                           ? "#CBD5E1"
-                          : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                          : GRAD,
                       color: "#ffffff",
                       fontSize: 14,
                       fontWeight: 700,
@@ -1407,9 +1597,9 @@ export function PaymentsTab() {
                     padding: "12px 16px 8px",
                     borderBottom: "1px solid rgba(99,102,241,0.1)",
                     flexShrink: 0,
+                    background: "#ffffff",
                   }}
                 >
-                  {/* Select All / Deselect All toggle */}
                   <button
                     type="button"
                     data-ocid="payments.overview.toggle"
@@ -1425,7 +1615,7 @@ export function PaymentsTab() {
                     style={{
                       fontSize: 12,
                       fontWeight: 700,
-                      color: "#6366f1",
+                      color: ACCENT,
                       background: "rgba(99,102,241,0.07)",
                       border: "1.5px solid rgba(99,102,241,0.2)",
                       borderRadius: 8,
@@ -1447,6 +1637,7 @@ export function PaymentsTab() {
                     overflowY: "auto",
                     maxHeight: 220,
                     position: "relative",
+                    background: "#ffffff",
                   }}
                 >
                   {payments.map((p, i) => {
@@ -1462,7 +1653,9 @@ export function PaymentsTab() {
                           padding: "10px 16px",
                           borderBottom: "1px solid #F1F5F9",
                           cursor: "pointer",
-                          background: checked ? "#FFFBF5" : "#FFFFFF",
+                          background: checked
+                            ? "rgba(99,102,241,0.06)"
+                            : "#FFFFFF",
                           transition: "background 0.1s",
                         }}
                       >
@@ -1478,7 +1671,7 @@ export function PaymentsTab() {
                           style={{
                             width: 17,
                             height: 17,
-                            accentColor: "#6366f1",
+                            accentColor: ACCENT,
                             cursor: "pointer",
                             flexShrink: 0,
                           }}
@@ -1488,7 +1681,7 @@ export function PaymentsTab() {
                             flex: 1,
                             fontSize: 14,
                             fontWeight: 600,
-                            color: "#1e1b4b",
+                            color: TEXT_PRIMARY,
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
@@ -1500,16 +1693,19 @@ export function PaymentsTab() {
                           style={{
                             fontSize: 13,
                             fontWeight: 700,
-                            color: "#6366f1",
+                            color: ACCENT,
                             flexShrink: 0,
                           }}
                         >
-                          ₹{p.finalPayment.toFixed(0)}
+                          ₹
+                          {(includeAdvances
+                            ? p.finalPayment
+                            : p.totalGross
+                          ).toFixed(0)}
                         </span>
                       </label>
                     );
                   })}
-                  {/* Bottom scroll shadow */}
                   <div
                     style={{
                       position: "sticky",
@@ -1527,7 +1723,7 @@ export function PaymentsTab() {
                   style={{
                     padding: "16px",
                     background: "rgba(243,244,255,0.9)",
-                    borderTop: "1.5px solid #FED7AA",
+                    borderTop: "1.5px solid rgba(99,102,241,0.2)",
                     flexShrink: 0,
                   }}
                 >
@@ -1535,7 +1731,7 @@ export function PaymentsTab() {
                     style={{
                       fontSize: 12,
                       fontWeight: 700,
-                      color: "#1e1b4b",
+                      color: TEXT_PRIMARY,
                       marginBottom: 10,
                       textTransform: "uppercase",
                       letterSpacing: "0.07em",
@@ -1559,7 +1755,7 @@ export function PaymentsTab() {
                       style={{
                         fontSize: 13,
                         fontWeight: 600,
-                        color: "#1e1b4b",
+                        color: TEXT_PRIMARY,
                       }}
                     >
                       Total Advances
@@ -1578,7 +1774,7 @@ export function PaymentsTab() {
                   {/* Net Pay hero */}
                   <div
                     style={{
-                      borderTop: "1px solid #FCD9B0",
+                      borderTop: "1px solid rgba(99,102,241,0.15)",
                       paddingTop: 10,
                       textAlign: "center",
                     }}
@@ -1587,7 +1783,7 @@ export function PaymentsTab() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: "#4338ca",
+                        color: ACCENT,
                         textTransform: "uppercase",
                         letterSpacing: "0.09em",
                         marginBottom: 4,
@@ -1596,12 +1792,13 @@ export function PaymentsTab() {
                       {selectedOverviewIndices.size === 1
                         ? "Net Pay"
                         : "Combined Net Pay"}
+                      {!includeAdvances && " (Advances Excluded)"}
                     </div>
                     <div
                       style={{
                         fontSize: 38,
                         fontWeight: 900,
-                        color: "#7c3aed",
+                        color: ACCENT2,
                         lineHeight: 1.1,
                         letterSpacing: "-0.02em",
                       }}
