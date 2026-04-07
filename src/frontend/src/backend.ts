@@ -159,8 +159,8 @@ export interface Advance {
 }
 export interface backendInterface {
     calculateNetSalaries(contractId: bigint): Promise<Array<SalaryBreakdown>>;
-    createAdvance(contractId: bigint, labourId: bigint, amount: bigint, note: string): Promise<bigint>;
-    createContract(name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<bigint>;
+    createAdvance(contractId: bigint, labourId: bigint, amount: bigint, note: string, timestamp: string): Promise<bigint>;
+    createContract(name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>, createdAt: string): Promise<bigint>;
     createGroup(name: string): Promise<bigint>;
     createLabour(name: string, phone: string | null, groupId: bigint | null): Promise<bigint>;
     deleteAdvance(id: bigint): Promise<void>;
@@ -181,7 +181,7 @@ export interface backendInterface {
     removeHoliday(contractId: bigint, columnKey: string): Promise<void>;
     saveAttendance(contractId: bigint, labourId: bigint, columnType: ColumnType, value: string): Promise<bigint>;
     saveAttendanceNote(contractId: bigint, labourId: bigint, note: string): Promise<bigint>;
-    settleContract(id: bigint): Promise<void>;
+    settleContract(id: bigint, settledAt: string): Promise<void>;
     unsettleContract(id: bigint): Promise<void>;
     updateAdvance(id: bigint, amount: bigint, note: string): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;
@@ -211,31 +211,31 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async createAdvance(arg0: bigint, arg1: bigint, arg2: bigint, arg3: string): Promise<bigint> {
+    async createAdvance(arg0: bigint, arg1: bigint, arg2: bigint, arg3: string, arg4: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.createAdvance(arg0, arg1, arg2, arg3);
+                const result = await this.actor.createAdvance(arg0, arg1, arg2, arg3, arg4);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.createAdvance(arg0, arg1, arg2, arg3);
+            const result = await this.actor.createAdvance(arg0, arg1, arg2, arg3, arg4);
             return result;
         }
     }
-    async createContract(arg0: string, arg1: number, arg2: bigint, arg3: bigint, arg4: bigint | null, arg5: bigint | null, arg6: Array<string>): Promise<bigint> {
+    async createContract(arg0: string, arg1: number, arg2: bigint, arg3: bigint, arg4: bigint | null, arg5: bigint | null, arg6: Array<string>, arg7: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.createContract(arg0, arg1, arg2, arg3, to_candid_opt_n1(this._uploadFile, this._downloadFile, arg4), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg5), arg6);
+                const result = await this.actor.createContract(arg0, arg1, arg2, arg3, to_candid_opt_n1(this._uploadFile, this._downloadFile, arg4), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg5), arg6, arg7);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.createContract(arg0, arg1, arg2, arg3, to_candid_opt_n1(this._uploadFile, this._downloadFile, arg4), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg5), arg6);
+            const result = await this.actor.createContract(arg0, arg1, arg2, arg3, to_candid_opt_n1(this._uploadFile, this._downloadFile, arg4), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg5), arg6, arg7);
             return result;
         }
     }
@@ -519,17 +519,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async settleContract(arg0: bigint): Promise<void> {
+    async settleContract(arg0: bigint, arg1: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.settleContract(arg0);
+                const result = await this.actor.settleContract(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.settleContract(arg0);
+            const result = await this.actor.settleContract(arg0, arg1);
             return result;
         }
     }

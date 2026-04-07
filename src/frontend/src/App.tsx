@@ -360,6 +360,7 @@ export default function App() {
             BigInt(String(c.bedAmount) || "0"),
             BigInt(String(c.paperAmount) || "0"),
             (c.meshColumns as string[]) ?? [],
+            new Date().toISOString(),
           ),
         ),
       );
@@ -445,6 +446,7 @@ export default function App() {
             BigInt(cols[3] || "0"),
             BigInt(cols[4] || "0"),
             cols[8] ? cols[8].split(" | ").filter(Boolean) : [],
+            new Date().toISOString(),
           ),
         ),
       );
@@ -676,7 +678,7 @@ export default function App() {
           className="min-h-screen flex flex-col items-center justify-center px-5 py-10 relative overflow-hidden"
           style={{
             background:
-              "linear-gradient(135deg, #7c3aed 0%, #6366f1 40%, #2563eb 100%)",
+              "linear-gradient(160deg, #0d0221 0%, #1a0533 25%, #2d0b6b 55%, #1e3a8a 100%)",
             opacity: homeVisible ? 1 : 0,
             transition: "opacity 0.4s ease",
             willChange: "opacity",
