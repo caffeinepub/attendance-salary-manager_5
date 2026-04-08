@@ -10,9 +10,9 @@ export type Option<T> = Some<T> | None;
 export interface Labour {
     id: bigint;
     name: string;
+    isActive: boolean;
     groupId?: bigint;
     phone?: string;
-    isActive: boolean;
 }
 export interface SalaryBreakdown {
     meshSalary: bigint;
@@ -23,6 +23,10 @@ export interface SalaryBreakdown {
     labourName: string;
     bedSalary: bigint;
     paperSalary: bigint;
+}
+export interface WorkingTodayEntry {
+    ts: string;
+    count: bigint;
 }
 export interface AttendanceNote {
     id: bigint;
@@ -45,6 +49,7 @@ export interface Contract {
     id: bigint;
     isSettled: boolean;
     name: string;
+    createdAt: string;
     machineExp: bigint;
     meshColumns: Array<string>;
     bedAmount: bigint;
@@ -52,7 +57,6 @@ export interface Contract {
     meshAmount: bigint;
     contractAmount: bigint;
     multiplierValue: number;
-    createdAt: string;
     settledAt?: string;
 }
 export interface Holiday {
@@ -74,18 +78,19 @@ export interface Advance {
     id: bigint;
     note: string;
     labourId: bigint;
+    timestamp: string;
     amount: bigint;
     contractId: bigint;
-    timestamp: string;
 }
 export interface ActivityLogEntry {
-    contractId: bigint;
-    contractName: string;
     createdAt: string;
+    contractName: string;
+    contractId: bigint;
     settledAt?: string;
 }
 export interface backendInterface {
     calculateNetSalaries(contractId: bigint): Promise<Array<SalaryBreakdown>>;
+    changeAdminCredentials(oldToken: string, oldPassword: string, newToken: string, newPassword: string): Promise<boolean>;
     createAdvance(contractId: bigint, labourId: bigint, amount: bigint, note: string, timestamp: string): Promise<bigint>;
     createContract(name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>, createdAt: string): Promise<bigint>;
     createGroup(name: string): Promise<bigint>;
@@ -105,20 +110,19 @@ export interface backendInterface {
     getContract(id: bigint): Promise<Contract>;
     getHolidaysByContract(contractId: bigint): Promise<Array<Holiday>>;
     getNotesByContract(contractId: bigint): Promise<Array<AttendanceNote>>;
+    getWorkingTodayMap(): Promise<Array<[bigint, WorkingTodayEntry]>>;
+    hasAdminCredentials(): Promise<boolean>;
     markHoliday(contractId: bigint, columnKey: string): Promise<bigint>;
+    recordWorkingToday(contractId: bigint, count: bigint, ts: string): Promise<void>;
     removeHoliday(contractId: bigint, columnKey: string): Promise<void>;
     saveAttendance(contractId: bigint, labourId: bigint, columnType: ColumnType, value: string): Promise<bigint>;
     saveAttendanceNote(contractId: bigint, labourId: bigint, note: string): Promise<bigint>;
+    setAdminCredentials(token: string, password: string): Promise<boolean>;
     setLabourActive(id: bigint, active: boolean): Promise<void>;
     settleContract(id: bigint, settledAt: string): Promise<void>;
     unsettleContract(id: bigint): Promise<void>;
     updateAdvance(id: bigint, amount: bigint, note: string): Promise<void>;
     updateContract(id: bigint, name: string, multiplierValue: number, contractAmount: bigint, machineExp: bigint, bedAmount: bigint | null, paperAmount: bigint | null, meshColumns: Array<string>): Promise<void>;
     updateLabour(id: bigint, name: string, phone: string | null, groupId: bigint | null): Promise<void>;
-    hasAdminCredentials(): Promise<boolean>;
-    setAdminCredentials(token: string, password: string): Promise<boolean>;
     verifyAdminCredentials(token: string, password: string): Promise<boolean>;
-    changeAdminCredentials(oldToken: string, oldPassword: string, newToken: string, newPassword: string): Promise<boolean>;
-    recordWorkingToday(contractId: bigint, count: bigint, ts: string): Promise<void>;
-    getWorkingTodayMap(): Promise<Array<[bigint, { ts: string; count: bigint }]>>;
 }

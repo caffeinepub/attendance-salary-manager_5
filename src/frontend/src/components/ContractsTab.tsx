@@ -26,16 +26,32 @@ function fmt(n: bigint) {
   return Number(n).toLocaleString();
 }
 
-function formatDate(iso?: string): string {
-  if (!iso) return "";
+/**
+ * Handles multiple date formats from the backend:
+ * - ISO string (from frontend-created records)
+ * - Empty string "" (missing/not set)
+ * - Candid optional array: ["2024-01-01"] = Some, [] = None
+ * - null / undefined
+ */
+function formatDate(value?: string | string[] | null): string {
+  // Handle Candid optional: [] = None, ["value"] = Some
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    return formatDate(value[0]);
+  }
+  if (value === null || value === undefined || value === "") return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
   try {
-    return new Date(iso).toLocaleDateString("en-IN", {
+    return date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
   } catch {
-    return "";
+    return "—";
   }
 }
 
@@ -57,7 +73,11 @@ export function ContractsTab({
   const [editBed, setEditBed] = useState("");
   const [editPaper, setEditPaper] = useState("");
   const [editingAmounts, setEditingAmounts] = useState(false);
-  const [editContract, setEditContract] = useState<Contract | null>(null);
+  // Store editContractId separately so we always have a stable reference
+  const [editContractId, setEditContractId] = useState<bigint | null>(null);
+  const [editContractMeshColumns, setEditContractMeshColumns] = useState<
+    string[]
+  >(["Mesh"]);
 
   const [form, setForm] = useState({
     name: "",
@@ -101,11 +121,12 @@ export function ContractsTab({
     const bed = calcBed(m);
     const paper = calcPaper(m);
     const mesh = ca - bed - paper - me;
+    const savedName = form.name;
 
     const tempId = BigInt(-Date.now());
     const optimistic: Contract = {
       id: tempId,
-      name: form.name,
+      name: savedName,
       multiplierValue: m,
       contractAmount: BigInt(Math.round(ca)),
       machineExp: BigInt(Math.round(me)),
@@ -123,7 +144,7 @@ export function ContractsTab({
 
     try {
       await a.createContract(
-        form.name,
+        savedName,
         m,
         BigInt(Math.round(ca)),
         BigInt(Math.round(me)),
@@ -134,7 +155,7 @@ export function ContractsTab({
       );
       const all = await a.getAllContracts();
       setContracts((all ?? []).filter((c: Contract) => !c.isSettled));
-      toast.success(`Contract "${form.name}" added`);
+      toast.success(`Contract "${savedName}" added`);
     } catch {
       setContracts((prev) => prev.filter((c) => c.id !== tempId));
       toast.error("Failed to save contract. Please try again.");
@@ -144,7 +165,9 @@ export function ContractsTab({
   };
 
   const openEdit = (c: Contract) => {
-    setEditContract(c);
+    // Capture stable ID and meshColumns immediately — not from state at save time
+    setEditContractId(c.id);
+    setEditContractMeshColumns(c.meshColumns ?? ["Mesh"]);
     setEditForm({
       name: c.name,
       multiplier: String(c.multiplierValue),
@@ -156,7 +179,10 @@ export function ContractsTab({
   };
 
   const handleUpdate = async () => {
-    if (!editContract) return;
+    // Use the stable captured ID, not derived from state
+    const contractId = editContractId;
+    if (!contractId) return;
+
     setUpdating(true);
     const m = Number.parseFloat(editForm.multiplier) || 0;
     const ca = Number.parseFloat(editForm.amount) || 0;
@@ -167,24 +193,33 @@ export function ContractsTab({
     const papO = editForm.paperOverride
       ? BigInt(Math.round(Number.parseFloat(editForm.paperOverride)))
       : null;
-    await a?.updateContract(
-      editContract.id,
-      editForm.name,
-      m,
-      BigInt(Math.round(ca)),
-      BigInt(Math.round(me)),
-      bedO,
-      papO,
-      editContract.meshColumns,
-    );
-    toast.success(`Contract "${editForm.name}" updated`);
-    setEditContract(null);
-    if (selected?.id === editContract.id) {
-      const updated = await a?.getContract(editContract.id);
-      setSelected(updated ?? null);
+
+    try {
+      await a?.updateContract(
+        contractId,
+        editForm.name,
+        m,
+        BigInt(Math.round(ca)),
+        BigInt(Math.round(me)),
+        bedO,
+        papO,
+        editContractMeshColumns,
+      );
+      toast.success(`Contract "${editForm.name}" updated`);
+
+      // If we were looking at this contract's detail, refresh it
+      if (selected?.id === contractId) {
+        const updated = await a?.getContract(contractId);
+        setSelected(updated ?? null);
+      }
+
+      setEditContractId(null);
+      await load();
+    } catch {
+      toast.error("Failed to update contract. Please try again.");
+    } finally {
+      setUpdating(false);
     }
-    await load();
-    setUpdating(false);
   };
 
   const handleSaveAmounts = async () => {
@@ -231,7 +266,8 @@ export function ContractsTab({
     fontWeight: 600,
   };
 
-  if (selected && !editContract) {
+  // Contract detail view
+  if (selected && !editContractId) {
     const previewBed = Number(selected.bedAmount);
     const previewPaper = Number(selected.paperAmount);
     const previewMesh = Number(selected.meshAmount);
@@ -507,7 +543,8 @@ export function ContractsTab({
     );
   }
 
-  if (editContract) {
+  // Edit contract form
+  if (editContractId) {
     const m = Number.parseFloat(editForm.multiplier) || 0;
     const ca = Number.parseFloat(editForm.amount) || 0;
     const me = Number.parseFloat(editForm.machineExp) || 0;
@@ -522,7 +559,7 @@ export function ContractsTab({
       <div style={{ background: PAGE_BG, minHeight: "100%" }}>
         <button
           type="button"
-          onClick={() => setEditContract(null)}
+          onClick={() => setEditContractId(null)}
           className="mb-4 text-sm font-semibold"
           style={{ color: "#6366f1" }}
         >

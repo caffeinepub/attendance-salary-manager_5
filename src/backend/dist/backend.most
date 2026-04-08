@@ -1,0 +1,101 @@
+// Version: 1.0.0
+type AdvanceV1__22942179 =
+  {amount : Int; contractId : Nat; id : Nat; labourId : Nat; note : Text};
+type AttendanceNote__628040420 =
+  {contractId : Nat; id : Nat; labourId : Nat; note : Text};
+type Attendance__849119793 =
+  {
+    columnType : ColumnType__127554292;
+    contractId : Nat;
+    id : Nat;
+    labourId : Nat;
+    value : Text
+  };
+type ColumnType__127554292 = {#bed; #mesh : Nat; #paper};
+type ContractV1__180248901 =
+  {
+    bedAmount : Int;
+    contractAmount : Int;
+    id : Nat;
+    isSettled : Bool;
+    machineExp : Int;
+    meshAmount : Int;
+    meshColumns : [Text];
+    multiplierValue : Float;
+    name : Text;
+    paperAmount : Int
+  };
+type Data__791452850<K, V> =
+  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type Group__386451942 = {id : Nat; name : Text};
+type Holiday__867972988 = {columnKey : Text; contractId : Nat; id : Nat};
+type Internal__8484328<K, V> =
+  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
+type LabourStorage__667815982 = {id : Nat; name : Text; phone : ?Text};
+type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__46230540<K, V> =
+  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type WorkingTodayEntry__712032614 = {count : Nat; ts : Text};
+actor {
+  stable var adminPassword : ?Text;
+  stable var adminToken : ?Text;
+  stable var advanceCounter : Nat;
+  stable advanceTimestamps :
+    {var root : Node__46230540<Nat, Text>; var size : Nat__490723111};
+  stable advances :
+    {
+      var root : Node__46230540<Nat, AdvanceV1__22942179>;
+      var size : Nat__490723111
+    };
+  stable var attendanceCounter : Nat;
+  stable attendanceNotes :
+    {
+      var root : Node__46230540<Nat, AttendanceNote__628040420>;
+      var size : Nat__490723111
+    };
+  stable attendances :
+    {
+      var root : Node__46230540<Nat, Attendance__849119793>;
+      var size : Nat__490723111
+    };
+  stable var contractCounter : Nat;
+  stable contractCreatedAt :
+    {var root : Node__46230540<Nat, Text>; var size : Nat__490723111};
+  stable contractSettledAt :
+    {var root : Node__46230540<Nat, Text>; var size : Nat__490723111};
+  stable contracts :
+    {
+      var root : Node__46230540<Nat, ContractV1__180248901>;
+      var size : Nat__490723111
+    };
+  stable var groupCounter : Nat;
+  stable groups :
+    {
+      var root : Node__46230540<Nat, Group__386451942>;
+      var size : Nat__490723111
+    };
+  stable var holidayCounter : Nat;
+  stable holidays :
+    {
+      var root : Node__46230540<Nat, Holiday__867972988>;
+      var size : Nat__490723111
+    };
+  stable labourActiveMap :
+    {var root : Node__46230540<Nat, Bool>; var size : Nat__490723111};
+  stable var labourCounter : Nat;
+  stable labourGroups :
+    {var root : Node__46230540<Nat, Nat>; var size : Nat__490723111};
+  stable labours :
+    {
+      var root : Node__46230540<Nat, LabourStorage__667815982>;
+      var size : Nat__490723111
+    };
+  stable var noteCounter : Nat;
+  stable workingTodayMap :
+    {
+      var root : Node__46230540<Nat, WorkingTodayEntry__712032614>;
+      var size : Nat__490723111
+    }
+};

@@ -1,4 +1,11 @@
-import { ChevronDown, ChevronUp, Loader2, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Loader2,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { AppMode } from "../App";
@@ -25,6 +32,7 @@ export function LaboursTab({ mode }: Props) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", phone: "", groupId: "" });
+  const [expandedId, setExpandedId] = useState<bigint | null>(null);
   const [editingId, setEditingId] = useState<bigint | null>(null);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -32,6 +40,7 @@ export function LaboursTab({ mode }: Props) {
     groupId: "",
   });
   const [adding, setAdding] = useState(false);
+  const [savingId, setSavingId] = useState<bigint | null>(null);
   const [togglingId, setTogglingId] = useState<bigint | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -78,6 +87,7 @@ export function LaboursTab({ mode }: Props) {
       name,
       phone: phone ?? undefined,
       groupId: groupId ?? undefined,
+      isActive: true,
     };
     setLabours((prev) => [...prev, optimistic]);
     setAddForm({ name: "", phone: "", groupId: "" });
@@ -91,6 +101,7 @@ export function LaboursTab({ mode }: Props) {
       toast.success(`Labour "${name}" added`);
     } catch (_) {
       setLabours((prev) => prev.filter((l) => l.id !== tempId));
+      toast.error("Failed to add labour");
     } finally {
       setAdding(false);
     }
@@ -98,6 +109,7 @@ export function LaboursTab({ mode }: Props) {
 
   const handleUpdate = async (id: bigint) => {
     if (!actor) return;
+    setSavingId(id);
     const phone = editForm.phone.trim() || null;
     const groupId = editForm.groupId !== "" ? BigInt(editForm.groupId) : null;
     try {
@@ -106,7 +118,9 @@ export function LaboursTab({ mode }: Props) {
       toast.success("Labour updated");
       await loadAll();
     } catch (_) {
-      // ignore
+      toast.error("Failed to update labour");
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -125,7 +139,9 @@ export function LaboursTab({ mode }: Props) {
       toast.success(nextActive ? "Labour set active" : "Labour set inactive");
     } catch (_) {
       setLabours((prev) =>
-        prev.map((l) => (l.id === id ? { ...l, isActive: currentActive } : l)),
+        prev.map((l) =>
+          l.id === id ? { ...l, isActive: currentActive ?? true } : l,
+        ),
       );
       toast.error("Failed to update labour status");
     } finally {
@@ -171,6 +187,15 @@ export function LaboursTab({ mode }: Props) {
     return groups.find((g) => g.id === groupId)?.name ?? null;
   };
 
+  const openEdit = (l: Labour) => {
+    setEditingId(l.id);
+    setEditForm({
+      name: l.name,
+      phone: l.phone || "",
+      groupId: l.groupId !== undefined ? String(l.groupId) : "",
+    });
+  };
+
   const confirmGroup =
     confirmDeleteGroupId !== null
       ? groups.find((g) => g.id === confirmDeleteGroupId)
@@ -192,25 +217,6 @@ export function LaboursTab({ mode }: Props) {
     marginBottom: 3,
     display: "block" as const,
     fontWeight: 600,
-  };
-  const thStyle: React.CSSProperties = {
-    padding: "10px 12px",
-    textAlign: "left",
-    fontWeight: 700,
-    fontSize: 11,
-    color: TEXT_SECONDARY,
-    background: "rgba(99,102,241,0.06)",
-    borderBottom: "1px solid rgba(99,102,241,0.1)",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    whiteSpace: "nowrap",
-  };
-  const tdStyle: React.CSSProperties = {
-    padding: "9px 12px",
-    borderBottom: "1px solid rgba(99,102,241,0.07)",
-    fontSize: 13,
-    color: TEXT_PRIMARY,
-    verticalAlign: "middle",
   };
 
   if (loading) {
@@ -250,7 +256,7 @@ export function LaboursTab({ mode }: Props) {
         >
           <div
             style={{
-              background: "rgba(255,255,255,0.95)",
+              background: "rgba(255,255,255,0.97)",
               border: "1px solid rgba(220,38,38,0.2)",
               borderRadius: 20,
               padding: "24px 20px",
@@ -290,7 +296,7 @@ export function LaboursTab({ mode }: Props) {
               >
                 Are you sure you want to delete{" "}
                 <span style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>
-                  "{confirmGroup?.name}"
+                  &quot;{confirmGroup?.name}&quot;
                 </span>
                 ? Labours in this group will be unassigned.
               </p>
@@ -344,6 +350,152 @@ export function LaboursTab({ mode }: Props) {
         </div>
       )}
 
+      {/* Edit Labour Modal */}
+      {editingId !== null && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            background: "rgba(30,27,75,0.4)",
+            backdropFilter: "blur(6px)",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingId(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setEditingId(null);
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.97)",
+              borderRadius: "20px 20px 0 0",
+              padding: "24px 20px 36px",
+              width: "100%",
+              maxWidth: 480,
+              boxShadow: "0 -8px 40px rgba(30,27,75,0.15)",
+            }}
+          >
+            {/* Handle bar */}
+            <div
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                background: "rgba(99,102,241,0.2)",
+                margin: "0 auto 20px",
+              }}
+            />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 20,
+              }}
+            >
+              <h3
+                style={{
+                  color: TEXT_PRIMARY,
+                  fontWeight: 700,
+                  fontSize: 17,
+                  margin: 0,
+                }}
+              >
+                Edit Labour
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingId(null)}
+                aria-label="Close"
+                style={{
+                  background: "rgba(99,102,241,0.08)",
+                  border: "1px solid rgba(99,102,241,0.15)",
+                  borderRadius: 8,
+                  padding: "4px 6px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <X size={16} color="#6366f1" />
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <span style={labelStyle}>Name *</span>
+                <input
+                  data-ocid="labours.edit.name.input"
+                  style={inputStyle}
+                  value={editForm.name}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <span style={labelStyle}>Phone (optional)</span>
+                <input
+                  data-ocid="labours.edit.phone.input"
+                  style={inputStyle}
+                  value={editForm.phone}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, phone: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <span style={labelStyle}>Group (optional)</span>
+                <select
+                  data-ocid="labours.edit.group.select"
+                  style={inputStyle}
+                  value={editForm.groupId}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, groupId: e.target.value }))
+                  }
+                >
+                  <option value="">No Group</option>
+                  {groups.map((g) => (
+                    <option key={String(g.id)} value={String(g.id)}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                data-ocid="labours.save.button"
+                onClick={() => handleUpdate(editingId)}
+                disabled={savingId === editingId}
+                style={{
+                  padding: "12px",
+                  borderRadius: 12,
+                  background: savingId === editingId ? "#e5e7eb" : GRAD,
+                  color: savingId === editingId ? TEXT_SECONDARY : "#fff",
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: savingId === editingId ? "not-allowed" : "pointer",
+                  boxShadow:
+                    savingId === editingId
+                      ? "none"
+                      : "0 4px 14px rgba(99,102,241,0.35)",
+                  marginTop: 4,
+                }}
+              >
+                {savingId === editingId ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold" style={{ color: TEXT_PRIMARY }}>
           Labours
@@ -559,286 +711,343 @@ export function LaboursTab({ mode }: Props) {
         </div>
       )}
 
-      <div
-        style={{
-          overflowX: "auto",
-          background: CARD_BG,
-          border: CARD_BORDER,
-          borderRadius: 16,
-          boxShadow: CARD_SHADOW,
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        <table
-          style={{ borderCollapse: "collapse", width: "100%", minWidth: 300 }}
+      {/* Labour Name List */}
+      {labours.length === 0 ? (
+        <div
+          data-ocid="labours.empty_state"
+          style={{
+            background: "rgba(255,255,255,0.8)",
+            border: "1px dashed rgba(99,102,241,0.2)",
+            borderRadius: 12,
+            padding: "32px 20px",
+            textAlign: "center",
+            color: TEXT_SECONDARY,
+            fontSize: 14,
+          }}
         >
-          <thead>
-            <tr>
-              <th style={thStyle}>#</th>
-              <th style={thStyle}>Name</th>
-              <th style={thStyle}>Phone</th>
-              <th style={thStyle}>Group</th>
-              <th style={thStyle}>Status</th>
-              {mode === "edit" && <th style={thStyle}>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {labours.length === 0 && (
-              <tr>
-                <td
-                  colSpan={mode === "edit" ? 6 : 5}
-                  style={{
-                    ...tdStyle,
-                    color: TEXT_SECONDARY,
-                    textAlign: "center",
+          No labours added yet.
+        </div>
+      ) : (
+        <div
+          className="flex flex-col gap-1.5"
+          style={{
+            background: CARD_BG,
+            border: CARD_BORDER,
+            borderRadius: 16,
+            boxShadow: CARD_SHADOW,
+            backdropFilter: "blur(10px)",
+            overflow: "hidden",
+          }}
+        >
+          {labours.map((l, i) => {
+            const isExpanded = expandedId === l.id;
+            const isInactive = l.isActive === false;
+            const groupName = getGroupName(l.groupId);
+
+            return (
+              <div key={String(l.id)} data-ocid={`labours.item.${i + 1}`}>
+                {/* Labour row — tap to expand */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    l.id >= 0n && setExpandedId(isExpanded ? null : l.id)
+                  }
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && l.id >= 0n) {
+                      setExpandedId(isExpanded ? null : l.id);
+                    }
                   }}
-                  data-ocid="labours.empty_state"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "13px 16px",
+                    background: "transparent",
+                    border: "none",
+                    borderBottom:
+                      i < labours.length - 1 || isExpanded
+                        ? "1px solid rgba(99,102,241,0.07)"
+                        : "none",
+                    cursor: l.id >= 0n ? "pointer" : "default",
+                    textAlign: "left",
+                    transition: "background 0.15s",
+                    opacity: isInactive ? 0.6 : l.id < 0n ? 0.5 : 1,
+                  }}
                 >
-                  No labours added yet.
-                </td>
-              </tr>
-            )}
-            {labours.map((l, i) => (
-              <tr
-                key={String(l.id)}
-                data-ocid={`labours.item.${i + 1}`}
-                style={{
-                  background:
-                    i % 2 === 0
-                      ? "rgba(255,255,255,0.9)"
-                      : "rgba(245,247,255,0.8)",
-                  opacity: l.isActive === false ? 0.55 : l.id < 0n ? 0.6 : 1,
-                }}
-              >
-                <td style={tdStyle}>{i + 1}</td>
-                {editingId === l.id ? (
-                  <>
-                    <td style={tdStyle}>
-                      <input
+                  {/* Left: name + badges */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                  >
+                    {/* Avatar circle */}
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        background: isInactive
+                          ? "rgba(107,114,128,0.12)"
+                          : "rgba(99,102,241,0.1)",
+                        border: `1.5px solid ${isInactive ? "rgba(107,114,128,0.2)" : "rgba(99,102,241,0.2)"}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: isInactive ? TEXT_SECONDARY : "#6366f1",
+                      }}
+                    >
+                      {l.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div
                         style={{
-                          ...inputStyle,
-                          width: 140,
-                          padding: "4px 8px",
-                        }}
-                        value={editForm.name}
-                        onChange={(e) =>
-                          setEditForm((f) => ({ ...f, name: e.target.value }))
-                        }
-                      />
-                    </td>
-                    <td style={tdStyle}>
-                      <input
-                        style={{
-                          ...inputStyle,
-                          width: 110,
-                          padding: "4px 8px",
-                        }}
-                        value={editForm.phone}
-                        onChange={(e) =>
-                          setEditForm((f) => ({ ...f, phone: e.target.value }))
-                        }
-                      />
-                    </td>
-                    <td style={tdStyle}>
-                      <select
-                        style={{
-                          ...inputStyle,
-                          width: 120,
-                          padding: "4px 8px",
-                        }}
-                        value={editForm.groupId}
-                        onChange={(e) =>
-                          setEditForm((f) => ({
-                            ...f,
-                            groupId: e.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">No Group</option>
-                        {groups.map((g) => (
-                          <option key={String(g.id)} value={String(g.id)}>
-                            {g.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={tdStyle} />
-                    <td style={tdStyle}>
-                      <button
-                        type="button"
-                        data-ocid={`labours.save.button.${i + 1}`}
-                        onClick={() => handleUpdate(l.id)}
-                        className="text-xs px-2.5 py-1.5 rounded-lg mr-1 font-semibold"
-                        style={{
-                          background: GRAD,
-                          color: "#fff",
-                          border: "none",
+                          fontWeight: 600,
+                          fontSize: 14,
+                          color: TEXT_PRIMARY,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
                         }}
                       >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(null)}
-                        className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
+                        {l.name}
+                        {l.id < 0n && (
+                          <span
+                            style={{
+                              color: TEXT_SECONDARY,
+                              fontSize: 11,
+                              marginLeft: 6,
+                              fontWeight: 400,
+                            }}
+                          >
+                            saving…
+                          </span>
+                        )}
+                      </div>
+                      <div
                         style={{
-                          background: "#f3f4f6",
-                          color: TEXT_SECONDARY,
-                          border: "1px solid #e5e7eb",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          marginTop: 2,
+                          flexWrap: "wrap",
                         }}
                       >
-                        Cancel
-                      </button>
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td style={tdStyle}>
-                      {l.name}
-                      {l.id < 0n && (
+                        {/* Active/Inactive badge */}
                         <span
                           style={{
-                            color: TEXT_SECONDARY,
-                            fontSize: 11,
-                            marginLeft: 6,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: "1px 7px",
+                            borderRadius: 10,
+                            background: isInactive
+                              ? "rgba(107,114,128,0.1)"
+                              : "rgba(22,163,74,0.1)",
+                            color: isInactive ? TEXT_SECONDARY : "#16a34a",
+                            border: `1px solid ${isInactive ? "rgba(107,114,128,0.2)" : "rgba(22,163,74,0.2)"}`,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
                           }}
                         >
-                          saving…
+                          {isInactive ? "Inactive" : "Active"}
                         </span>
-                      )}
-                    </td>
-                    <td style={{ ...tdStyle, color: TEXT_SECONDARY }}>
-                      {l.phone || "-"}
-                    </td>
-                    <td style={tdStyle}>
-                      {getGroupName(l.groupId) ? (
-                        <span
+                        {/* Group badge */}
+                        {groupName && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: "1px 7px",
+                              borderRadius: 10,
+                              background: "rgba(99,102,241,0.08)",
+                              color: "#6366f1",
+                              border: "1px solid rgba(99,102,241,0.18)",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {groupName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Right: chevron */}
+                  <div style={{ flexShrink: 0, marginLeft: 8 }}>
+                    {isExpanded ? (
+                      <ChevronDown size={16} color="#6366f1" />
+                    ) : (
+                      <ChevronRight size={16} color={TEXT_SECONDARY} />
+                    )}
+                  </div>
+                </button>
+
+                {/* Expanded detail card */}
+                {isExpanded && (
+                  <div
+                    data-ocid={`labours.detail.${i + 1}`}
+                    style={{
+                      padding: "14px 16px 16px",
+                      background: "rgba(245,246,255,0.7)",
+                      borderBottom:
+                        i < labours.length - 1
+                          ? "1px solid rgba(99,102,241,0.07)"
+                          : "none",
+                    }}
+                  >
+                    {/* Detail rows */}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "10px 16px",
+                        marginBottom: 14,
+                      }}
+                    >
+                      <div>
+                        <div
                           style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: TEXT_SECONDARY,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Phone
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: l.phone ? TEXT_PRIMARY : TEXT_SECONDARY,
+                          }}
+                        >
+                          {l.phone || "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: TEXT_SECONDARY,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Group
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: groupName ? "#6366f1" : TEXT_SECONDARY,
+                          }}
+                        >
+                          {groupName || "No Group"}
+                        </div>
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: TEXT_SECONDARY,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Status
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: isInactive ? TEXT_SECONDARY : "#16a34a",
+                          }}
+                        >
+                          {isInactive ? "Inactive" : "Active"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action buttons (edit mode only) */}
+                    {mode === "edit" && l.id >= 0n && (
+                      <div
+                        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                      >
+                        <button
+                          type="button"
+                          data-ocid={`labours.edit.button.${i + 1}`}
+                          onClick={() => openEdit(l)}
+                          style={{
+                            flex: "1 1 auto",
+                            padding: "9px 14px",
+                            borderRadius: 10,
                             background: "rgba(99,102,241,0.1)",
                             color: "#6366f1",
-                            border: "1px solid rgba(99,102,241,0.2)",
-                            borderRadius: 12,
-                            padding: "2px 8px",
-                            fontSize: 11,
+                            border: "1px solid rgba(99,102,241,0.22)",
                             fontWeight: 600,
-                            whiteSpace: "nowrap",
+                            fontSize: 13,
+                            cursor: "pointer",
                           }}
                         >
-                          {getGroupName(l.groupId)}
-                        </span>
-                      ) : (
-                        <span style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
-                          —
-                        </span>
-                      )}
-                    </td>
-                    <td style={tdStyle}>
-                      {l.isActive === false ? (
-                        <span
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          data-ocid={`labours.toggle.button.${i + 1}`}
+                          onClick={() => handleToggleActive(l.id, l.isActive)}
+                          disabled={togglingId === l.id}
                           style={{
-                            background: "rgba(107,114,128,0.1)",
-                            color: TEXT_SECONDARY,
-                            border: "1px solid rgba(107,114,128,0.2)",
-                            borderRadius: 12,
-                            padding: "2px 8px",
-                            fontSize: 11,
+                            flex: "1 1 auto",
+                            padding: "9px 14px",
+                            borderRadius: 10,
+                            background: isInactive
+                              ? "rgba(22,163,74,0.1)"
+                              : "rgba(107,114,128,0.1)",
+                            color: isInactive ? "#16a34a" : TEXT_SECONDARY,
+                            border: isInactive
+                              ? "1px solid rgba(22,163,74,0.22)"
+                              : "1px solid rgba(107,114,128,0.2)",
                             fontWeight: 600,
+                            fontSize: 13,
+                            cursor:
+                              togglingId === l.id ? "not-allowed" : "pointer",
+                            opacity: togglingId === l.id ? 0.6 : 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 4,
                           }}
                         >
-                          Inactive
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            background: "rgba(22,163,74,0.1)",
-                            color: "#16a34a",
-                            border: "1px solid rgba(22,163,74,0.2)",
-                            borderRadius: 12,
-                            padding: "2px 8px",
-                            fontSize: 11,
-                            fontWeight: 600,
-                          }}
-                        >
-                          Active
-                        </span>
-                      )}
-                    </td>
-                    {mode === "edit" && (
-                      <td style={tdStyle}>
-                        {l.id >= 0n && (
-                          <div className="flex gap-1 flex-wrap">
-                            <button
-                              type="button"
-                              data-ocid={`labours.edit.button.${i + 1}`}
-                              onClick={() => {
-                                setEditingId(l.id);
-                                setEditForm({
-                                  name: l.name,
-                                  phone: l.phone || "",
-                                  groupId:
-                                    l.groupId !== undefined
-                                      ? String(l.groupId)
-                                      : "",
-                                });
-                              }}
-                              className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
-                              style={{
-                                background: "rgba(99,102,241,0.1)",
-                                color: "#6366f1",
-                                border: "1px solid rgba(99,102,241,0.2)",
-                              }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              data-ocid={`labours.toggle.button.${i + 1}`}
-                              onClick={() =>
-                                handleToggleActive(l.id, l.isActive)
-                              }
-                              disabled={togglingId === l.id}
-                              className="text-xs px-2 py-1.5 rounded-lg font-semibold"
-                              style={{
-                                background:
-                                  l.isActive === false
-                                    ? "rgba(22,163,74,0.1)"
-                                    : "rgba(107,114,128,0.1)",
-                                color:
-                                  l.isActive === false
-                                    ? "#16a34a"
-                                    : TEXT_SECONDARY,
-                                border:
-                                  l.isActive === false
-                                    ? "1px solid rgba(22,163,74,0.2)"
-                                    : "1px solid rgba(107,114,128,0.2)",
-                                cursor:
-                                  togglingId === l.id
-                                    ? "not-allowed"
-                                    : "pointer",
-                                opacity: togglingId === l.id ? 0.6 : 1,
-                                whiteSpace: "nowrap",
-                              }}
-                              title={
-                                l.isActive === false
-                                  ? "Set Active"
-                                  : "Set Inactive"
-                              }
-                            >
-                              {l.isActive === false
-                                ? "Set Active"
-                                : "Set Inactive"}
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                          {togglingId === l.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : isInactive ? (
+                            "✅ Set Active"
+                          ) : (
+                            "⏸ Set Inactive"
+                          )}
+                        </button>
+                      </div>
                     )}
-                  </>
+                  </div>
                 )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

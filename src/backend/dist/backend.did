@@ -1,0 +1,136 @@
+type WorkingTodayEntry = 
+ record {
+   count: nat;
+   ts: text;
+ };
+type SalaryBreakdown = 
+ record {
+   bedSalary: int;
+   labourId: nat;
+   labourName: text;
+   meshSalary: int;
+   netSalary: int;
+   paperSalary: int;
+   totalAdvances: int;
+   totalAttendanceSalary: int;
+ };
+type Labour = 
+ record {
+   groupId: opt nat;
+   id: nat;
+   isActive: bool;
+   name: text;
+   phone: opt text;
+ };
+type Holiday = 
+ record {
+   columnKey: text;
+   contractId: nat;
+   id: nat;
+ };
+type Group = 
+ record {
+   id: nat;
+   name: text;
+ };
+type Contract = 
+ record {
+   bedAmount: int;
+   contractAmount: int;
+   createdAt: text;
+   id: nat;
+   isSettled: bool;
+   machineExp: int;
+   meshAmount: int;
+   meshColumns: vec text;
+   multiplierValue: float64;
+   name: text;
+   paperAmount: int;
+   settledAt: opt text;
+ };
+type ColumnType = 
+ variant {
+   bed;
+   mesh: nat;
+   paper;
+ };
+type AttendanceNote = 
+ record {
+   contractId: nat;
+   id: nat;
+   labourId: nat;
+   note: text;
+ };
+type Attendance = 
+ record {
+   columnType: ColumnType;
+   contractId: nat;
+   id: nat;
+   labourId: nat;
+   value: text;
+ };
+type Advance = 
+ record {
+   amount: int;
+   contractId: nat;
+   id: nat;
+   labourId: nat;
+   note: text;
+   timestamp: text;
+ };
+type ActivityLogEntry = 
+ record {
+   contractId: nat;
+   contractName: text;
+   createdAt: text;
+   settledAt: opt text;
+ };
+service : {
+  calculateNetSalaries: (contractId: nat) -> (vec SalaryBreakdown) query;
+  changeAdminCredentials: (oldToken: text, oldPassword: text, newToken: 
+   text, newPassword: text) -> (bool);
+  createAdvance: (contractId: nat, labourId: nat, amount: int, note: 
+   text, timestamp: text) -> (nat);
+  createContract: (name: text, multiplierValue: float64, contractAmount: 
+   int, machineExp: int, bedAmount: opt int, paperAmount: opt int,
+   meshColumns: vec text, createdAt: text) -> (nat);
+  createGroup: (name: text) -> (nat);
+  createLabour: (name: text, phone: opt text, groupId: opt nat) -> (nat);
+  deleteAdvance: (id: nat) -> ();
+  deleteContract: (id: nat) -> ();
+  deleteGroup: (id: nat) -> ();
+  deleteLabour: (id: nat) -> ();
+  getActivityLog: () -> (vec ActivityLogEntry) query;
+  getAdvancesByContract: (contractId: nat) -> (vec Advance) query;
+  getAdvancesByLabour: (labourId: nat) -> (vec Advance) query;
+  getAllAdvances: () -> (vec Advance) query;
+  getAllContracts: () -> (vec Contract) query;
+  getAllGroups: () -> (vec Group) query;
+  getAllLabours: () -> (vec Labour) query;
+  getAttendanceByContract: (contractId: nat) -> (vec Attendance) query;
+  getContract: (id: nat) -> (Contract) query;
+  getHolidaysByContract: (contractId: nat) -> (vec Holiday) query;
+  getNotesByContract: (contractId: nat) -> (vec AttendanceNote) query;
+  getWorkingTodayMap: () -> (vec record {
+                                   nat;
+                                   WorkingTodayEntry;
+                                 }) query;
+  hasAdminCredentials: () -> (bool) query;
+  markHoliday: (contractId: nat, columnKey: text) -> (nat);
+  recordWorkingToday: (contractId: nat, count: nat, ts: text) -> ();
+  removeHoliday: (contractId: nat, columnKey: text) -> ();
+  saveAttendance: (contractId: nat, labourId: nat, columnType: ColumnType,
+   value: text) -> (nat);
+  saveAttendanceNote: (contractId: nat, labourId: nat, note: text) -> (nat);
+  setAdminCredentials: (token: text, password: text) -> (bool);
+  setLabourActive: (id: nat, active: bool) -> ();
+  settleContract: (id: nat, settledAt: text) -> ();
+  unsettleContract: (id: nat) -> ();
+  updateAdvance: (id: nat, amount: int, note: text) -> ();
+  updateContract: (id: nat, name: text, multiplierValue: float64,
+   contractAmount: int, machineExp: int, bedAmount: opt int, paperAmount:
+   opt int, meshColumns: vec text) -> ();
+  updateLabour: (id: nat, name: text, phone: opt text, groupId: opt nat) ->
+   ();
+  verifyAdminCredentials: (token: text, password: text) -> (bool);
+}

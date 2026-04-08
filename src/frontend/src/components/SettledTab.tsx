@@ -14,10 +14,26 @@ const TEXT_PRIMARY = "#1e1b4b";
 const TEXT_SECONDARY = "#6b7280";
 const GRAD = "linear-gradient(135deg, #6366f1, #8b5cf6)";
 
-function formatDate(iso?: string): string {
-  if (!iso) return "—";
+/**
+ * Handles multiple date formats from the backend:
+ * - ISO string (from frontend-created records)
+ * - Empty string "" (missing/not set)
+ * - Candid optional array: ["2024-01-01"] = Some, [] = None
+ * - null / undefined
+ */
+function formatDate(value?: string | string[] | null): string {
+  // Handle Candid optional: [] = None, ["value"] = Some
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    return formatDate(value[0]);
+  }
+  if (value === null || value === undefined || value === "") return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
   try {
-    return new Date(iso).toLocaleDateString("en-IN", {
+    return date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -386,10 +402,10 @@ export function SettledTab({ mode }: Props) {
                   <td
                     style={{ ...tdStyle, color: TEXT_SECONDARY, fontSize: 12 }}
                   >
-                    {c.createdAt ? formatDate(c.createdAt) : "—"}
+                    {formatDate(c.createdAt)}
                   </td>
                   <td style={{ ...tdStyle, color: "#6366f1", fontSize: 12 }}>
-                    {c.settledAt ? formatDate(c.settledAt) : "—"}
+                    {formatDate(c.settledAt)}
                   </td>
                   {mode === "edit" && (
                     <td style={tdStyle}>

@@ -10,13 +10,19 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface ActivityLogEntry {
+  'createdAt' : string,
+  'contractName' : string,
+  'contractId' : bigint,
+  'settledAt' : [] | [string],
+}
 export interface Advance {
   'id' : bigint,
   'note' : string,
   'labourId' : bigint,
+  'timestamp' : string,
   'amount' : bigint,
   'contractId' : bigint,
-  'timestamp' : string,
 }
 export interface Attendance {
   'id' : bigint,
@@ -38,6 +44,7 @@ export interface Contract {
   'id' : bigint,
   'isSettled' : boolean,
   'name' : string,
+  'createdAt' : string,
   'machineExp' : bigint,
   'meshColumns' : Array<string>,
   'bedAmount' : bigint,
@@ -45,7 +52,6 @@ export interface Contract {
   'meshAmount' : bigint,
   'contractAmount' : bigint,
   'multiplierValue' : number,
-  'createdAt' : string,
   'settledAt' : [] | [string],
 }
 export interface Group { 'id' : bigint, 'name' : string }
@@ -57,9 +63,9 @@ export interface Holiday {
 export interface Labour {
   'id' : bigint,
   'name' : string,
+  'isActive' : boolean,
   'groupId' : [] | [bigint],
   'phone' : [] | [string],
-  'isActive' : boolean,
 }
 export interface SalaryBreakdown {
   'meshSalary' : bigint,
@@ -71,15 +77,17 @@ export interface SalaryBreakdown {
   'bedSalary' : bigint,
   'paperSalary' : bigint,
 }
-export interface ActivityLogEntry {
-  'contractId' : bigint,
-  'contractName' : string,
-  'createdAt' : string,
-  'settledAt' : [] | [string],
-}
+export interface WorkingTodayEntry { 'ts' : string, 'count' : bigint }
 export interface _SERVICE {
   'calculateNetSalaries' : ActorMethod<[bigint], Array<SalaryBreakdown>>,
-  'createAdvance' : ActorMethod<[bigint, bigint, bigint, string, string], bigint>,
+  'changeAdminCredentials' : ActorMethod<
+    [string, string, string, string],
+    boolean
+  >,
+  'createAdvance' : ActorMethod<
+    [bigint, bigint, bigint, string, string],
+    bigint
+  >,
   'createContract' : ActorMethod<
     [
       string,
@@ -110,10 +118,14 @@ export interface _SERVICE {
   'getContract' : ActorMethod<[bigint], Contract>,
   'getHolidaysByContract' : ActorMethod<[bigint], Array<Holiday>>,
   'getNotesByContract' : ActorMethod<[bigint], Array<AttendanceNote>>,
+  'getWorkingTodayMap' : ActorMethod<[], Array<[bigint, WorkingTodayEntry]>>,
+  'hasAdminCredentials' : ActorMethod<[], boolean>,
   'markHoliday' : ActorMethod<[bigint, string], bigint>,
+  'recordWorkingToday' : ActorMethod<[bigint, bigint, string], undefined>,
   'removeHoliday' : ActorMethod<[bigint, string], undefined>,
   'saveAttendance' : ActorMethod<[bigint, bigint, ColumnType, string], bigint>,
   'saveAttendanceNote' : ActorMethod<[bigint, bigint, string], bigint>,
+  'setAdminCredentials' : ActorMethod<[string, string], boolean>,
   'setLabourActive' : ActorMethod<[bigint, boolean], undefined>,
   'settleContract' : ActorMethod<[bigint, string], undefined>,
   'unsettleContract' : ActorMethod<[bigint], undefined>,
@@ -135,12 +147,7 @@ export interface _SERVICE {
     [bigint, string, [] | [string], [] | [bigint]],
     undefined
   >,
-  'hasAdminCredentials' : ActorMethod<[], boolean>,
-  'setAdminCredentials' : ActorMethod<[string, string], boolean>,
   'verifyAdminCredentials' : ActorMethod<[string, string], boolean>,
-  'changeAdminCredentials' : ActorMethod<[string, string, string, string], boolean>,
-  'recordWorkingToday' : ActorMethod<[bigint, bigint, string], undefined>,
-  'getWorkingTodayMap' : ActorMethod<[], Array<[bigint, { ts: string; count: bigint }]>>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

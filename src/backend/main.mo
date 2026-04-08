@@ -1,148 +1,18 @@
 import Map "mo:core/Map";
-import Array "mo:core/Array";
-import Iter "mo:core/Iter";
-import Order "mo:core/Order";
-import Text "mo:core/Text";
-import Nat "mo:core/Nat";
-import Runtime "mo:core/Runtime";
-
-
+import Types "types";
+import ContractLib "lib/ContractLib";
+import LabourLib "lib/LabourLib";
+import AdvanceLib "lib/AdvanceLib";
+import AttendanceLib "lib/AttendanceLib";
+import GroupLib "lib/GroupLib";
+import NotesHolidaysLib "lib/NotesHolidaysLib";
 
 actor {
-  // Data Types
-  type Group = {
-    id : Nat;
-    name : Text;
-  };
-
-  type LabourStorage = {
-    id : Nat;
-    name : Text;
-    phone : ?Text;
-  };
-
-  type Labour = {
-    id : Nat;
-    name : Text;
-    phone : ?Text;
-    groupId : ?Nat;
-    isActive : Bool;
-  };
-
-  // Old Contract type (without new fields) - used for migration compatibility
-  type ContractV1 = {
-    id : Nat;
-    name : Text;
-    multiplierValue : Float;
-    contractAmount : Int;
-    machineExp : Int;
-    bedAmount : Int;
-    paperAmount : Int;
-    meshAmount : Int;
-    meshColumns : [Text];
-    isSettled : Bool;
-  };
-
-  type Contract = {
-    id : Nat;
-    name : Text;
-    multiplierValue : Float;
-    contractAmount : Int;
-    machineExp : Int;
-    bedAmount : Int;
-    paperAmount : Int;
-    meshAmount : Int;
-    meshColumns : [Text];
-    isSettled : Bool;
-    createdAt : Text;
-    settledAt : ?Text;
-  };
-
-  type Attendance = {
-    id : Nat;
-    contractId : Nat;
-    labourId : Nat;
-    columnType : ColumnType;
-    value : Text;
-  };
-
-  // Old Advance type (without timestamp) - used for migration compatibility
-  type AdvanceV1 = {
-    id : Nat;
-    contractId : Nat;
-    labourId : Nat;
-    amount : Int;
-    note : Text;
-  };
-
-  type Advance = {
-    id : Nat;
-    contractId : Nat;
-    labourId : Nat;
-    amount : Int;
-    note : Text;
-    timestamp : Text;
-  };
-
-  type SalaryBreakdown = {
-    labourId : Nat;
-    labourName : Text;
-    bedSalary : Int;
-    paperSalary : Int;
-    meshSalary : Int;
-    totalAttendanceSalary : Int;
-    totalAdvances : Int;
-    netSalary : Int;
-  };
-
-  type ColumnType = {
-    #bed;
-    #paper;
-    #mesh : Nat;
-  };
-
-  type AttendanceNote = {
-    id : Nat;
-    contractId : Nat;
-    labourId : Nat;
-    note : Text;
-  };
-
-  type Holiday = {
-    id : Nat;
-    contractId : Nat;
-    columnKey : Text;
-  };
-
-  type ActivityLogEntry = {
-    contractId : Nat;
-    contractName : Text;
-    createdAt : Text;
-    settledAt : ?Text;
-  };
-
-  module ColumnType {
-    public func compare(a : ColumnType, b : ColumnType) : Order.Order {
-      switch (a, b) {
-        case (#bed, #bed) { #equal };
-        case (#bed, _) { #less };
-        case (#paper, #bed) { #greater };
-        case (#paper, #paper) { #equal };
-        case (#paper, #mesh(_)) { #less };
-        case (#mesh(_), #bed) { #greater };
-        case (#mesh(_), #paper) { #greater };
-        case (#mesh(n1), #mesh(n2)) {
-          Nat.compare(n1, n2);
-        };
-      };
-    };
-  };
-
-  // Admin Credentials
+  // Admin credentials
   var adminToken : ?Text = null;
   var adminPassword : ?Text = null;
 
-  // ID Counters
+  // ID counters
   var groupCounter = 0;
   var labourCounter = 0;
   var contractCounter = 0;
@@ -151,122 +21,62 @@ actor {
   var noteCounter = 0;
   var holidayCounter = 0;
 
-  // Persistent Maps - contracts and advances use V1 types to maintain stable compatibility
-  let labours = Map.empty<Nat, LabourStorage>();
+  // State
+  let labours = Map.empty<Nat, Types.LabourStorage>();
   let labourGroups = Map.empty<Nat, Nat>();
   let labourActiveMap = Map.empty<Nat, Bool>();
-  let groups = Map.empty<Nat, Group>();
-  let contracts = Map.empty<Nat, ContractV1>();
-  let attendances = Map.empty<Nat, Attendance>();
-  let advances = Map.empty<Nat, AdvanceV1>();
-  let attendanceNotes = Map.empty<Nat, AttendanceNote>();
-  let holidays = Map.empty<Nat, Holiday>();
-  // Working Today: contractId -> { ts: Text; count: Nat }
-  type WorkingTodayEntry = { ts : Text; count : Nat };
-  let workingTodayMap = Map.empty<Nat, WorkingTodayEntry>();
+  let groups = Map.empty<Nat, Types.Group>();
+  let contracts = Map.empty<Nat, Types.ContractV1>();
+  let attendances = Map.empty<Nat, Types.Attendance>();
+  let advances = Map.empty<Nat, Types.AdvanceV1>();
+  let attendanceNotes = Map.empty<Nat, Types.AttendanceNote>();
+  let holidays = Map.empty<Nat, Types.Holiday>();
+  let workingTodayMap = Map.empty<Nat, Types.WorkingTodayEntry>();
 
   // Extra fields stored separately for migration-safe new fields
   let contractCreatedAt = Map.empty<Nat, Text>();
   let contractSettledAt = Map.empty<Nat, Text>();
   let advanceTimestamps = Map.empty<Nat, Text>();
 
-  // Helper: upgrade a ContractV1 to Contract using extra maps
-  func toContract(c : ContractV1) : Contract {
-    {
-      id = c.id;
-      name = c.name;
-      multiplierValue = c.multiplierValue;
-      contractAmount = c.contractAmount;
-      machineExp = c.machineExp;
-      bedAmount = c.bedAmount;
-      paperAmount = c.paperAmount;
-      meshAmount = c.meshAmount;
-      meshColumns = c.meshColumns;
-      isSettled = c.isSettled;
-      createdAt = switch (contractCreatedAt.get(c.id)) {
-        case (null) { "" };
-        case (?v) { v };
-      };
-      settledAt = contractSettledAt.get(c.id);
-    };
-  };
-
-  // Helper: upgrade an AdvanceV1 to Advance using extra maps
-  func toAdvance(a : AdvanceV1) : Advance {
-    {
-      id = a.id;
-      contractId = a.contractId;
-      labourId = a.labourId;
-      amount = a.amount;
-      note = a.note;
-      timestamp = switch (advanceTimestamps.get(a.id)) {
-        case (null) { "" };
-        case (?v) { v };
-      };
-    };
-  };
-
-  // Group CRUD
+  // --- Group CRUD ---
   public shared ({ caller }) func createGroup(name : Text) : async Nat {
-    for (g in groups.values()) {
-      if (g.name == name) { Runtime.trap("Group name already exists") };
-    };
-    let id = groupCounter;
+    let id = GroupLib.createGroup(groups, groupCounter, name);
     groupCounter += 1;
-    groups.add(id, { id; name });
     id;
   };
 
   public shared ({ caller }) func deleteGroup(id : Nat) : async () {
-    groups.remove(id);
+    GroupLib.deleteGroup(groups, id);
   };
 
-  public query ({ caller }) func getAllGroups() : async [Group] {
-    groups.values().toArray();
+  public query ({ caller }) func getAllGroups() : async [Types.Group] {
+    GroupLib.getAllGroups(groups);
   };
 
-  // Labour CRUD
+  // --- Labour CRUD ---
   public shared ({ caller }) func createLabour(name : Text, phone : ?Text, groupId : ?Nat) : async Nat {
-    let id = labourCounter;
+    let id = LabourLib.create(labours, labourGroups, labourActiveMap, labourCounter, name, phone, groupId);
     labourCounter += 1;
-    let labour : LabourStorage = { id; name; phone };
-    labours.add(id, labour);
-    labourActiveMap.add(id, true);
-    switch (groupId) {
-      case (null) {};
-      case (?gid) { labourGroups.add(id, gid) };
-    };
     id;
   };
 
   public shared ({ caller }) func updateLabour(id : Nat, name : Text, phone : ?Text, groupId : ?Nat) : async () {
-    switch (labours.get(id)) {
-      case (null) { Runtime.trap("Labour not found") };
-      case (?_) {
-        let labour : LabourStorage = { id; name; phone };
-        labours.add(id, labour);
-        switch (groupId) {
-          case (null) { labourGroups.remove(id) };
-          case (?gid) { labourGroups.add(id, gid) };
-        };
-      };
-    };
+    LabourLib.update(labours, labourGroups, id, name, phone, groupId);
   };
 
   public shared ({ caller }) func setLabourActive(id : Nat, active : Bool) : async () {
-    switch (labours.get(id)) {
-      case (null) { Runtime.trap("Labour not found") };
-      case (?_) { labourActiveMap.add(id, active) };
-    };
+    LabourLib.setActive(labours, labourActiveMap, id, active);
   };
 
   public shared ({ caller }) func deleteLabour(id : Nat) : async () {
-    labours.remove(id);
-    labourGroups.remove(id);
-    labourActiveMap.remove(id);
+    LabourLib.deleteLabour(labours, labourGroups, labourActiveMap, id);
   };
 
-  // Contract CRUD
+  public query ({ caller }) func getAllLabours() : async [Types.Labour] {
+    LabourLib.getAll(labours, labourGroups, labourActiveMap);
+  };
+
+  // --- Contract CRUD ---
   public shared ({ caller }) func createContract(
     name : Text,
     multiplierValue : Float,
@@ -277,35 +87,12 @@ actor {
     meshColumns : [Text],
     createdAt : Text
   ) : async Nat {
-    let id = contractCounter;
+    let id = ContractLib.create(
+      contracts, contractCreatedAt, contractCounter,
+      name, multiplierValue, contractAmount, machineExp,
+      bedAmount, paperAmount, meshColumns, createdAt
+    );
     contractCounter += 1;
-
-    let finalBedAmount = switch (bedAmount) {
-      case (null) { (11000.0 * multiplierValue).toInt() };
-      case (?amount) { amount };
-    };
-
-    let finalPaperAmount = switch (paperAmount) {
-      case (null) { (7000.0 * multiplierValue).toInt() };
-      case (?amount) { amount };
-    };
-
-    let meshAmount = contractAmount - finalBedAmount - finalPaperAmount - machineExp;
-
-    let contract : ContractV1 = {
-      id;
-      name;
-      multiplierValue;
-      contractAmount;
-      machineExp;
-      bedAmount = finalBedAmount;
-      paperAmount = finalPaperAmount;
-      meshAmount;
-      meshColumns;
-      isSettled = false;
-    };
-    contracts.add(id, contract);
-    contractCreatedAt.add(id, createdAt);
     id;
   };
 
@@ -319,403 +106,107 @@ actor {
     paperAmount : ?Int,
     meshColumns : [Text]
   ) : async () {
-    switch (contracts.get(id)) {
-      case (null) { Runtime.trap("Contract not found") };
-      case (?existing) {
-        let finalBedAmount = switch (bedAmount) {
-          case (null) { (11000.0 * multiplierValue).toInt() };
-          case (?amount) { amount };
-        };
-
-        let finalPaperAmount = switch (paperAmount) {
-          case (null) { (7000.0 * multiplierValue).toInt() };
-          case (?amount) { amount };
-        };
-
-        let meshAmount = contractAmount - finalBedAmount - finalPaperAmount - machineExp;
-
-        let contract : ContractV1 = {
-          id;
-          name;
-          multiplierValue;
-          contractAmount;
-          machineExp;
-          bedAmount = finalBedAmount;
-          paperAmount = finalPaperAmount;
-          meshAmount;
-          meshColumns;
-          isSettled = existing.isSettled;
-        };
-        contracts.add(id, contract);
-      };
-    };
+    ContractLib.update(contracts, id, name, multiplierValue, contractAmount, machineExp, bedAmount, paperAmount, meshColumns);
   };
 
-  // Contract Settlement
   public shared ({ caller }) func settleContract(id : Nat, settledAt : Text) : async () {
-    switch (contracts.get(id)) {
-      case (null) { Runtime.trap("Contract not found") };
-      case (?contract) {
-        contracts.add(id, { contract with isSettled = true });
-        contractSettledAt.add(id, settledAt);
-      };
-    };
+    ContractLib.settle(contracts, contractSettledAt, id, settledAt);
   };
 
   public shared ({ caller }) func unsettleContract(id : Nat) : async () {
-    switch (contracts.get(id)) {
-      case (null) { Runtime.trap("Contract not found") };
-      case (?contract) {
-        contracts.add(id, { contract with isSettled = false });
-        contractSettledAt.remove(id);
-      };
-    };
+    ContractLib.unsettle(contracts, contractSettledAt, id);
   };
 
   public shared ({ caller }) func deleteContract(id : Nat) : async () {
-    contracts.remove(id);
-    contractCreatedAt.remove(id);
-    contractSettledAt.remove(id);
+    ContractLib.deleteContract(contracts, contractCreatedAt, contractSettledAt, id);
   };
 
-  // Attendance
+  public query ({ caller }) func getAllContracts() : async [Types.Contract] {
+    ContractLib.getAll(contracts, contractCreatedAt, contractSettledAt);
+  };
+
+  public query ({ caller }) func getContract(id : Nat) : async Types.Contract {
+    ContractLib.getOne(contracts, contractCreatedAt, contractSettledAt, id);
+  };
+
+  public query ({ caller }) func getActivityLog() : async [Types.ActivityLogEntry] {
+    ContractLib.getActivityLog(contracts, contractCreatedAt, contractSettledAt);
+  };
+
+  // --- Attendance ---
   public shared ({ caller }) func saveAttendance(
     contractId : Nat,
     labourId : Nat,
-    columnType : ColumnType,
+    columnType : Types.ColumnType,
     value : Text
   ) : async Nat {
-    if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
-    if (not labours.containsKey(labourId)) { Runtime.trap("Labour not found") };
-
-    let id = attendanceCounter;
+    let id = AttendanceLib.save(attendances, contracts, labours, attendanceCounter, contractId, labourId, columnType, value);
     attendanceCounter += 1;
-
-    let attendance : Attendance = {
-      id;
-      contractId;
-      labourId;
-      columnType;
-      value;
-    };
-    attendances.add(id, attendance);
     id;
   };
 
-  // Advances
+  public query ({ caller }) func getAttendanceByContract(contractId : Nat) : async [Types.Attendance] {
+    AttendanceLib.getByContract(attendances, contractId);
+  };
+
+  public query ({ caller }) func calculateNetSalaries(contractId : Nat) : async [Types.SalaryBreakdown] {
+    AttendanceLib.calculateNetSalaries(attendances, advances, contracts, labours, contractId);
+  };
+
+  // --- Advances ---
   public shared ({ caller }) func createAdvance(contractId : Nat, labourId : Nat, amount : Int, note : Text, timestamp : Text) : async Nat {
-    if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
-    if (not labours.containsKey(labourId)) { Runtime.trap("Labour not found") };
-
-    let id = advanceCounter;
+    let id = AdvanceLib.create(advances, advanceTimestamps, contracts, labours, advanceCounter, contractId, labourId, amount, note, timestamp);
     advanceCounter += 1;
-
-    let advance : AdvanceV1 = {
-      id;
-      contractId;
-      labourId;
-      amount;
-      note;
-    };
-    advances.add(id, advance);
-    advanceTimestamps.add(id, timestamp);
     id;
-  };
-
-  public shared ({ caller }) func deleteAdvance(id : Nat) : async () {
-    advances.remove(id);
-    advanceTimestamps.remove(id);
   };
 
   public shared ({ caller }) func updateAdvance(id : Nat, amount : Int, note : Text) : async () {
-    switch (advances.get(id)) {
-      case (null) { Runtime.trap("Advance not found") };
-      case (?adv) {
-        advances.add(id, { adv with amount; note });
-      };
-    };
+    AdvanceLib.update(advances, id, amount, note);
   };
 
-  // Attendance Notes
+  public shared ({ caller }) func deleteAdvance(id : Nat) : async () {
+    AdvanceLib.deleteAdvance(advances, advanceTimestamps, id);
+  };
+
+  public query ({ caller }) func getAdvancesByLabour(labourId : Nat) : async [Types.Advance] {
+    AdvanceLib.getByLabour(advances, advanceTimestamps, labourId);
+  };
+
+  public query ({ caller }) func getAdvancesByContract(contractId : Nat) : async [Types.Advance] {
+    AdvanceLib.getByContract(advances, advanceTimestamps, contractId);
+  };
+
+  public query ({ caller }) func getAllAdvances() : async [Types.Advance] {
+    AdvanceLib.getAll(advances, advanceTimestamps);
+  };
+
+  // --- Attendance Notes ---
   public shared ({ caller }) func saveAttendanceNote(contractId : Nat, labourId : Nat, note : Text) : async Nat {
-    if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
-    if (not labours.containsKey(labourId)) { Runtime.trap("Labour not found") };
-
-    // Check if note already exists for (contractId, labourId)
-    let existing = attendanceNotes.values().find(
-      func(n) { n.contractId == contractId and n.labourId == labourId }
-    );
-
-    let id = switch (existing) {
-      case (null) {
-        let newId = noteCounter;
-        noteCounter += 1;
-        newId;
-      };
-      case (?n) { n.id };
-    };
-
-    let attendanceNote : AttendanceNote = {
-      id;
-      contractId;
-      labourId;
-      note;
-    };
-
-    attendanceNotes.add(id, attendanceNote);
+    let (id, newCounter) = NotesHolidaysLib.saveNote(attendanceNotes, contracts, labours, noteCounter, contractId, labourId, note);
+    noteCounter := newCounter;
     id;
   };
 
-  public query ({ caller }) func getNotesByContract(contractId : Nat) : async [AttendanceNote] {
-    attendanceNotes.values().toArray().filter(
-      func(a) { a.contractId == contractId }
-    );
+  public query ({ caller }) func getNotesByContract(contractId : Nat) : async [Types.AttendanceNote] {
+    NotesHolidaysLib.getNotesByContract(attendanceNotes, contractId);
   };
 
-  // Holidays
+  // --- Holidays ---
   public shared ({ caller }) func markHoliday(contractId : Nat, columnKey : Text) : async Nat {
-    if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
-
-    // Check if holiday already exists
-    let existing = holidays.values().find(
-      func(h) { h.contractId == contractId and h.columnKey == columnKey }
-    );
-
-    switch (existing) {
-      case (?h) { h.id };
-      case (null) {
-        let id = holidayCounter;
-        holidayCounter += 1;
-
-        let holiday : Holiday = {
-          id;
-          contractId;
-          columnKey;
-        };
-        holidays.add(id, holiday);
-        id;
-      };
-    };
+    let (id, newCounter) = NotesHolidaysLib.markHoliday(holidays, contracts, holidayCounter, contractId, columnKey);
+    holidayCounter := newCounter;
+    id;
   };
 
   public shared ({ caller }) func removeHoliday(contractId : Nat, columnKey : Text) : async () {
-    if (not contracts.containsKey(contractId)) { Runtime.trap("Contract not found") };
-
-    // Find holiday and remove by key for contractId + columnKey
-    let toRemove = holidays.keys().toArray().filter(
-      func(k) {
-        switch (holidays.get(k)) {
-          case (null) { false };
-          case (?h) { h.contractId == contractId and h.columnKey == columnKey };
-        };
-      }
-    );
-    for (id in toRemove.values()) { holidays.remove(id) };
+    NotesHolidaysLib.removeHoliday(holidays, contracts, contractId, columnKey);
   };
 
-  public query ({ caller }) func getHolidaysByContract(contractId : Nat) : async [Holiday] {
-    holidays.values().toArray().filter(
-      func(a) { a.contractId == contractId }
-    );
+  public query ({ caller }) func getHolidaysByContract(contractId : Nat) : async [Types.Holiday] {
+    NotesHolidaysLib.getHolidaysByContract(holidays, contractId);
   };
 
-  // Queries
-  public query ({ caller }) func getAllLabours() : async [Labour] {
-    labours.values().toArray().map(func(s : LabourStorage) : Labour {
-      {
-        id = s.id;
-        name = s.name;
-        phone = s.phone;
-        groupId = labourGroups.get(s.id);
-        isActive = switch (labourActiveMap.get(s.id)) {
-          case (null) { true };
-          case (?v) { v };
-        };
-      }
-    });
-  };
-
-  public query ({ caller }) func getAllContracts() : async [Contract] {
-    contracts.values().toArray().map(toContract);
-  };
-
-  public query ({ caller }) func getContract(id : Nat) : async Contract {
-    switch (contracts.get(id)) {
-      case (null) { Runtime.trap("Contract not found") };
-      case (?contract) { toContract(contract) };
-    };
-  };
-
-  public query ({ caller }) func getAttendanceByContract(contractId : Nat) : async [Attendance] {
-    attendances.values().toArray().filter(
-      func(a) { a.contractId == contractId }
-    );
-  };
-
-  public query ({ caller }) func getAdvancesByLabour(labourId : Nat) : async [Advance] {
-    advances.values().toArray().filter(
-      func(a) { a.labourId == labourId }
-    ).map(toAdvance);
-  };
-
-  public query ({ caller }) func getAdvancesByContract(contractId : Nat) : async [Advance] {
-    advances.values().toArray().filter(
-      func(a) { a.contractId == contractId }
-    ).map(toAdvance);
-  };
-
-  public query ({ caller }) func getAllAdvances() : async [Advance] {
-    advances.values().toArray().map(toAdvance);
-  };
-
-  // Activity Log: settled contracts with created/settled dates
-  public query ({ caller }) func getActivityLog() : async [ActivityLogEntry] {
-    contracts.values().toArray()
-      .filter(func(c) { c.isSettled })
-      .map(func(c : ContractV1) : ActivityLogEntry {
-        {
-          contractId = c.id;
-          contractName = c.name;
-          createdAt = switch (contractCreatedAt.get(c.id)) {
-            case (null) { "" };
-            case (?v) { v };
-          };
-          settledAt = contractSettledAt.get(c.id);
-        }
-      });
-  };
-
-  // Calculate Net Salaries
-  public query ({ caller }) func calculateNetSalaries(contractId : Nat) : async [SalaryBreakdown] {
-    let contract = switch (contracts.get(contractId)) {
-      case (null) { Runtime.trap("Contract not found") };
-      case (?c) { c };
-    };
-
-    let contractAttendances = attendances.values().toArray().filter(
-      func(a) { a.contractId == contractId }
-    );
-    let contractAdvances = advances.values().toArray().filter(
-      func(a) { a.contractId == contractId }
-    );
-
-    let parseVal = func(v : Text) : Float {
-      switch (v) {
-        case ("absent") { 0.0 };
-        case ("Absent") { 0.0 };
-        case ("present") { 1.0 };
-        case ("Present") { 1.0 };
-        case ("0.33") { 0.33 };
-        case ("0.4") { 0.4 };
-        case ("0.5") { 0.5 };
-        case ("0.66") { 0.66 };
-        case ("0.7") { 0.7 };
-        case ("0.8") { 0.8 };
-        case ("0.9") { 0.9 };
-        case (_) { 0.0 };
-      };
-    };
-
-    var totalBed : Float = 0.0;
-    var totalPaper : Float = 0.0;
-    var totalMesh : Float = 0.0;
-
-    for (a in contractAttendances.values()) {
-      let v = parseVal(a.value);
-      switch (a.columnType) {
-        case (#bed) { totalBed += v };
-        case (#paper) { totalPaper += v };
-        case (#mesh(_)) { totalMesh += v };
-      };
-    };
-
-    let labourBed = Map.empty<Nat, Float>();
-    let labourPaper = Map.empty<Nat, Float>();
-    let labourMesh = Map.empty<Nat, Float>();
-
-    for (a in contractAttendances.values()) {
-      let v = parseVal(a.value);
-      switch (a.columnType) {
-        case (#bed) {
-          let cur = switch (labourBed.get(a.labourId)) { case (null) { 0.0 }; case (?x) { x } };
-          labourBed.add(a.labourId, cur + v);
-        };
-        case (#paper) {
-          let cur = switch (labourPaper.get(a.labourId)) { case (null) { 0.0 }; case (?x) { x } };
-          labourPaper.add(a.labourId, cur + v);
-        };
-        case (#mesh(_)) {
-          let cur = switch (labourMesh.get(a.labourId)) { case (null) { 0.0 }; case (?x) { x } };
-          labourMesh.add(a.labourId, cur + v);
-        };
-      };
-    };
-
-    let salaryMap = Map.empty<Nat, SalaryBreakdown>();
-
-    for (a in contractAttendances.values()) {
-      if (not salaryMap.containsKey(a.labourId)) {
-        let labour = switch (labours.get(a.labourId)) {
-          case (null) { Runtime.trap("Labour not found") };
-          case (?l) { l };
-        };
-        let lb = switch (labourBed.get(a.labourId)) { case (null) { 0.0 }; case (?x) { x } };
-        let lp = switch (labourPaper.get(a.labourId)) { case (null) { 0.0 }; case (?x) { x } };
-        let lm = switch (labourMesh.get(a.labourId)) { case (null) { 0.0 }; case (?x) { x } };
-
-        let bedS = if (totalBed > 0.0) { (lb / totalBed) * contract.bedAmount.toFloat() } else { 0.0 };
-        let papS = if (totalPaper > 0.0) { (lp / totalPaper) * contract.paperAmount.toFloat() } else { 0.0 };
-        let meshS = if (totalMesh > 0.0) { (lm / totalMesh) * contract.meshAmount.toFloat() } else { 0.0 };
-        let totalSal = bedS + papS + meshS;
-
-        salaryMap.add(a.labourId, {
-          labourId = a.labourId;
-          labourName = labour.name;
-          bedSalary = bedS.toInt();
-          paperSalary = papS.toInt();
-          meshSalary = meshS.toInt();
-          totalAttendanceSalary = totalSal.toInt();
-          totalAdvances = 0;
-          netSalary = 0;
-        });
-      };
-    };
-
-    for (advance in contractAdvances.values()) {
-      let current = switch (salaryMap.get(advance.labourId)) {
-        case (null) {
-          let labour = switch (labours.get(advance.labourId)) {
-            case (null) { Runtime.trap("Labour not found") };
-            case (?l) { l };
-          };
-          {
-            labourId = advance.labourId;
-            labourName = labour.name;
-            bedSalary = 0;
-            paperSalary = 0;
-            meshSalary = 0;
-            totalAttendanceSalary = 0;
-            totalAdvances = 0;
-            netSalary = 0;
-          };
-        };
-        case (?existing) { existing };
-      };
-      salaryMap.add(advance.labourId, { current with totalAdvances = current.totalAdvances + advance.amount });
-    };
-
-    for (labourId in salaryMap.keys()) {
-      let breakdown = switch (salaryMap.get(labourId)) {
-        case (null) { Runtime.trap("Breakdown not found") };
-        case (?b) { b };
-      };
-      salaryMap.add(labourId, { breakdown with netSalary = breakdown.totalAttendanceSalary - breakdown.totalAdvances });
-    };
-
-    salaryMap.values().toArray();
-  };
-
-  // Admin credential management
+  // --- Admin credential management ---
   public query func hasAdminCredentials() : async Bool {
     switch (adminToken, adminPassword) {
       case (?_, ?_) { true };
@@ -725,7 +216,7 @@ actor {
 
   public shared func setAdminCredentials(token : Text, password : Text) : async Bool {
     switch (adminToken) {
-      case (?_) { false }; // already set
+      case (?_) { false };
       case null {
         adminToken := ?token;
         adminPassword := ?password;
@@ -754,12 +245,12 @@ actor {
     };
   };
 
-  // Working Today tracking
+  // --- Working Today tracking ---
   public shared func recordWorkingToday(contractId : Nat, count : Nat, ts : Text) : async () {
     workingTodayMap.add(contractId, { ts; count });
   };
 
-  public query func getWorkingTodayMap() : async [(Nat, WorkingTodayEntry)] {
+  public query func getWorkingTodayMap() : async [(Nat, Types.WorkingTodayEntry)] {
     workingTodayMap.entries().toArray();
   };
 };
